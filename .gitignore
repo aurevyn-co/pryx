@@ -4,6 +4,9 @@
 /host/target/
 /host/target/
 /runtime/bin/
+# TUI Binaries
+tui/pryx-tui
+tui/.188e9d9fffd775db-00000000.bun-build
 /ui/dist/
 /ui/node_modules/
 /ui/.vite/
