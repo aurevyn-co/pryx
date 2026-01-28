@@ -5,7 +5,10 @@ This repo is a polyglot monorepo for Pryx:
 - Host (Rust/Tauri)
 - Runtime (Go)
 - TUI (TypeScript + Solid + OpenTUI)
-- Planned: Cloudflare Worker (edge API) + a single web frontend (Astro/React)
+- Host (Rust/Tauri)
+- Runtime (Go)
+- TUI (TypeScript + Solid + OpenTUI)
+- Web (Astro/React + Cloudflare Pages/Workers)
 
 ## Current Layout (Observed)
 
@@ -14,7 +17,9 @@ Top-level modules:
 - `apps/`: product surfaces (host/runtime/tui/web)
 - `docs/`: PRD and supporting documents
 - `packages/`: planned shared cross-surface libraries (protocol/config)
-- `workers/`: planned Cloudflare Worker project(s)
+- `apps/`: product surfaces (host/runtime/tui/web)
+- `docs/`: PRD and supporting documents
+- `packages/`: planned shared cross-surface libraries (protocol/config)
 - `deploy/`: planned deployment assets (compose + edge)
 - `Makefile`, `.github/workflows/ci.yml`: repo orchestration
 
@@ -81,9 +86,8 @@ This matches a simpler product shape:
     host/                 # (move from host/) Rust/Tauri desktop app
     runtime/              # (move from runtime/) Go pryx-core service
     tui/                  # (move from tui/) Terminal UI
-    web/                  # Astro/React app: user dashboard + superadmin dashboard
-  workers/
-    edge/                 # single Cloudflare Worker (routing + bindings)
+    tui/                  # (move from tui/) Terminal UI
+    web/                  # Astro/React app (UI + Edge API)
   packages/
     protocol/             # shared event schema, types, versioning
     config/               # shared config conventions (env keys, defaults)
