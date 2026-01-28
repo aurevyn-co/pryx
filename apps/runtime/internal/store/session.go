@@ -25,7 +25,7 @@ func (s *Store) CreateSession(title string) (*Session, error) {
 	}
 
 	query := `INSERT INTO sessions (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)`
-	_, err := s.db.Exec(query, sess.ID, sess.Title, sess.CreatedAt, sess.UpdatedAt)
+	_, err := s.DB.Exec(query, sess.ID, sess.Title, sess.CreatedAt, sess.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +36,7 @@ func (s *Store) CreateSession(title string) (*Session, error) {
 func (s *Store) GetSession(id string) (*Session, error) {
 	sess := &Session{}
 	query := `SELECT id, title, created_at, updated_at FROM sessions WHERE id = ?`
-	err := s.db.QueryRow(query, id).Scan(&sess.ID, &sess.Title, &sess.CreatedAt, &sess.UpdatedAt)
+	err := s.DB.QueryRow(query, id).Scan(&sess.ID, &sess.Title, &sess.CreatedAt, &sess.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +45,7 @@ func (s *Store) GetSession(id string) (*Session, error) {
 
 func (s *Store) ListSessions() ([]*Session, error) {
 	query := `SELECT id, title, created_at, updated_at FROM sessions ORDER BY updated_at DESC LIMIT 100` // Cap for now
-	rows, err := s.db.Query(query)
+	rows, err := s.DB.Query(query)
 	if err != nil {
 		return nil, err
 	}

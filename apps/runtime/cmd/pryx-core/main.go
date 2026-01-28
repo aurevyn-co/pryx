@@ -13,13 +13,15 @@ import (
 	"syscall"
 	"time"
 
+	"pryx-core/internal/auth"
 	"pryx-core/internal/bus"
 	"pryx-core/internal/config"
-	"pryx-core/internal/db"
 	"pryx-core/internal/doctor"
 	"pryx-core/internal/keychain"
 	"pryx-core/internal/mcp"
+	"pryx-core/internal/mesh"
 	"pryx-core/internal/server"
+	"pryx-core/internal/store"
 )
 
 var (
@@ -34,6 +36,8 @@ func main() {
 			os.Exit(runMCPServer(os.Args[2:]))
 		case "doctor":
 			os.Exit(runDoctor())
+		case "login":
+			os.Exit(runLogin())
 		case "help", "-h", "--help":
 			usage()
 			return
@@ -44,18 +48,25 @@ func main() {
 
 	cfg := config.Load()
 
-	// Initialize database
-	database, err := db.Init(cfg.DatabasePath)
+	// Initialize bus
+	b := bus.New()
+
+	// Initialize store
+	s, err := store.New(cfg.DatabasePath)
 	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+		log.Fatalf("Failed to initialize store: %v", err)
 	}
-	defer database.Close()
+	defer s.Close()
 
 	// Initialize keychain integration
 	kc := keychain.New("pryx")
 
+	// Initialize Mesh Manager
+	meshMgr := mesh.NewManager(cfg, b, s, kc)
+	meshMgr.Start(context.Background())
+
 	// Initialize server
-	srv := server.New(cfg, database, kc)
+	srv := server.New(cfg, s.DB, kc)
 	srv.Bus().Publish(bus.NewEvent(bus.EventTraceEvent, "", map[string]interface{}{
 		"kind":      "runtime.started",
 		"version":   Version,
@@ -99,6 +110,7 @@ func usage() {
 	log.Println("")
 	log.Println("Usage:")
 	log.Println("  pryx-core")
+	log.Println("  pryx-core login")
 	log.Println("  pryx-core doctor")
 	log.Println("  pryx-core mcp <filesystem|shell|browser|clipboard>")
 }
@@ -147,4 +159,36 @@ func runDoctor() int {
 		}
 	}
 	return exitCode
+}
+
+func runLogin() int {
+	cfg := config.Load()
+	kc := keychain.New("pryx")
+
+	fmt.Println("Attempting to log in to Pryx Cloud...")
+	res, err := auth.StartDeviceFlow(cfg.CloudAPIUrl)
+	if err != nil {
+		log.Printf("Failed to start login flow: %v", err)
+		return 1
+	}
+
+	fmt.Printf("\nVerification URL: %s\n", res.VerificationURI)
+	fmt.Printf("User Code: %s\n\n", res.UserCode)
+	fmt.Println("Please open the URL above and enter the code to authorize this device.")
+	fmt.Println("Waiting for authorization...")
+
+	token, err := auth.PollForToken(cfg.CloudAPIUrl, res.DeviceCode, res.Interval)
+	if err != nil {
+		log.Printf("\nLogin failed: %v", err)
+		return 1
+	}
+
+	// Store token in keychain
+	if err := kc.Set("cloud_access_token", token.AccessToken); err != nil {
+		log.Printf("\nFailed to store token: %v", err)
+		return 1
+	}
+
+	fmt.Println("\nSuccessfully logged in!")
+	return 0
 }

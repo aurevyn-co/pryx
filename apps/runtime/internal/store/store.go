@@ -8,7 +8,7 @@ import (
 )
 
 type Store struct {
-	db *sql.DB
+	DB *sql.DB
 }
 
 func New(dbPath string) (*Store, error) {
@@ -21,7 +21,7 @@ func New(dbPath string) (*Store, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	s := &Store{db: db}
+	s := &Store{DB: db}
 	if err := s.migrate(); err != nil {
 		return nil, fmt.Errorf("failed to migrate database: %w", err)
 	}
@@ -30,10 +30,10 @@ func New(dbPath string) (*Store, error) {
 }
 
 func (s *Store) Close() error {
-	return s.db.Close()
+	return s.DB.Close()
 }
 
 func (s *Store) migrate() error {
-	_, err := s.db.Exec(schema)
+	_, err := s.DB.Exec(schema)
 	return err
 }

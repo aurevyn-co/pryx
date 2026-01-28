@@ -1,136 +1,13 @@
-use pryx_host::sidecar::{find_pryx_core_binary, SidecarConfig, SidecarProcess, SidecarStatus};
-use pryx_host::sidecar::permissions::{PermissionManager, PermissionDialogConfig, ApprovalRequest, ApprovalResponse};
 use std::sync::Arc;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_updater::UpdaterExt;
+use pryx_host::sidecar::*;
+use pryx_host::sidecar::permissions::*;
 
 // Command to get sidecar status
 #[tauri::command]
 fn get_sidecar_status(state: State<Arc<SidecarProcess>>) -> SidecarStatus {
     state.status()
-}
-
-// Command to request tool approval
-#[tauri::command]
-async fn request_tool_approval(
-    app: AppHandle,
-    request: ApprovalRequest,
-) -> Result<bool, String> {
-    let config_path = app.path().join("permissions.json");
-    let config = match std::fs::read_to_string(&config_path) {
-        Ok(content) => {
-            match serde_json::from_str::<PermissionDialogConfig>(&content) {
-                Ok(cfg) => cfg,
-                Err(_) => PermissionDialogConfig::default(),
-            }
-        }
-        Err(_) => {
-            eprintln!("Failed to read permissions config, using defaults");
-            PermissionDialogConfig::default()
-        }
-    };
-
-    let permission_manager = Arc::new(PermissionManager::new(config));
-    let manager_clone = permission_manager.clone();
-    let request_clone = request.clone();
-
-    let result = tokio::task::spawn_blocking(move || {
-        match manager_clone.request_approval(&app, request_clone) {
-            Ok(ApprovalResponse::Approved) => true,
-            Ok(ApprovalResponse::Denied) => false,
-            Ok(ApprovalResponse::Cancelled) => false,
-            Err(e) => {
-                eprintln!("Approval error: {}", e);
-                false
-            }
-        }
-    }).await;
-
-    match result {
-        Ok(approved) => Ok(approved),
-        Err(e) => Err(e),
-    }
-}
-
-// Command to list pending approvals
-#[tauri::command]
-async fn list_pending_approvals(app: AppHandle) -> Vec<ApprovalRequest> {
-    let config_path = app.path().join("permissions.json");
-    let config = match std::fs::read_to_string(&config_path) {
-        Ok(content) => {
-            match serde_json::from_str::<PermissionDialogConfig>(&content) {
-                Ok(cfg) => cfg,
-                Err(_) => PermissionDialogConfig::default(),
-            }
-        }
-        Err(_) => {
-            eprintln!("Failed to read permissions config, using defaults");
-            PermissionDialogConfig::default()
-        }
-    };
-
-    let permission_manager = Arc::new(PermissionManager::new(config));
-    permission_manager.list_pending()
-}
-
-// Command to cancel an approval request
-#[tauri::command]
-async fn cancel_approval(app: AppHandle, request_id: String) -> Result<(), String> {
-    let config_path = app.path().join("permissions.json");
-    let config = match std::fs::read_to_string(&config_path) {
-        Ok(content) => {
-            match serde_json::from_str::<PermissionDialogConfig>(&content) {
-                Ok(cfg) => cfg,
-                Err(_) => PermissionDialogConfig::default(),
-            }
-        }
-        Err(_) => {
-            eprintln!("Failed to read permissions config, using defaults");
-            PermissionDialogConfig::default()
-        }
-    };
-
-    let permission_manager = Arc::new(PermissionManager::new(config));
-    permission_manager.cancel_request(request_id);
-    eprintln!("Cancelled approval request: {}", request_id);
-    Ok(())
-}
-
-// Command to configure permissions
-#[tauri::command]
-async fn configure_permissions(
-    app: AppHandle,
-    config: PermissionDialogConfig,
-) -> Result<(), String> {
-    let config_path = app.path().join("permissions.json");
-    let config_json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
-    std::fs::write(&config_path, config_json).map_err(|e| e.to_string())?;
-    eprintln!("Permissions config updated");
-    Ok(())
-}
-
-// Command to check if native dialogs are supported
-#[tauri::command]
-async fn check_native_dialog_support(app: AppHandle) -> bool {
-    // macOS and Windows have native dialogs
-    #[cfg(target_os = "macos")]
-    return true;
-
-    #[cfg(target_os = "windows")]
-    return true;
-
-    // Linux may have limited native dialog support depending on desktop environment
-    #[cfg(target_os = "linux")]
-    return false;
-}
-
-#[tauri::command]
-async fn show_permission_dialog(
-    app: AppHandle,
-    message: String,
-    title: String,
-) -> Result<bool, String> {
-    show_permission_dialog(app, message, title).await
 }
 
 // --- Updater Commands ---
@@ -204,8 +81,8 @@ async fn main() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .manage(Arc::new(SidecarProcess::new(SidecarConfig::default())))
         .setup(|app| {
+            app.manage(Arc::new(SidecarProcess::new(SidecarConfig::default(), app.handle().clone())));
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 if let Ok(updater) = handle.updater() {

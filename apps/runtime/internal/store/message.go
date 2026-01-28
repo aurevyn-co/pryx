@@ -35,20 +35,20 @@ func (s *Store) AddMessage(sessionID string, role Role, content string) (*Messag
 	}
 
 	query := `INSERT INTO messages (id, session_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)`
-	_, err := s.db.Exec(query, msg.ID, msg.SessionID, msg.Role, msg.Content, msg.CreatedAt)
+	_, err := s.DB.Exec(query, msg.ID, msg.SessionID, msg.Role, msg.Content, msg.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
 
 	// Update session timestamp
-	_, _ = s.db.Exec(`UPDATE sessions SET updated_at = ? WHERE id = ?`, now, sessionID)
+	_, _ = s.DB.Exec(`UPDATE sessions SET updated_at = ? WHERE id = ?`, now, sessionID)
 
 	return msg, nil
 }
 
 func (s *Store) GetMessages(sessionID string) ([]*Message, error) {
 	query := `SELECT id, session_id, role, content, created_at FROM messages WHERE session_id = ? ORDER BY created_at ASC`
-	rows, err := s.db.Query(query, sessionID)
+	rows, err := s.DB.Query(query, sessionID)
 	if err != nil {
 		return nil, err
 	}
