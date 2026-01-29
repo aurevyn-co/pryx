@@ -10,7 +10,7 @@ type Resolver struct {
 
 func NewResolver(catalog *Catalog) *Resolver {
 	if catalog == nil {
-		catalog = DefaultCatalog()
+		catalog = MustDefaultCatalog()
 	}
 	return &Resolver{catalog: catalog}
 }

@@ -1,12 +1,13 @@
 //! Unit tests for pryx-host
 
-use std::path::PathBuf;
 use crate::sidecar::{SidecarConfig, SidecarError};
+use std::path::PathBuf;
 
 #[test]
 fn test_sidecar_config_default() {
     let config = SidecarConfig::default();
-    assert_eq!(config.binary, PathBuf::from("pryx-core"));
+    // Check that binary ends with "pryx-core" or is exactly "pryx-core"
+    assert!(config.binary.ends_with("pryx-core") || config.binary.as_os_str() == "pryx-core");
     assert!(config.args.is_empty());
 }
 

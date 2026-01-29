@@ -8,7 +8,7 @@ pub fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let show_i = MenuItem::with_id(app, "show", "Open Pryx", true, None::<&str>)?;
     let update_i = MenuItem::with_id(app, "update", "Check for Updates", true, None::<&str>)?;
-    
+
     let menu = Menu::with_items(app, &[&show_i, &update_i, &quit_i])?;
 
     let _tray = TrayIconBuilder::with_id("main")

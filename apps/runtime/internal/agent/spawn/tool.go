@@ -100,9 +100,12 @@ func (t *SpawnTool) Execute(ctx context.Context, params json.RawMessage, parentI
 	// Wait for completion with timeout
 	result, err := t.waitForResult(ctx, agent.ID, 5*time.Minute)
 	if err != nil {
+		agent.mu.RLock()
+		status := agent.Status
+		agent.mu.RUnlock()
 		return map[string]interface{}{
 			"agent_id":   agent.ID,
-			"status":     agent.Status,
+			"status":     status,
 			"session_id": sessionID,
 			"message":    "Agent spawned but did not complete in time. Check status later.",
 		}, nil
@@ -136,11 +139,16 @@ func (t *SpawnTool) waitForResult(ctx context.Context, agentID string, timeout t
 				return nil, fmt.Errorf("agent not found")
 			}
 
-			switch agent.Status {
+			agent.mu.RLock()
+			status := agent.Status
+			tokenUsed := agent.tokenUsed
+			agent.mu.RUnlock()
+			switch status {
 			case StatusCompleted, StatusFailed, StatusCancelled:
 				return &Result{
-					AgentID: agentID,
-					Status:  agent.Status,
+					AgentID:   agentID,
+					Status:    status,
+					TokenUsed: tokenUsed,
 				}, nil
 			}
 		}
@@ -154,6 +162,8 @@ func (t *SpawnTool) GetAgentStatus(agentID string) (map[string]interface{}, erro
 		return nil, fmt.Errorf("agent not found: %s", agentID)
 	}
 
+	agent.mu.RLock()
+	defer agent.mu.RUnlock()
 	return map[string]interface{}{
 		"agent_id":   agent.ID,
 		"status":     agent.Status,
@@ -170,12 +180,14 @@ func (t *SpawnTool) ListAgents() []map[string]interface{} {
 	result := make([]map[string]interface{}, len(agents))
 
 	for i, agent := range agents {
+		agent.mu.RLock()
 		result[i] = map[string]interface{}{
 			"agent_id":   agent.ID,
 			"status":     agent.Status,
 			"session_id": agent.SessionID,
 			"parent_id":  agent.ParentID,
 		}
+		agent.mu.RUnlock()
 	}
 
 	return result

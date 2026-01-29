@@ -52,9 +52,9 @@ func TestNewManager(t *testing.T) {
 
 func TestManager_GetDeviceID(t *testing.T) {
 	tests := []struct {
-		name           string
-		setupDeviceID  string
-		expectNewID    bool
+		name          string
+		setupDeviceID string
+		expectNewID   bool
 	}{
 		{
 			name:          "existing device ID",
@@ -327,7 +327,7 @@ func TestManager_handleRemoteEvent(t *testing.T) {
 	manager.deviceID = "test-device"
 
 	// Subscribe to events
-	events, cancel := eventBus.Subscribe(bus.EventSessionMessage)
+	events, cancel := eventBus.Subscribe(bus.EventChatRequest)
 	defer cancel()
 
 	// Create message from other device

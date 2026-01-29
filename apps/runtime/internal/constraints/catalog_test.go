@@ -43,7 +43,7 @@ func TestCatalog_LoadFromBytes(t *testing.T) {
 }
 
 func TestCatalog_DefaultCatalog(t *testing.T) {
-	c := DefaultCatalog()
+	c := MustDefaultCatalog()
 
 	// Test a known model from default_models.json (Jan 2026)
 	if _, ok := c.Get("openai/gpt-5-turbo"); !ok {
@@ -57,7 +57,7 @@ func TestCatalog_DefaultCatalog(t *testing.T) {
 }
 
 func TestCatalog_PatternMatching_RealWorld(t *testing.T) {
-	c := DefaultCatalog()
+	c := MustDefaultCatalog()
 
 	tests := []struct {
 		modelID       string

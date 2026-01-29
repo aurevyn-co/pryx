@@ -9,20 +9,20 @@
   "bracketSpacing": true,
   "overrides": [
     {
-      "files": "*.md",
+      "files": ["*.md"],
       "options": {
         "proseWrap": "preserve",
         "singleQuote": false
       }
     },
     {
-      "files": "*.json",
+      "files": ["*.json"],
       "options": {
         "tabWidth": 2
       }
     },
     {
-      "files": "*.toml",
+      "files": ["*.toml"],
       "options": {
         "tabWidth": 2
       }

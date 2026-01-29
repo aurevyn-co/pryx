@@ -298,8 +298,6 @@ func (m *Manager) handleRemoteEvent(msg WebSocketMessage) {
 
 	// Mark as from remote device
 	evt.Surface = "mesh:" + msg.DeviceID
-
-	// Publish to local bus
 	m.bus.Publish(evt)
 
 	log.Printf("Mesh: Received event %s from %s", evt.Event, msg.DeviceID)

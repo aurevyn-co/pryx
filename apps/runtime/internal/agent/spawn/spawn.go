@@ -30,6 +30,7 @@ type SubAgent struct {
 	maxTools  int
 	toolCount int
 	tokenUsed int
+	mu        sync.RWMutex // Protects Status and tokenUsed from concurrent access
 }
 
 // Status represents the state of a sub-agent
@@ -160,7 +161,9 @@ func (s *Spawner) Cancel(agentID string) error {
 	}
 
 	agent.cancel()
+	agent.mu.Lock()
 	agent.Status = StatusCancelled
+	agent.mu.Unlock()
 	return nil
 }
 
@@ -182,7 +185,9 @@ func (s *Spawner) Cleanup(maxAge time.Duration) {
 
 // run executes the sub-agent's task
 func (a *SubAgent) run(ctx context.Context, task string) {
+	a.mu.Lock()
 	a.Status = StatusRunning
+	a.mu.Unlock()
 	startTime := time.Now()
 
 	// Publish start event
@@ -211,7 +216,9 @@ func (a *SubAgent) run(ctx context.Context, task string) {
 	duration := time.Since(startTime)
 
 	if err != nil {
+		a.mu.Lock()
 		a.Status = StatusFailed
+		a.mu.Unlock()
 		a.publishResult(Result{
 			AgentID:  a.ID,
 			Status:   StatusFailed,
@@ -222,8 +229,10 @@ func (a *SubAgent) run(ctx context.Context, task string) {
 	}
 
 	// Update usage stats
+	a.mu.Lock()
 	a.tokenUsed = resp.Usage.TotalTokens
 	a.Status = StatusCompleted
+	a.mu.Unlock()
 
 	// Publish completion
 	a.publishResult(Result{

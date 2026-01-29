@@ -168,7 +168,14 @@ func (w *WebhookChannel) Send(ctx context.Context, msg channels.Message) error {
 	}
 
 	// Retry loop
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			MaxIdleConns:        100,
+			MaxIdleConnsPerHost: 10,
+			IdleConnTimeout:     90 * time.Second,
+		},
+	}
 	attempts := w.config.Retries
 	if attempts <= 0 {
 		attempts = 1
@@ -187,7 +194,7 @@ func (w *WebhookChannel) Send(ctx context.Context, msg channels.Message) error {
 			time.Sleep(100 * time.Millisecond) // Backoff
 			continue
 		}
-		resp.Body.Close()
+		defer resp.Body.Close()
 
 		if resp.StatusCode >= 400 && resp.StatusCode != 429 && resp.StatusCode < 500 {
 			// Client errors (except rate limit) usually don't retry?

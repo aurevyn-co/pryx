@@ -191,7 +191,8 @@ build-runtime: ## Build Go runtime
 	@echo "$(BLUE)Building runtime (Go)$(NC)"
 	@if [ -d "$(RUNTIME_DIR)" ]; then \
 		cd $(RUNTIME_DIR) && \
-		go build -o bin/pryx-core -ldflags "-s -w -X main.Version=$(VERSION) -X main.BuildDate=$(BUILD_DATE)" ./cmd/pryx-core; \
+		go build -o bin/pryx-core -ldflags "-s -w -X main.Version=$(VERSION) -X main.BuildDate=$(BUILD_DATE)" ./cmd/pryx-core && \
+		mkdir -p /tmp && cp bin/pryx-core /tmp/pryx-core; \
 	else \
 		echo "$(YELLOW)Warning: runtime directory not found, skipping$(NC)"; \
 	fi

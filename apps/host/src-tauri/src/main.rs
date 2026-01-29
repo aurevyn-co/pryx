@@ -1,8 +1,8 @@
+use pryx_host::sidecar::permissions::*;
+use pryx_host::sidecar::*;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_updater::UpdaterExt;
-use pryx_host::sidecar::*;
-use pryx_host::sidecar::permissions::*;
 
 mod tray;
 
@@ -26,28 +26,30 @@ async fn install_update(app: AppHandle) -> Result<(), String> {
     let updater = app.updater().map_err(|e| e.to_string())?;
     if let Some(update) = updater.check().await.map_err(|e| e.to_string())? {
         let mut downloaded = 0;
-        update.download_and_install(
-            |chunk_length, content_length| {
-                downloaded += chunk_length;
-                let _ = app.emit("update-progress", serde_json::json!({
-                    "downloaded": downloaded,
-                    "contentLength": content_length
-                }));
-            },
-            || {
-                let _ = app.emit("update-installed", ());
-            }
-        ).await.map_err(|e| e.to_string())?;
+        update
+            .download_and_install(
+                |chunk_length, content_length| {
+                    downloaded += chunk_length;
+                    let _ = app.emit(
+                        "update-progress",
+                        serde_json::json!({
+                            "downloaded": downloaded,
+                            "contentLength": content_length
+                        }),
+                    );
+                },
+                || {
+                    let _ = app.emit("update-installed", ());
+                },
+            )
+            .await
+            .map_err(|e| e.to_string())?;
     }
     Ok(())
 }
 
 #[tauri::command]
-async fn dispatch_notification(
-    app: AppHandle,
-    title: String,
-    body: String,
-) -> Result<(), String> {
+async fn dispatch_notification(app: AppHandle, title: String, body: String) -> Result<(), String> {
     use tauri_plugin_notification::NotificationExt;
     app.notification()
         .builder()
@@ -60,17 +62,13 @@ async fn dispatch_notification(
 #[tauri::command]
 async fn read_clipboard(app: AppHandle) -> Result<String, String> {
     use tauri_plugin_clipboard_manager::ClipboardExt;
-    app.clipboard()
-        .read_text()
-        .map_err(|e| e.to_string())
+    app.clipboard().read_text().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 async fn write_clipboard(app: AppHandle, text: String) -> Result<(), String> {
     use tauri_plugin_clipboard_manager::ClipboardExt;
-    app.clipboard()
-        .write_text(text)
-        .map_err(|e| e.to_string())
+    app.clipboard().write_text(text).map_err(|e| e.to_string())
 }
 
 #[tokio::main]
@@ -84,14 +82,19 @@ async fn main() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
-                window.hide().unwrap();
+                if let Err(e) = window.hide() {
+                    log::error!("Failed to hide window on close request: {}", e);
+                }
                 api.prevent_close();
             }
             _ => {}
         })
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
-            app.manage(Arc::new(SidecarProcess::new(SidecarConfig::default(), app.handle().clone())));
+            app.manage(Arc::new(SidecarProcess::new(
+                SidecarConfig::default(),
+                app.handle().clone(),
+            )));
             // Deep Link Handler
             #[cfg(any(windows, target_os = "linux"))]
             {
@@ -106,10 +109,13 @@ async fn main() {
             tauri::async_runtime::spawn(async move {
                 if let Ok(updater) = handle.updater() {
                     if let Ok(Some(update)) = updater.check().await {
-                        let _ = handle.emit("update-available", serde_json::json!({
-                            "version": update.version,
-                            "body": update.body,
-                        }));
+                        let _ = handle.emit(
+                            "update-available",
+                            serde_json::json!({
+                                "version": update.version,
+                                "body": update.body,
+                            }),
+                        );
                     }
                 }
             });

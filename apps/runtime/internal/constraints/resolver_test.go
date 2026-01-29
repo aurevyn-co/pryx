@@ -121,7 +121,7 @@ func TestResolver_Resolve_Cost(t *testing.T) {
 }
 
 func TestResolver_Patterns(t *testing.T) {
-	catalog := DefaultCatalog()
+	catalog := MustDefaultCatalog()
 	r := NewResolver(catalog)
 
 	// Case 1: OpenAI Pattern

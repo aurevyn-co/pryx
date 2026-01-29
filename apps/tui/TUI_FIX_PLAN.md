@@ -10,6 +10,7 @@
 ## Root Cause Analysis
 
 The current implementation uses raw `process.stdin.on("data", ...)` which:
+
 - Only receives single-byte input
 - Doesn't parse ANSI escape sequences (ESC[A, ESC[B for arrows)
 - Doesn't enable mouse reporting
@@ -24,13 +25,14 @@ OpenTUI provides an `<input>` element with proper event handling:
 ```tsx
 <input
   value={inputValue()}
-  onChange={(v) => setInputValue(v)}
+  onChange={v => setInputValue(v)}
   onSubmit={() => handleSubmit()}
   placeholder="Type a message..."
 />
 ```
 
 **Benefits:**
+
 - Built-in arrow key support (left/right cursor movement)
 - Built-in copy-paste support
 - Built-in line editing (Home, End, Ctrl+A, Ctrl+E)
@@ -45,25 +47,25 @@ Add arrow key handlers to CommandPalette:
 onMount(() => {
   const handleKey = (data: Buffer) => {
     const seq = data.toString();
-    
+
     // Arrow up: ESC[A or ESCOA
-    if (seq === '\u001b[A' || seq === '\u001bOA') {
+    if (seq === "\u001b[A" || seq === "\u001bOA") {
       setSelectedIndex(i => Math.max(0, i - 1));
     }
-    // Arrow down: ESC[B or ESCOB  
-    else if (seq === '\u001b[B' || seq === '\u001bOB') {
+    // Arrow down: ESC[B or ESCOB
+    else if (seq === "\u001b[B" || seq === "\u001bOB") {
       setSelectedIndex(i => Math.min(props.commands.length - 1, i + 1));
     }
     // Enter
-    else if (seq === '\r' || seq === '\n') {
+    else if (seq === "\r" || seq === "\n") {
       props.commands[selectedIndex()].action();
     }
     // Escape
-    else if (seq === '\u001b') {
+    else if (seq === "\u001b") {
       props.onClose();
     }
   };
-  
+
   process.stdin.on("data", handleKey);
   onCleanup(() => process.stdin.off("data", handleKey));
 });
@@ -77,17 +79,17 @@ Enable mouse reporting in terminal:
 // In index.tsx or App.tsx
 onMount(() => {
   // Enable mouse tracking
-  process.stdout.write('\u001b[?1000h'); // Mouse click tracking
-  process.stdout.write('\u001b[?1002h'); // Mouse motion tracking
-  process.stdout.write('\u001b[?1015h'); // Mouse protocol
-  process.stdout.write('\u001b[?1006h'); // SGR mouse protocol
-  
+  process.stdout.write("\u001b[?1000h"); // Mouse click tracking
+  process.stdout.write("\u001b[?1002h"); // Mouse motion tracking
+  process.stdout.write("\u001b[?1015h"); // Mouse protocol
+  process.stdout.write("\u001b[?1006h"); // SGR mouse protocol
+
   onCleanup(() => {
     // Disable mouse tracking
-    process.stdout.write('\u001b[?1000l');
-    process.stdout.write('\u001b[?1002l');
-    process.stdout.write('\u001b[?1015l');
-    process.stdout.write('\u001b[?1006l');
+    process.stdout.write("\u001b[?1000l");
+    process.stdout.write("\u001b[?1002l");
+    process.stdout.write("\u001b[?1015l");
+    process.stdout.write("\u001b[?1006l");
   });
 });
 ```
@@ -102,9 +104,9 @@ const [historyIndex, setHistoryIndex] = createSignal(-1);
 
 const handleKey = (data: Buffer) => {
   const seq = data.toString();
-  
+
   // Arrow up - previous message
-  if (seq === '\u001b[A') {
+  if (seq === "\u001b[A") {
     const idx = historyIndex();
     if (idx < history().length - 1) {
       const newIdx = idx + 1;
@@ -113,7 +115,7 @@ const handleKey = (data: Buffer) => {
     }
   }
   // Arrow down - next message
-  else if (seq === '\u001b[B') {
+  else if (seq === "\u001b[B") {
     const idx = historyIndex();
     if (idx > 0) {
       const newIdx = idx - 1;

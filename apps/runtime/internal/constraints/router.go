@@ -28,7 +28,7 @@ type Router struct {
 
 func NewRouter(catalog *Catalog) *Router {
 	if catalog == nil {
-		catalog = DefaultCatalog()
+		catalog = MustDefaultCatalog()
 	}
 	return &Router{catalog: catalog}
 }

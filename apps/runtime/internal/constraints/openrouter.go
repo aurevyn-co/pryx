@@ -47,7 +47,10 @@ type openRouterModel struct {
 }
 
 func LoadDynamicCatalog(ctx context.Context) (*Catalog, error) {
-	c := DefaultCatalog()
+	c, err := DefaultCatalog()
+	if err != nil {
+		return nil, err
+	}
 	key := strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY"))
 	if key == "" {
 		return c, nil

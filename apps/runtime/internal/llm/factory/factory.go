@@ -212,9 +212,17 @@ func ensureV1Suffix(url string) string {
 	return url
 }
 
+const (
+	ProviderOpenAI     = "openai"
+	ProviderAnthropic  = "anthropic"
+	ProviderOpenRouter = "openrouter"
+	ProviderOllama     = "ollama"
+	ProviderGLM        = "glm"
+)
+
 func NewProvider(pt string, apiKey string, baseURL string) (llm.Provider, error) {
 	switch pt {
-	case "openai":
+	case ProviderOpenAI:
 		if baseURL == "" {
 			baseURL = os.Getenv("OPENAI_BASE_URL")
 			if baseURL == "" {
@@ -223,19 +231,19 @@ func NewProvider(pt string, apiKey string, baseURL string) (llm.Provider, error)
 		}
 		return providers.NewOpenAI(apiKey, baseURL), nil
 
-	case "anthropic":
+	case ProviderAnthropic:
 		return providers.NewAnthropic(apiKey), nil
 
-	case "openrouter":
+	case ProviderOpenRouter:
 		return providers.NewOpenAI(apiKey, "https://openrouter.ai/api/v1"), nil
 
-	case "ollama":
+	case ProviderOllama:
 		if baseURL == "" {
 			baseURL = "http://localhost:11434"
 		}
 		return providers.NewOpenAI(apiKey, ensureV1Suffix(baseURL)), nil
 
-	case "glm":
+	case ProviderGLM:
 		return providers.NewOpenAI(apiKey, "https://open.bigmodel.cn/api/paas/v4"), nil
 
 	default:

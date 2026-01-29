@@ -47,6 +47,8 @@ func main() {
 			// 			os.Exit(runLogin())
 		case "config":
 			os.Exit(runConfig(os.Args[2:]))
+		case "provider":
+			os.Exit(runProvider(os.Args[2:]))
 		case "help", "-h", "--help":
 			usage()
 			return
@@ -164,6 +166,7 @@ func usage() {
 	log.Println("  pryx-core cost <command>")
 	log.Println("  pryx-core login")
 	log.Println("  pryx-core config <set|get|list>")
+	log.Println("  pryx-core provider <list|add|remove|use|test>")
 	log.Println("")
 	log.Println("Commands:")
 	log.Println("  skills")
@@ -185,8 +188,23 @@ func usage() {
 	log.Println("    pricing                              Show model pricing")
 	log.Println("    optimize                             Show optimization suggestions")
 	log.Println("")
+	log.Println("  config")
+	log.Println("    list                                 Show all configuration values")
+	log.Println("    get <key>                            Get a configuration value")
+	log.Println("    set <key> <value>                    Set a configuration value")
+	log.Println("")
+	log.Println("  provider")
+	log.Println("    list                                 List all configured providers")
+	log.Println("    add <name>                           Add new provider interactively")
+	log.Println("    set-key <name>                       Set API key for provider")
+	log.Println("    remove <name>                        Remove provider config")
+	log.Println("    use <name>                           Set as active/default provider")
+	log.Println("    test <name>                          Test connection to provider")
+	log.Println("")
 	log.Println("  doctor                               Run diagnostics")
 	log.Println("  login                                Log in to Pryx Cloud")
+	log.Println("  config                               Manage configuration")
+	log.Println("  provider                             Manage LLM providers")
 	log.Println("  help, -h, --help                    Show this help message")
 }
 

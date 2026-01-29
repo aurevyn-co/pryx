@@ -1,5 +1,11 @@
 # Pryx
 
+[![CI](https://github.com/pryxai/pryx/actions/workflows/ci.yml/badge.svg)](https://github.com/pryxai/pryx/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/pryxai/pryx/branch/main/graph/badge.svg)](https://codecov.io/gh/pryxai/pryx)
+[![Host Coverage](https://img.shields.io/codecov/c/github/pryxai/pryx?flag=host&label=host%20coverage)](https://codecov.io/gh/pryxai/pryx)
+[![Runtime Coverage](https://img.shields.io/codecov/c/github/pryxai/pryx?flag=runtime&label=runtime%20coverage)](https://codecov.io/gh/pryxai/pryx)
+[![TUI Coverage](https://img.shields.io/codecov/c/github/pryxai/pryx?flag=tui&label=tui%20coverage)](https://codecov.io/gh/pryxai/pryx)
+
 Sovereign AI agent with local-first control center.
 
 ## Quick Start

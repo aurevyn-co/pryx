@@ -100,7 +100,14 @@ func checkRuntimeHealth(ctx context.Context, cfg *config.Config) Check {
 	if err != nil {
 		return Check{Name: "pryx-core health", Status: StatusWarn, Detail: err.Error(), Suggestion: "start pryx-core and retry"}
 	}
-	client := &http.Client{Timeout: 2 * time.Second}
+	client := &http.Client{
+		Timeout: 2 * time.Second,
+		Transport: &http.Transport{
+			MaxIdleConns:        10,
+			MaxIdleConnsPerHost: 5,
+			IdleConnTimeout:     30 * time.Second,
+		},
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return Check{Name: "pryx-core health", Status: StatusWarn, Detail: err.Error(), Suggestion: "start pryx-core and retry"}

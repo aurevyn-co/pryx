@@ -106,10 +106,17 @@ func NewCatalog() *Catalog {
 	}
 }
 
-func DefaultCatalog() *Catalog {
+func DefaultCatalog() (*Catalog, error) {
 	c := NewCatalog()
-	// Ignore error for embedded default, should be valid at build time
 	if err := c.LoadFromBytes(defaultModelsJSON); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+func MustDefaultCatalog() *Catalog {
+	c, err := DefaultCatalog()
+	if err != nil {
 		panic("failed to load default models: " + err.Error())
 	}
 	return c

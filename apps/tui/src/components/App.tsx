@@ -16,259 +16,287 @@ import SetupRequired from "./SetupRequired";
 type View = "chat" | "sessions" | "settings" | "channels" | "skills";
 
 export default function App() {
-    const renderer = useRenderer();
-    renderer.disableStdoutInterception();
-    
-    const ws = useEffectService(WebSocketService);
-    const [view, setView] = createSignal<View>("chat");
-    const [showCommands, setShowCommands] = createSignal(false);
-    const [showHelp, setShowHelp] = createSignal(false);
-    const [connectionStatus, setConnectionStatus] = createSignal("Connecting...");
-    const [hasProvider, setHasProvider] = createSignal(false);
-    const [setupRequired, setSetupRequired] = createSignal(false);
+  const renderer = useRenderer();
+  renderer.disableStdoutInterception();
 
-    onMount(() => {
-        const config = loadConfig();
-        const hasValidProvider = config.model_provider && (
-            config.openai_key || config.anthropic_key || config.glm_key || config.ollama_endpoint
-        );
-        if (!hasValidProvider) {
-            setSetupRequired(true);
+  const ws = useEffectService(WebSocketService);
+  const [view, setView] = createSignal<View>("chat");
+  const [showCommands, setShowCommands] = createSignal(false);
+  const [showHelp, setShowHelp] = createSignal(false);
+  const [connectionStatus, setConnectionStatus] = createSignal("Connecting...");
+  const [hasProvider, setHasProvider] = createSignal(false);
+  const [setupRequired, setSetupRequired] = createSignal(false);
+
+  onMount(() => {
+    const config = loadConfig();
+    const hasValidProvider =
+      config.model_provider &&
+      (config.openai_key || config.anthropic_key || config.glm_key || config.ollama_endpoint);
+    if (!hasValidProvider) {
+      setSetupRequired(true);
+    }
+  });
+
+  const handleSetupComplete = () => {
+    setSetupRequired(false);
+    setHasProvider(true);
+    setConnectionStatus("Ready");
+  };
+
+  createEffect(() => {
+    const service = ws();
+    if (!service) {
+      setConnectionStatus("Runtime Error");
+      return;
+    }
+
+    const checkStatus = async () => {
+      try {
+        const apiUrl = process.env.PRYX_API_URL || "http://localhost:3000";
+        const res = await fetch(`${apiUrl}/health`, { method: "GET" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.providers?.length > 0) {
+            setHasProvider(true);
+            setConnectionStatus("Ready");
+          } else {
+            setHasProvider(false);
+            setConnectionStatus("No Provider");
+          }
+        } else {
+          setConnectionStatus("Runtime Error");
         }
-    });
-
-    const handleSetupComplete = () => {
-        setSetupRequired(false);
-        setHasProvider(true);
-        setConnectionStatus("Ready");
+      } catch {
+        setConnectionStatus("Disconnected");
+      }
     };
 
-    createEffect(() => {
-        const service = ws();
-        if (!service) {
-            setConnectionStatus("Runtime Error");
-            return;
+    checkStatus();
+    const interval = setInterval(checkStatus, 5000);
+    return () => clearInterval(interval);
+  });
+
+  const allCommands: Command[] = [
+    {
+      id: "chat",
+      name: "Chat",
+      description: "Open chat interface",
+      category: "Navigation",
+      shortcut: "1",
+      keywords: ["chat", "talk", "message", "conversation"],
+      action: () => {
+        setView("chat");
+        setShowCommands(false);
+      },
+    },
+    {
+      id: "sessions",
+      name: "Sessions",
+      description: "Browse and manage sessions",
+      category: "Navigation",
+      shortcut: "2",
+      keywords: ["sessions", "history", "conversations", "browse"],
+      action: () => {
+        setView("sessions");
+        setShowCommands(false);
+      },
+    },
+    {
+      id: "channels",
+      name: "Channels",
+      description: "Manage channel integrations",
+      category: "Navigation",
+      shortcut: "3",
+      keywords: ["channels", "telegram", "discord", "slack", "webhooks", "integrations"],
+      action: () => {
+        setView("channels");
+        setShowCommands(false);
+      },
+    },
+    {
+      id: "skills",
+      name: "Skills",
+      description: "Browse and manage skills",
+      category: "Navigation",
+      shortcut: "4",
+      keywords: ["skills", "abilities", "tools", "capabilities"],
+      action: () => {
+        setView("skills");
+        setShowCommands(false);
+      },
+    },
+    {
+      id: "settings",
+      name: "Settings",
+      description: "Configure Pryx",
+      category: "Navigation",
+      shortcut: "5",
+      keywords: ["settings", "config", "preferences", "options"],
+      action: () => {
+        setView("settings");
+        setShowCommands(false);
+      },
+    },
+    {
+      id: "new-chat",
+      name: "New Chat",
+      description: "Start a new conversation",
+      category: "Chat",
+      keywords: ["new", "chat", "conversation", "start", "fresh"],
+      action: () => {
+        setView("chat");
+        setShowCommands(false);
+      },
+    },
+    {
+      id: "clear-chat",
+      name: "Clear Chat",
+      description: "Clear current conversation",
+      category: "Chat",
+      keywords: ["clear", "reset", "clean", "chat"],
+      action: () => {
+        setShowCommands(false);
+      },
+    },
+    {
+      id: "help",
+      name: "Keyboard Shortcuts",
+      description: "Show all keyboard shortcuts",
+      category: "System",
+      shortcut: "?",
+      keywords: ["help", "shortcuts", "keys", "commands", "?"],
+      action: () => {
+        setShowHelp(true);
+        setShowCommands(false);
+      },
+    },
+    {
+      id: "quit",
+      name: "Quit",
+      description: "Exit Pryx",
+      category: "System",
+      shortcut: "q",
+      keywords: ["quit", "exit", "close", "stop"],
+      action: () => process.exit(0),
+    },
+    {
+      id: "reload",
+      name: "Reload",
+      description: "Refresh connection",
+      category: "System",
+      keywords: ["reload", "refresh", "reconnect", "restart"],
+      action: () => {
+        setShowCommands(false);
+      },
+    },
+  ];
+
+  const views: View[] = ["chat", "sessions", "channels", "skills", "settings"];
+
+  useKeyboard(evt => {
+    if (showHelp() || showCommands()) {
+      return;
+    }
+
+    switch (evt.name) {
+      case "/":
+        evt.preventDefault();
+        setShowCommands(true);
+        break;
+      case "?":
+        evt.preventDefault();
+        setShowHelp(true);
+        break;
+      case "tab":
+        evt.preventDefault();
+        setView(prev => {
+          const idx = views.indexOf(prev);
+          return views[(idx + 1) % views.length];
+        });
+        break;
+      case "1":
+      case "2":
+      case "3":
+      case "4":
+      case "5": {
+        evt.preventDefault();
+        const idx = parseInt(evt.name) - 1;
+        if (idx < views.length) {
+          setView(views[idx]);
         }
-
-        const checkStatus = async () => {
-            try {
-                const apiUrl = process.env.PRYX_API_URL || "http://localhost:3000";
-                const res = await fetch(`${apiUrl}/health`, { method: "GET" });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.providers?.length > 0) {
-                        setHasProvider(true);
-                        setConnectionStatus("Ready");
-                    } else {
-                        setHasProvider(false);
-                        setConnectionStatus("No Provider");
-                    }
-                } else {
-                    setConnectionStatus("Runtime Error");
-                }
-            } catch {
-                setConnectionStatus("Disconnected");
-            }
-        };
-
-        checkStatus();
-        const interval = setInterval(checkStatus, 5000);
-        return () => clearInterval(interval);
-    });
-
-    const allCommands: Command[] = [
-        {
-            id: "chat",
-            name: "Chat",
-            description: "Open chat interface",
-            category: "Navigation",
-            shortcut: "1",
-            keywords: ["chat", "talk", "message", "conversation"],
-            action: () => { setView("chat"); setShowCommands(false); }
-        },
-        {
-            id: "sessions",
-            name: "Sessions",
-            description: "Browse and manage sessions",
-            category: "Navigation",
-            shortcut: "2",
-            keywords: ["sessions", "history", "conversations", "browse"],
-            action: () => { setView("sessions"); setShowCommands(false); }
-        },
-        {
-            id: "channels",
-            name: "Channels",
-            description: "Manage channel integrations",
-            category: "Navigation",
-            shortcut: "3",
-            keywords: ["channels", "telegram", "discord", "slack", "webhooks", "integrations"],
-            action: () => { setView("channels"); setShowCommands(false); }
-        },
-        {
-            id: "skills",
-            name: "Skills",
-            description: "Browse and manage skills",
-            category: "Navigation",
-            shortcut: "4",
-            keywords: ["skills", "abilities", "tools", "capabilities"],
-            action: () => { setView("skills"); setShowCommands(false); }
-        },
-        {
-            id: "settings",
-            name: "Settings",
-            description: "Configure Pryx",
-            category: "Navigation",
-            shortcut: "5",
-            keywords: ["settings", "config", "preferences", "options"],
-            action: () => { setView("settings"); setShowCommands(false); }
-        },
-        {
-            id: "new-chat",
-            name: "New Chat",
-            description: "Start a new conversation",
-            category: "Chat",
-            keywords: ["new", "chat", "conversation", "start", "fresh"],
-            action: () => { setView("chat"); setShowCommands(false); }
-        },
-        {
-            id: "clear-chat",
-            name: "Clear Chat",
-            description: "Clear current conversation",
-            category: "Chat",
-            keywords: ["clear", "reset", "clean", "chat"],
-            action: () => { setShowCommands(false); }
-        },
-        {
-            id: "help",
-            name: "Keyboard Shortcuts",
-            description: "Show all keyboard shortcuts",
-            category: "System",
-            shortcut: "?",
-            keywords: ["help", "shortcuts", "keys", "commands", "?"],
-            action: () => { setShowHelp(true); setShowCommands(false); }
-        },
-        {
-            id: "quit",
-            name: "Quit",
-            description: "Exit Pryx",
-            category: "System",
-            shortcut: "q",
-            keywords: ["quit", "exit", "close", "stop"],
-            action: () => process.exit(0)
-        },
-        {
-            id: "reload",
-            name: "Reload",
-            description: "Refresh connection",
-            category: "System",
-            keywords: ["reload", "refresh", "reconnect", "restart"],
-            action: () => { setShowCommands(false); }
-        },
-    ];
-
-    const views: View[] = ["chat", "sessions", "channels", "skills", "settings"];
-
-    useKeyboard((evt) => {
-        if (showHelp() || showCommands()) {
-            return;
+        break;
+      }
+      case "c":
+        if (evt.ctrl) {
+          evt.preventDefault();
+          process.exit(0);
         }
+        break;
+    }
+  });
 
-        switch (evt.name) {
-            case "/":
-                evt.preventDefault();
-                setShowCommands(true);
-                break;
-            case "?":
-                evt.preventDefault();
-                setShowHelp(true);
-                break;
-            case "tab":
-                evt.preventDefault();
-                setView(prev => {
-                    const idx = views.indexOf(prev);
-                    return views[(idx + 1) % views.length];
-                });
-                break;
-            case "1":
-            case "2":
-            case "3":
-            case "4":
-            case "5": {
-                evt.preventDefault();
-                const idx = parseInt(evt.name) - 1;
-                if (idx < views.length) {
-                    setView(views[idx]);
-                }
-                break;
-            }
-            case "c":
-                if (evt.ctrl) {
-                    evt.preventDefault();
-                    process.exit(0);
-                }
-                break;
-        }
-    });
+  const getStatusColor = () => {
+    if (connectionStatus() === "Ready") return "green";
+    if (connectionStatus() === "Connecting...") return "yellow";
+    return "red";
+  };
 
-    const getStatusColor = () => {
-        if (connectionStatus() === "Ready") return "green";
-        if (connectionStatus() === "Connecting...") return "yellow";
-        return "red";
-    };
+  return (
+    <Show
+      when={!setupRequired()}
+      fallback={<SetupRequired onSetupComplete={handleSetupComplete} />}
+    >
+      <box flexDirection="column" backgroundColor="#0a0a0a" flexGrow={1}>
+        <AppHeader />
 
-    return (
-        <Show when={!setupRequired()} fallback={<SetupRequired onSetupComplete={handleSetupComplete} />}>
-        <box flexDirection="column" backgroundColor="#0a0a0a" flexGrow={1}>
-            <AppHeader />
-
-            <box flexDirection="row" padding={1} gap={1}>
-                <text fg="gray">/</text>
-                <text fg="gray">commands</text>
-                <box flexGrow={1} />
-                <Show when={!hasProvider()}>
-                    <text fg="yellow">⚠️ No Provider</text>
-                </Show>
-                <text fg={getStatusColor()}>{connectionStatus()}</text>
-            </box>
-
-            <box flexGrow={1} padding={1}>
-                <Switch>
-                    <Match when={view() === "chat"}>
-                        <Chat disabled={showCommands() || showHelp()} />
-                    </Match>
-                    <Match when={view() === "sessions"}>
-                        <SessionExplorer />
-                    </Match>
-                    <Match when={view() === "channels"}>
-                        <Channels />
-                    </Match>
-                    <Match when={view() === "settings"}>
-                        <Settings />
-                    </Match>
-                    <Match when={view() === "skills"}>
-                        <Skills />
-                    </Match>
-                </Switch>
-            </box>
-
-            <box flexDirection="row" padding={1}>
-                <text fg="gray">/: Commands | Tab: Switch | 1-5: Views | ?: Help | Ctrl+C: Quit</text>
-                <box flexGrow={1} />
-                <text fg="blue">v0.1.0-alpha</text>
-            </box>
-
-            <Show when={showCommands()}>
-                <SearchableCommandPalette 
-                    commands={allCommands}
-                    onClose={() => setShowCommands(false)}
-                    placeholder="Type to search commands..."
-                />
-            </Show>
-
-            <Show when={showHelp()}>
-                <KeyboardShortcuts onClose={() => setShowHelp(false)} />
-            </Show>
+        <box flexDirection="row" padding={1} gap={1}>
+          <text fg="gray">/</text>
+          <text fg="gray">commands</text>
+          <box flexGrow={1} />
+          <Show when={!hasProvider()}>
+            <text fg="yellow">⚠️ No Provider</text>
+          </Show>
+          <text fg={getStatusColor()}>{connectionStatus()}</text>
         </box>
+
+        <box flexGrow={1} padding={1}>
+          <Switch>
+            <Match when={view() === "chat"}>
+              <Chat disabled={showCommands() || showHelp()} />
+            </Match>
+            <Match when={view() === "sessions"}>
+              <SessionExplorer />
+            </Match>
+            <Match when={view() === "channels"}>
+              <Channels />
+            </Match>
+            <Match when={view() === "settings"}>
+              <Settings />
+            </Match>
+            <Match when={view() === "skills"}>
+              <Skills />
+            </Match>
+          </Switch>
+        </box>
+
+        <box flexDirection="row" padding={1}>
+          <text fg="gray">/: Commands | Tab: Switch | 1-5: Views | ?: Help | Ctrl+C: Quit</text>
+          <box flexGrow={1} />
+          <text fg="blue">v0.1.0-alpha</text>
+        </box>
+
+        <Show when={showCommands()}>
+          <SearchableCommandPalette
+            commands={allCommands}
+            onClose={() => setShowCommands(false)}
+            placeholder="Type to search commands..."
+          />
         </Show>
-    );
+
+        <Show when={showHelp()}>
+          <KeyboardShortcuts onClose={() => setShowHelp(false)} />
+        </Show>
+      </box>
+    </Show>
+  );
 }

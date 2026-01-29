@@ -101,7 +101,6 @@ func TestSpawner_Spawn(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := &config.Config{
 				ModelProvider: "openai",
-				
 			}
 
 			if tt.providerError {
@@ -148,8 +147,11 @@ func TestSpawner_Spawn(t *testing.T) {
 						t.Errorf("Spawn() agent.SystemCtx = %v, want test context", agent.SystemCtx)
 					}
 					// Status may be pending or running depending on timing
-					if agent.Status != StatusPending && agent.Status != StatusRunning {
-						t.Errorf("Spawn() agent.Status = %v, want pending or running", agent.Status)
+					agent.mu.RLock()
+					status := agent.Status
+					agent.mu.RUnlock()
+					if status != StatusPending && status != StatusRunning {
+						t.Errorf("Spawn() agent.Status = %v, want pending or running", status)
 					}
 					if agent.ID == "" {
 						t.Error("Spawn() agent.ID is empty")
@@ -166,7 +168,6 @@ func TestSpawner_Spawn(t *testing.T) {
 func TestSpawner_Get(t *testing.T) {
 	cfg := &config.Config{
 		ModelProvider: "openai",
-		
 	}
 	eventBus := bus.New()
 	spawner := NewSpawner(cfg, eventBus, nil)
@@ -199,7 +200,6 @@ func TestSpawner_Get(t *testing.T) {
 func TestSpawner_List(t *testing.T) {
 	cfg := &config.Config{
 		ModelProvider: "openai",
-		
 	}
 	eventBus := bus.New()
 	spawner := NewSpawner(cfg, eventBus, nil)
@@ -234,7 +234,6 @@ func TestSpawner_List(t *testing.T) {
 func TestSpawner_Cancel(t *testing.T) {
 	cfg := &config.Config{
 		ModelProvider: "openai",
-		
 	}
 	eventBus := bus.New()
 	spawner := NewSpawner(cfg, eventBus, nil)
@@ -275,7 +274,6 @@ func TestSpawner_Cancel(t *testing.T) {
 func TestSpawner_Cleanup(t *testing.T) {
 	cfg := &config.Config{
 		ModelProvider: "openai",
-		
 	}
 	eventBus := bus.New()
 	spawner := NewSpawner(cfg, eventBus, nil)
@@ -336,7 +334,6 @@ func TestSpawner_Cleanup(t *testing.T) {
 func TestSpawner_Fork(t *testing.T) {
 	cfg := &config.Config{
 		ModelProvider: "openai",
-		
 	}
 	eventBus := bus.New()
 	spawner := NewSpawner(cfg, eventBus, nil)
@@ -431,8 +428,11 @@ func TestSubAgent_run(t *testing.T) {
 			// Wait for completion
 			time.Sleep(200 * time.Millisecond)
 
-			if agent.Status != tt.expectedStatus {
-				t.Errorf("run() agent.Status = %v, want %v", agent.Status, tt.expectedStatus)
+			agent.mu.RLock()
+			status := agent.Status
+			agent.mu.RUnlock()
+			if status != tt.expectedStatus {
+				t.Errorf("run() agent.Status = %v, want %v", status, tt.expectedStatus)
 			}
 
 			// Check events

@@ -106,8 +106,8 @@ impl SidecarProcess {
     }
 
     pub fn status(&self) -> SidecarStatus {
-        let mut out = self.status.lock().unwrap().clone();
-        out.pid = self.child.lock().unwrap().as_ref().and_then(|c| c.id());
+        let mut out = self.status.lock().expect("mutex poisoned").clone();
+        out.pid = self.child.lock().expect("mutex poisoned").as_ref().and_then(|c| c.id());
         out.restarts = self.restarts.load(Ordering::SeqCst);
         out.started_at_ms = self
             .started_at
@@ -119,11 +119,11 @@ impl SidecarProcess {
     }
 
     pub async fn start(&self) -> Result<()> {
-        if self.child.lock().unwrap().is_some() {
+        if self.child.lock().expect("mutex poisoned").is_some() {
             return Ok(());
         }
 
-        let mut status = self.status.lock().unwrap();
+        let mut status = self.status.lock().expect("mutex poisoned");
         status.running = false;
         status.last_error = None;
         status.last_exit_code = None;
@@ -164,8 +164,8 @@ impl SidecarProcess {
             *stdin_guard = child.stdin.take();
         }
 
-        *self.started_at.lock().unwrap() = Some(Instant::now());
-        *self.child.lock().unwrap() = Some(child);
+        *self.started_at.lock().expect("mutex poisoned") = Some(Instant::now());
+        *self.child.lock().expect("mutex poisoned") = Some(child);
 
         if let Some(stdout) = stdout {
             let status = self.status.clone();
@@ -175,14 +175,14 @@ impl SidecarProcess {
                 let mut lines = tokio::io::BufReader::new(stdout).lines();
                 while let Ok(Some(line)) = lines.next_line().await {
                     if let Some(addr) = parse_listen_addr(&line) {
-                        let mut st = status.lock().unwrap();
+                        let mut st = status.lock().expect("mutex poisoned");
                         st.listen_addr = Some(addr);
                         continue;
                     }
 
                     if let Some(req) = parse_permission_request(&line) {
                         let approved = {
-                            let app = app_handle.lock().unwrap().clone();
+                            let app = app_handle.lock().expect("mutex poisoned").clone();
                             let desc = req
                                 .params
                                 .get("description")
@@ -228,7 +228,7 @@ impl SidecarProcess {
             tauri::async_runtime::spawn(async move {
                 let mut lines = tokio::io::BufReader::new(stderr).lines();
                 while let Ok(Some(line)) = lines.next_line().await {
-                    let mut st = status.lock().unwrap();
+                    let mut st = status.lock().expect("mutex poisoned");
                     st.last_error = Some(line);
                 }
             });
@@ -236,16 +236,16 @@ impl SidecarProcess {
 
         let started_at = Instant::now();
         while started_at.elapsed() < Duration::from_secs(1) {
-            let has_addr = { self.status.lock().unwrap().listen_addr.is_some() };
+            let has_addr = { self.status.lock().expect("mutex poisoned").listen_addr.is_some() };
             if has_addr {
                 break;
             }
             tokio::time::sleep(Duration::from_millis(25)).await;
         }
 
-        let mut st = self.status.lock().unwrap();
+        let mut st = self.status.lock().expect("mutex poisoned");
         st.running = true;
-        st.pid = self.child.lock().unwrap().as_ref().and_then(|c| c.id());
+        st.pid = self.child.lock().expect("mutex poisoned").as_ref().and_then(|c| c.id());
         drop(st);
 
         Ok(())
@@ -258,7 +258,7 @@ impl SidecarProcess {
             }
 
             let exit_status = {
-                let mut guard = self.child.lock().unwrap();
+                let mut guard = self.child.lock().expect("mutex poisoned");
                 if let Some(child) = guard.as_mut() {
                     child.try_wait().ok().flatten()
                 } else {
@@ -267,14 +267,14 @@ impl SidecarProcess {
             };
 
             if let Some(status) = exit_status {
-                *self.child.lock().unwrap() = None;
+                *self.child.lock().expect("mutex poisoned") = None;
                 self.pgid.store(0, Ordering::SeqCst);
 
                 self.restarts.fetch_add(1, Ordering::SeqCst);
                 let attempts = self.restarts.load(Ordering::SeqCst) as u32;
 
                 {
-                    let mut st = self.status.lock().unwrap();
+                    let mut st = self.status.lock().expect("mutex poisoned");
                     st.running = false;
                     st.pid = None;
                     st.last_exit_code = status.code();
@@ -296,7 +296,7 @@ impl SidecarProcess {
             terminate_process_group(pgid);
         }
 
-        if let Some(mut child) = self.child.lock().unwrap().take() {
+        if let Some(mut child) = self.child.lock().expect("mutex poisoned").take() {
             let wait = tokio::time::timeout(Duration::from_millis(2_000), child.wait()).await;
             if wait.is_err() {
                 if pgid != 0 {
@@ -309,9 +309,9 @@ impl SidecarProcess {
         }
 
         self.pgid.store(0, Ordering::SeqCst);
-        *self.started_at.lock().unwrap() = None;
+        *self.started_at.lock().expect("mutex poisoned") = None;
 
-        let mut st = self.status.lock().unwrap();
+        let mut st = self.status.lock().expect("mutex poisoned");
         st.running = false;
         st.pid = None;
     }

@@ -1,4 +1,3 @@
-
 import { render } from "@opentui/solid";
 import App from "../../src/components/App";
 
@@ -10,15 +9,14 @@ Object.defineProperty(process.stdout, "rows", { value: 24 });
 console.log("Starting Render Script...");
 
 try {
-    render(() => <App />);
+  render(() => <App />);
 
-    // Allow time to render frames
-    setTimeout(() => {
-        console.log("Render timeout reached. Exiting.");
-        process.exit(0);
-    }, 3000);
-
+  // Allow time to render frames
+  setTimeout(() => {
+    console.log("Render timeout reached. Exiting.");
+    process.exit(0);
+  }, 3000);
 } catch (e) {
-    console.error("Render failed:", e);
-    process.exit(1);
+  console.error("Render failed:", e);
+  process.exit(1);
 }

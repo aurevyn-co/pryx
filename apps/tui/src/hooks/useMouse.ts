@@ -38,10 +38,7 @@ export function useMouse() {
   const isInside = (boxX: number, boxY: number, boxWidth: number, boxHeight: number) => {
     const state = mouseState();
     return (
-      state.x >= boxX &&
-      state.x < boxX + boxWidth &&
-      state.y >= boxY &&
-      state.y < boxY + boxHeight
+      state.x >= boxX && state.x < boxX + boxWidth && state.y >= boxY && state.y < boxY + boxHeight
     );
   };
 
@@ -73,7 +70,7 @@ export function useClipboard() {
         await navigator.clipboard.writeText(text);
         return true;
       }
-      
+
       if (typeof process !== "undefined") {
         const proc = Bun.spawn(["pbcopy"], {
           stdin: "pipe",
@@ -83,7 +80,7 @@ export function useClipboard() {
         await proc.exited;
         return true;
       }
-      
+
       return false;
     } catch {
       return false;

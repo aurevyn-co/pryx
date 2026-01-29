@@ -30,3 +30,18 @@ export {
   encryptWithPassword,
   decryptWithPassword,
 } from './vault.js';
+
+export {
+  KeyCache,
+  KeyCacheEntry,
+  KeyCacheConfig,
+  DEFAULT_CACHE_CONFIG,
+  createKeyCache,
+} from './key-cache.js';
+
+export {
+  PasswordManager,
+  PasswordManagerConfig,
+  DEFAULT_PASSWORD_MANAGER_CONFIG,
+  createPasswordManager,
+} from './password-manager.js';

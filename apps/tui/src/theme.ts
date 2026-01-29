@@ -21,12 +21,8 @@ export const palette = {
 
 function hexToRgb(hex: string): [number, number, number] {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result 
-    ? [
-        parseInt(result[1], 16),
-        parseInt(result[2], 16),
-        parseInt(result[3], 16),
-      ]
+  return result
+    ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)]
     : [255, 255, 255];
 }
 
@@ -50,12 +46,12 @@ export const commandPaletteTheme = {
   borderColor: palette.border,
   backgroundColor: palette.bgPrimary,
   titleColor: palette.accent,
-  itemText: (text: string, selected: boolean) => 
+  itemText: (text: string, selected: boolean) =>
     selected ? theme.accentBold(text) : theme.text(text),
   itemNumber: (num: string, selected: boolean) =>
     selected ? theme.accent(num) : theme.textDim(num),
   itemShortcut: (shortcut: string) => theme.textDim(shortcut),
-  itemBackground: (selected: boolean) => selected ? palette.bgSelected : undefined,
+  itemBackground: (selected: boolean) => (selected ? palette.bgSelected : undefined),
   footerText: (text: string) => theme.textDim(text),
 };
 

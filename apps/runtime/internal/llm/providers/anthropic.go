@@ -138,14 +138,13 @@ func (p *AnthropicProvider) sendRequest(ctx context.Context, req llm.ChatRequest
 	httpReq.Header.Set("x-api-key", p.apiKey)
 	httpReq.Header.Set("anthropic-version", anthropicVersion)
 
-	client := &http.Client{}
-	resp, err := client.Do(httpReq)
+	resp, err := SharedHTTPClient.Do(httpReq)
 	if err != nil {
 		return nil, err
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
+		defer resp.Body.Close()
 		buf := new(bytes.Buffer)
 		buf.ReadFrom(resp.Body)
 		return nil, fmt.Errorf("api error: %s - %s", resp.Status, buf.String())

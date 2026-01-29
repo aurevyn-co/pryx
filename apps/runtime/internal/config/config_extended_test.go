@@ -89,7 +89,7 @@ telegram_token: "test-token"
 	assert.Equal(t, "https://test.api.com", cfg.CloudAPIUrl)
 	assert.Equal(t, "openai", cfg.ModelProvider)
 	assert.Equal(t, "gpt-4", cfg.ModelName)
-	assert.Equal(t, "test-key", "")
+	// API keys are stored in keychain, not config file
 	assert.True(t, cfg.TelegramEnabled)
 	assert.Equal(t, "test-token", cfg.TelegramToken)
 }
@@ -117,13 +117,12 @@ func TestConfig_Save(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "subdir", "config.yaml")
 
 	cfg := &Config{
-		ListenAddr:      ":5000",
-		DatabasePath:    "/test/db",
-		CloudAPIUrl:     "https://save.test.com",
-		ModelProvider:   "anthropic",
-		ModelName:       "claude-3",
-		
-		
+		ListenAddr:    ":5000",
+		DatabasePath:  "/test/db",
+		CloudAPIUrl:   "https://save.test.com",
+		ModelProvider: "anthropic",
+		ModelName:     "claude-3",
+
 		TelegramEnabled: true,
 		TelegramToken:   "token123",
 	}

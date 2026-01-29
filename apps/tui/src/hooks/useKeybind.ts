@@ -10,8 +10,11 @@ export interface KeybindInfo {
 
 export function useKeybind() {
   const [leader, setLeader] = createSignal(false);
-  
-  const match = (keybind: KeybindInfo, evt: { ctrl: boolean; meta: boolean; shift: boolean; name: string }): boolean => {
+
+  const match = (
+    keybind: KeybindInfo,
+    evt: { ctrl: boolean; meta: boolean; shift: boolean; name: string }
+  ): boolean => {
     return (
       (keybind.ctrl ?? false) === evt.ctrl &&
       (keybind.meta ?? false) === evt.meta &&
@@ -23,7 +26,7 @@ export function useKeybind() {
   const parse = (key: string): KeybindInfo => {
     const parts = key.toLowerCase().split("+");
     const info: KeybindInfo = { name: "" };
-    
+
     for (const part of parts) {
       switch (part) {
         case "ctrl":
@@ -53,7 +56,7 @@ export function useKeybind() {
           info.name = part;
       }
     }
-    
+
     return info;
   };
 
@@ -65,12 +68,10 @@ export function useKeybind() {
   };
 }
 
-export function useKeyboardHandler(
-  handlers: Map<string, () => void>
-) {
+export function useKeyboardHandler(handlers: Map<string, () => void>) {
   const { match, parse } = useKeybind();
-  
-  useKeyboard((evt) => {
+
+  useKeyboard(evt => {
     for (const [key, handler] of handlers) {
       const keybind = parse(key);
       if (match(keybind, evt)) {

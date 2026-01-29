@@ -140,18 +140,16 @@ func (p *OpenAIProvider) sendRequest(ctx context.Context, req llm.ChatRequest) (
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
 
-	// Add OpenRouter specific headers if needed, generally HTTP-Referer and X-Title are polite
-	httpReq.Header.Set("HTTP-Referer", "https://pryx.app") // TODO: Make configurable
+	httpReq.Header.Set("HTTP-Referer", "https://pryx.app")
 	httpReq.Header.Set("X-Title", "Pryx")
 
-	client := &http.Client{} // TODO: Shared client
-	resp, err := client.Do(httpReq)
+	resp, err := SharedHTTPClient.Do(httpReq)
 	if err != nil {
 		return nil, err
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
+		defer resp.Body.Close()
 		buf := new(bytes.Buffer)
 		buf.ReadFrom(resp.Body)
 		return nil, fmt.Errorf("api error: %s - %s", resp.Status, buf.String())

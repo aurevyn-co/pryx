@@ -156,8 +156,8 @@ jobs:
       - name: Lint TypeScript
         working-directory: apps/tui
         run: |
-          bunx oxlint . || true
-          bunx oxfmt --check . || true
+          bunx oxlint .
+          bunx oxfmt --check .
 
   # Build verification
   build:
@@ -237,6 +237,14 @@ jobs:
         run: |
           go test -race -coverprofile=coverage.out ./...
           go tool cover -func=coverage.out
+
+      - name: Check coverage threshold
+        working-directory: apps/runtime
+        run: |
+          THRESHOLD=70
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "Total coverage: $COVERAGE%"
+          awk -v cov="$COVERAGE" -v thr="$THRESHOLD" 'BEGIN { if (cov < thr) { exit 1 } }'
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
