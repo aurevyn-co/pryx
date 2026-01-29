@@ -1,4 +1,6 @@
-import { createSignal, For, onMount, onCleanup } from "solid-js";
+import { createSignal, For, createEffect } from "solid-js";
+import { useKeyboard } from "@opentui/solid";
+import { palette } from "../theme";
 
 interface Command {
     id: string;
@@ -14,48 +16,64 @@ interface CommandPaletteProps {
 
 export default function CommandPalette(props: CommandPaletteProps) {
     const [selectedIndex, setSelectedIndex] = createSignal(0);
+    const [inputMode, setInputMode] = createSignal<"keyboard" | "mouse">("keyboard");
 
-    onMount(() => {
-        const handleKey = (data: Buffer) => {
-            const seq = data.toString();
-            
-            // Arrow up: ESC[A or ESCOA
-            if (seq === '\u001b[A' || seq === '\u001bOA') {
-                setSelectedIndex(i => Math.max(0, i - 1));
-            }
-            // Arrow down: ESC[B or ESCOB
-            else if (seq === '\u001b[B' || seq === '\u001bOB') {
-                setSelectedIndex(i => Math.min(props.commands.length - 1, i + 1));
-            }
-            // Enter
-            else if (seq === '\r' || seq === '\n') {
-                const cmd = props.commands[selectedIndex()];
-                if (cmd) {
-                    cmd.action();
-                }
-            }
-            // Escape
-            else if (seq === '\u001b') {
-                props.onClose();
-            }
-            // Number keys 1-9 for direct selection
-            else if (seq >= '1' && seq <= '9') {
-                const idx = parseInt(seq) - 1;
-                if (idx < props.commands.length) {
-                    setSelectedIndex(idx);
-                }
-            }
-        };
-
-        if (typeof process !== "undefined" && process.stdin.isTTY) {
-            process.stdin.on("data", handleKey);
+    const executeCommand = (index: number) => {
+        const cmd = props.commands[index];
+        if (cmd) {
+            cmd.action();
         }
+    };
 
-        onCleanup(() => {
-            if (typeof process !== "undefined" && process.stdin) {
-                process.stdin.off("data", handleKey);
-            }
-        });
+    useKeyboard((evt) => {
+        setInputMode("keyboard");
+        
+        switch (evt.name) {
+            case "up":
+                evt.preventDefault();
+                setSelectedIndex(i => Math.max(0, i - 1));
+                break;
+            case "down":
+                evt.preventDefault();
+                setSelectedIndex(i => Math.min(props.commands.length - 1, i + 1));
+                break;
+            case "return":
+                evt.preventDefault();
+                executeCommand(selectedIndex());
+                break;
+            case "escape":
+                evt.preventDefault();
+                props.onClose();
+                break;
+            default:
+                if (evt.name >= "1" && evt.name <= "9") {
+                    const idx = parseInt(evt.name) - 1;
+                    if (idx < props.commands.length) {
+                        setSelectedIndex(idx);
+                    }
+                }
+        }
+    });
+
+    const handleMouseOver = (index: number) => {
+        if (inputMode() !== "mouse") return;
+        setSelectedIndex(index);
+    };
+
+    const handleMouseMove = () => {
+        setInputMode("mouse");
+    };
+
+    const handleMouseUp = (index: number) => {
+        setSelectedIndex(index);
+        executeCommand(index);
+    };
+
+    createEffect(() => {
+        const idx = selectedIndex();
+        if (idx >= props.commands.length) {
+            setSelectedIndex(0);
+        }
     });
 
     return (
@@ -65,35 +83,51 @@ export default function CommandPalette(props: CommandPaletteProps) {
             left="20%"
             width="60%"
             borderStyle="single"
-            borderColor="cyan"
-            backgroundColor="#1a1a1a"
+            borderColor={palette.border}
+            backgroundColor={palette.bgPrimary}
             flexDirection="column"
             padding={1}
         >
             <box marginBottom={1}>
-                <text fg="cyan">Commands</text>
+                <text fg={palette.accent}>Commands</text>
             </box>
             
-            <For each={props.commands}>
-                {(cmd, index) => (
-                    <box 
-                        flexDirection="row" 
-                        padding={1}
-                        backgroundColor={index() === selectedIndex() ? "cyan" : undefined}
-                    >
-                        <text 
-                            fg={index() === selectedIndex() ? "black" : "white"}
-                        >
-                            {index() + 1}. {cmd.label}
-                        </text>
-                        <box flexGrow={1} />
-                        <text fg="gray">{cmd.shortcut}</text>
-                    </box>
-                )}
-            </For>
+            <box flexDirection="column">
+                <For each={props.commands}>
+                    {(cmd, index) => {
+                        const isSelected = index() === selectedIndex();
+                        
+                        return (
+                            <box 
+                                flexDirection="row" 
+                                padding={1}
+                                backgroundColor={isSelected ? palette.bgSelected : undefined}
+                                onMouseMove={handleMouseMove}
+                                onMouseOver={() => handleMouseOver(index())}
+                                onMouseUp={() => handleMouseUp(index())}
+                                onMouseDown={() => setSelectedIndex(index())}
+                            >
+                                <box width={3}>
+                                    <text fg={isSelected ? palette.accent : palette.dim}>
+                                        {index() + 1}.
+                                    </text>
+                                </box>
+                                <box flexGrow={1}>
+                                    <text fg={isSelected ? palette.accent : palette.text}>
+                                        {cmd.label}
+                                    </text>
+                                </box>
+                                <box width={10} alignItems="flex-end">
+                                    <text fg={palette.dim}>{cmd.shortcut}</text>
+                                </box>
+                            </box>
+                        );
+                    }}
+                </For>
+            </box>
             
             <box marginTop={1} flexDirection="column" gap={0}>
-                <text fg="gray">↑↓ Navigate | Enter Select | Esc Close | 1-9 Quick Select</text>
+                <text fg={palette.dim}>↑↓ Navigate | Enter Select | Esc Close | 1-9 Quick Select</text>
             </box>
         </box>
     );

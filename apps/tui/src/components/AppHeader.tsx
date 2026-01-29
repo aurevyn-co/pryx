@@ -1,31 +1,33 @@
+import { palette } from "../theme";
+
 export default function AppHeader() {
     return (
         <box 
             flexDirection="column" 
             alignItems="center" 
             padding={1}
-            backgroundColor="#0a0a0a"
+            backgroundColor={palette.bgPrimary}
         >
             <box flexDirection="row">
-                <text fg="#00ffff">{'  ____                  '}</text>
+                <text fg={palette.accent}>{'    ██████╗ ██████╗ ██╗   ██╗██╗  ██╗    '}</text>
             </box>
             <box flexDirection="row">
-                <text fg="#00ffff">{" |  _ \\ _ __ _   _ __  __"}</text>
+                <text fg={palette.accent}>{'    ██╔══██╗██╔══██╗╚██╗ ██╔╝╚██╗██╔╝    '}</text>
             </box>
             <box flexDirection="row">
-                <text fg="#00ffff">{" | |_) | '__| | | |\\ \\/ /"}</text>
+                <text fg={palette.accent}>{'    ██████╔╝██████╔╝ ╚████╔╝  ╚███╔╝     '}</text>
             </box>
             <box flexDirection="row">
-                <text fg="#00ffff">{" |  __/| |  | |_| | \u003e  \u003c "}</text>
+                <text fg={palette.accent}>{'    ██╔═══╝ ██╔══██╗  ╚██╔╝   ██╔██╗     '}</text>
             </box>
             <box flexDirection="row">
-                <text fg="#00ffff">{" |_|   |_|   \\__, |/_/\\_\\"}</text>
+                <text fg={palette.accent}>{'    ██║     ██║  ██║   ██║   ██╔╝ ██╗    '}</text>
             </box>
             <box flexDirection="row">
-                <text fg="#00ffff">{'              |___/       '}</text>
+                <text fg={palette.accent}>{'    ╚═╝     ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝    '}</text>
             </box>
             <box marginTop={1}>
-                <text fg="#808080">Autonomous AI Agent for Any Task</text>
+                <text fg={palette.dim}>Autonomous AI Agent for Any Task</text>
             </box>
         </box>
     );

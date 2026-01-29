@@ -3986,6 +3986,11 @@ User can then:
 - `docs/prd/autocompletion-background-tasks.md` - Autocompletion & background tasks (NEW, based on OpenCode/Clawdbot research) - **NEW**
 - `docs/prd/plugin-architecture.md` - Plugin architecture & third-party integration (research in progress) - **TODO**
 - `docs/prd/scheduled-tasks.md` - Scheduled tasks platform (NEW, v1.1+)
+- `docs/prd/ai-assisted-setup.md` - AI-assisted configuration flows & 3-phase implementation plan (NEW) - **NEW**
+- `docs/prd/implementation-roadmap.md` - Complete 3-phase implementation timeline and task breakdown (NEW) - **NEW**
+- `docs/templates/SYSTEM.md` - AI system prompt with cron capability documentation (NEW) - **NEW**
+- `docs/guides/cron-natural-language.md` - User guide for natural language scheduling (NEW) - **NEW**
+- `docs/prd/cron-anti-hallucination-summary.md` - Anti-hallucination strategy for natural language features (NEW) - **NEW**
 
 ---
 
