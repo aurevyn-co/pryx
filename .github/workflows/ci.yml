@@ -258,6 +258,11 @@ jobs:
           toolchain: stable
           targets: ${{ matrix.target }}
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
