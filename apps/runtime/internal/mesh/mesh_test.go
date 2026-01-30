@@ -2,6 +2,7 @@ package mesh
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -11,7 +12,19 @@ import (
 	"pryx-core/internal/store"
 )
 
+func skipIfNoKeyring(t *testing.T) {
+	if os.Getenv("CI") == "true" {
+		kc := keychain.New("test-ci-check")
+		err := kc.Set("test-user", "test-password")
+		if err != nil {
+			t.Skip("Keyring service not available in CI environment")
+		}
+		kc.Delete("test-user")
+	}
+}
+
 func TestNewManager(t *testing.T) {
+	skipIfNoKeyring(t)
 	cfg := &config.Config{
 		CloudAPIUrl: "https://api.pryx.io",
 	}
@@ -51,6 +64,8 @@ func TestNewManager(t *testing.T) {
 }
 
 func TestManager_GetDeviceID(t *testing.T) {
+	skipIfNoKeyring(t)
+
 	tests := []struct {
 		name          string
 		setupDeviceID string

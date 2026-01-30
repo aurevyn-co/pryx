@@ -1,12 +1,20 @@
 package cost
 
 import (
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
 )
 
+func skipIfBinaryMissing(t *testing.T) {
+	if _, err := os.Stat("/tmp/pryx-core"); os.IsNotExist(err) {
+		t.Skip("Binary /tmp/pryx-core not found; build runtime binary before running CLI tests")
+	}
+}
+
 func TestCostSummaryCommand(t *testing.T) {
+	skipIfBinaryMissing(t)
 	cmd := exec.Command("/tmp/pryx-core", "cost", "summary")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -20,6 +28,7 @@ func TestCostSummaryCommand(t *testing.T) {
 }
 
 func TestCostSummaryWithSession(t *testing.T) {
+	skipIfBinaryMissing(t)
 	cmd := exec.Command("/tmp/pryx-core", "cost", "summary", "--session", "test-session")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -33,6 +42,7 @@ func TestCostSummaryWithSession(t *testing.T) {
 }
 
 func TestCostSummaryWithJSON(t *testing.T) {
+	skipIfBinaryMissing(t)
 	// JSON flag may not exist in current implementation
 	cmd := exec.Command("/tmp/pryx-core", "cost", "summary", "--json")
 	output, err := cmd.CombinedOutput()
@@ -47,6 +57,7 @@ func TestCostSummaryWithJSON(t *testing.T) {
 }
 
 func TestCostSummaryWithTimeRange(t *testing.T) {
+	skipIfBinaryMissing(t)
 	cmd := exec.Command("/tmp/pryx-core", "cost", "summary", "--since", "24h")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -60,6 +71,7 @@ func TestCostSummaryWithTimeRange(t *testing.T) {
 }
 
 func TestCostBudgetCommand(t *testing.T) {
+	skipIfBinaryMissing(t)
 	cmd := exec.Command("/tmp/pryx-core", "cost", "budget")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -73,6 +85,7 @@ func TestCostBudgetCommand(t *testing.T) {
 }
 
 func TestCostBudgetSetCommand(t *testing.T) {
+	skipIfBinaryMissing(t)
 	cmd := exec.Command("/tmp/pryx-core", "cost", "budget", "set", "--amount", "100")
 	output, err := cmd.CombinedOutput()
 
@@ -92,6 +105,7 @@ func TestCostBudgetSetCommand(t *testing.T) {
 }
 
 func TestCostBudgetWithAlert(t *testing.T) {
+	skipIfBinaryMissing(t)
 	cmd := exec.Command("/tmp/pryx-core", "cost", "budget", "set", "--alert", "80")
 	output, err := cmd.CombinedOutput()
 
@@ -111,6 +125,7 @@ func TestCostBudgetWithAlert(t *testing.T) {
 }
 
 func TestCostModelsCommand(t *testing.T) {
+	skipIfBinaryMissing(t)
 	// Use 'cost pricing' instead of 'cost models'
 	cmd := exec.Command("/tmp/pryx-core", "cost", "pricing")
 	output, err := cmd.CombinedOutput()
@@ -125,6 +140,7 @@ func TestCostModelsCommand(t *testing.T) {
 }
 
 func TestCostModelsWithJSON(t *testing.T) {
+	skipIfBinaryMissing(t)
 	// JSON flag may not be supported
 	cmd := exec.Command("/tmp/pryx-core", "cost", "pricing", "--json")
 	output, err := cmd.CombinedOutput()
@@ -139,6 +155,7 @@ func TestCostModelsWithJSON(t *testing.T) {
 }
 
 func TestCostBreakdownCommand(t *testing.T) {
+	skipIfBinaryMissing(t)
 	// Use 'cost daily' or 'cost monthly' instead of 'cost breakdown'
 	cmd := exec.Command("/tmp/pryx-core", "cost", "daily")
 	output, err := cmd.CombinedOutput()
@@ -153,6 +170,7 @@ func TestCostBreakdownCommand(t *testing.T) {
 }
 
 func TestCostHelpCommand(t *testing.T) {
+	skipIfBinaryMissing(t)
 	cmd := exec.Command("/tmp/pryx-core", "cost")
 	output, err := cmd.CombinedOutput()
 
@@ -173,6 +191,7 @@ func TestCostHelpCommand(t *testing.T) {
 }
 
 func TestCostUnknownCommand(t *testing.T) {
+	skipIfBinaryMissing(t)
 	cmd := exec.Command("/tmp/pryx-core", "cost", "unknown-cmd")
 	output, err := cmd.CombinedOutput()
 
@@ -186,6 +205,7 @@ func TestCostUnknownCommand(t *testing.T) {
 }
 
 func TestCostSummaryWithModelFilter(t *testing.T) {
+	skipIfBinaryMissing(t)
 	// Model filter may not exist, just test basic summary
 	cmd := exec.Command("/tmp/pryx-core", "cost", "summary")
 	output, err := cmd.CombinedOutput()
@@ -200,6 +220,7 @@ func TestCostSummaryWithModelFilter(t *testing.T) {
 }
 
 func TestCostSummaryWithMultipleFlags(t *testing.T) {
+	skipIfBinaryMissing(t)
 	// JSON flag may not be supported, just verify command runs
 	cmd := exec.Command("/tmp/pryx-core", "cost", "summary")
 	output, err := cmd.CombinedOutput()
@@ -215,6 +236,7 @@ func TestCostSummaryWithMultipleFlags(t *testing.T) {
 }
 
 func TestCostOptimizeCommand(t *testing.T) {
+	skipIfBinaryMissing(t)
 	cmd := exec.Command("/tmp/pryx-core", "cost", "optimize")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
