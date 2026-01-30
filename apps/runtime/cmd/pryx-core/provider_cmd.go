@@ -8,29 +8,21 @@ import (
 
 	"pryx-core/internal/config"
 	"pryx-core/internal/keychain"
+	"pryx-core/internal/models"
 )
 
-// ProviderInfo holds information about a provider
-type ProviderInfo struct {
-	Name        string
-	DisplayName string
-	Description string
-	DefaultURL  string
-}
-
-// SupportedProviders is the list of supported LLM providers
-var SupportedProviders = []ProviderInfo{
-	{Name: "openai", DisplayName: "OpenAI", Description: "GPT-4, GPT-3.5", DefaultURL: "https://api.openai.com/v1"},
-	{Name: "anthropic", DisplayName: "Anthropic", Description: "Claude 3 models", DefaultURL: "https://api.anthropic.com/v1"},
-	{Name: "glm", DisplayName: "GLM (Zhipu)", Description: "GLM-4, ChatGLM", DefaultURL: "https://open.bigmodel.cn/api/paas/v4"},
-	{Name: "openrouter", DisplayName: "OpenRouter", Description: "Multi-provider access", DefaultURL: "https://openrouter.ai/api/v1"},
-	{Name: "together", DisplayName: "Together AI", Description: "Open source models", DefaultURL: "https://api.together.xyz/v1"},
-	{Name: "groq", DisplayName: "Groq", Description: "Fast inference", DefaultURL: "https://api.groq.com/openai/v1"},
-	{Name: "xai", DisplayName: "xAI", Description: "Grok models", DefaultURL: "https://api.x.ai/v1"},
-	{Name: "mistral", DisplayName: "Mistral AI", Description: "Mistral models", DefaultURL: "https://api.mistral.ai/v1"},
-	{Name: "cohere", DisplayName: "Cohere", Description: "Command models", DefaultURL: "https://api.cohere.com/v1"},
-	{Name: "google", DisplayName: "Google AI", Description: "Gemini models", DefaultURL: "https://generativelanguage.googleapis.com/v1"},
-	{Name: "ollama", DisplayName: "Ollama", Description: "Local models", DefaultURL: "http://localhost:11434"},
+// PopularProviders is a curated list of commonly used providers for UI prioritization
+// The actual supported providers come dynamically from models.dev catalog (50+ providers)
+var PopularProviders = []string{
+	"openai",
+	"anthropic",
+	"google",
+	"openrouter",
+	"ollama",
+	"groq",
+	"xai",
+	"mistral",
+	"cohere",
 }
 
 func runProvider(args []string) int {
@@ -55,6 +47,8 @@ func runProvider(args []string) int {
 	case "add":
 		if len(args) < 2 {
 			fmt.Println("Usage: pryx-core provider add <name>")
+			fmt.Println("")
+			fmt.Println("To see available providers, run: pryx-core provider list --available")
 			return 1
 		}
 		return providerAdd(args[1], cfg, path, kc)
@@ -90,316 +84,397 @@ func runProvider(args []string) int {
 
 func usageProvider() {
 	fmt.Println("Usage:")
-	fmt.Println("  pryx-core provider list                    List all configured providers")
+	fmt.Println("  pryx-core provider list                    List configured providers")
+	fmt.Println("  pryx-core provider list --available        Show all available providers from models.dev")
 	fmt.Println("  pryx-core provider add <name>              Add new provider interactively")
 	fmt.Println("  pryx-core provider set-key <name>          Set API key for provider")
 	fmt.Println("  pryx-core provider remove <name>           Remove provider config")
 	fmt.Println("  pryx-core provider use <name>              Set as active/default provider")
 	fmt.Println("  pryx-core provider test <name>             Test connection to provider")
 	fmt.Println("")
-	fmt.Println("Supported providers:")
-	for _, p := range SupportedProviders {
-		fmt.Printf("  %-12s %s\n", p.Name, p.Description)
-	}
+	fmt.Println("Examples:")
+	fmt.Println("  pryx-core provider add openai")
+	fmt.Println("  pryx-core provider set-key anthropic")
+	fmt.Println("  pryx-core provider use groq")
+	fmt.Println("")
+	fmt.Println("Note: Providers are loaded dynamically from models.dev (50+ providers supported)")
+}
+
+func loadCatalog() (*models.Catalog, error) {
+	svc := models.NewService()
+	return svc.Load()
 }
 
 func providerList(cfg *config.Config, kc *keychain.Keychain) int {
+	catalog, err := loadCatalog()
+	if err != nil {
+		fmt.Printf("Warning: Could not load models catalog: %v\n", err)
+		fmt.Println("Showing configured providers only...")
+	}
+
 	fmt.Println("Configured Providers:")
-	fmt.Println(strings.Repeat("-", 60))
-	fmt.Printf("%-15s %-10s %-20s %s\n", "NAME", "STATUS", "API KEY", "ACTIVE")
-	fmt.Println(strings.Repeat("-", 60))
+	fmt.Println("====================")
 
-	activeProvider := cfg.ModelProvider
-
-	for _, p := range SupportedProviders {
-		name := p.Name
-		status := "not configured"
-		keyStatus := "not set"
-		isActive := ""
-
-		// Check if provider has API key
-		if key, err := kc.GetProviderKey(name); err == nil && key != "" {
-			keyStatus = "set"
-			status = "configured"
+	// Show currently configured providers
+	providers := getConfiguredProviders(cfg, kc)
+	if len(providers) == 0 {
+		fmt.Println("No providers configured yet.")
+		fmt.Println("Run 'pryx-core provider add <name>' to add a provider.")
+	} else {
+		for _, p := range providers {
+			active := ""
+			if cfg.ModelProvider == p.Name {
+				active = " [ACTIVE]"
+			}
+			fmt.Printf("  ✓ %s%s\n", p.DisplayName, active)
+			fmt.Printf("    API Key: %s\n", p.KeyStatus)
+			if p.BaseURL != "" {
+				fmt.Printf("    URL: %s\n", p.BaseURL)
+			}
+			fmt.Println()
 		}
+	}
 
-		// Special handling for ollama (local, no key needed)
-		if name == "ollama" {
-			keyStatus = "n/a"
-			if cfg.OllamaEndpoint != "" {
-				status = "configured"
+	// Show available providers from catalog
+	if catalog != nil {
+		fmt.Println("\nAvailable Providers from models.dev:")
+		fmt.Println("====================================")
+		fmt.Printf("Total providers available: %d\n", len(catalog.Providers))
+		fmt.Println()
+
+		// Show popular providers first
+		fmt.Println("Popular providers:")
+		for _, id := range PopularProviders {
+			if info, ok := catalog.GetProvider(id); ok {
+				marker := " "
+				if isProviderConfigured(id, cfg, kc) {
+					marker = "✓"
+				}
+				fmt.Printf("  %s %s - %s\n", marker, info.Name, getProviderDescription(id))
 			}
 		}
 
-		if name == activeProvider {
-			isActive = "*"
-		}
-
-		fmt.Printf("%-15s %-10s %-20s %s\n", name, status, keyStatus, isActive)
+		fmt.Println("\nRun 'pryx-core provider list --available' to see all providers")
 	}
 
-	fmt.Println(strings.Repeat("-", 60))
-	fmt.Println("* = active provider")
 	return 0
 }
 
+type ConfiguredProvider struct {
+	Name        string
+	DisplayName string
+	KeyStatus   string
+	BaseURL     string
+}
+
+func getConfiguredProviders(cfg *config.Config, kc *keychain.Keychain) []ConfiguredProvider {
+	var providers []ConfiguredProvider
+
+	catalog, _ := loadCatalog()
+
+	// Check all providers from catalog to see which are configured
+	if catalog != nil {
+		for id := range catalog.Providers {
+			if isProviderConfigured(id, cfg, kc) {
+				info, _ := catalog.GetProvider(id)
+				providers = append(providers, ConfiguredProvider{
+					Name:        id,
+					DisplayName: info.Name,
+					KeyStatus:   getKeyStatus(id, kc),
+					BaseURL:     getProviderBaseURL(id),
+				})
+			}
+		}
+	}
+
+	return providers
+}
+
+func isProviderConfigured(name string, cfg *config.Config, kc *keychain.Keychain) bool {
+	// Check if API key is in keychain
+	if _, err := kc.GetProviderKey(name); err == nil {
+		return true
+	}
+
+	// Check environment variables
+	envVars := getProviderEnvVars(name)
+	for _, env := range envVars {
+		if os.Getenv(env) != "" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func getKeyStatus(name string, kc *keychain.Keychain) string {
+	if _, err := kc.GetProviderKey(name); err == nil {
+		return "configured (keychain)"
+	}
+
+	envVars := getProviderEnvVars(name)
+	for _, env := range envVars {
+		if os.Getenv(env) != "" {
+			return fmt.Sprintf("configured (env: %s)", env)
+		}
+	}
+
+	return "not configured"
+}
+
+func getProviderEnvVars(name string) []string {
+	switch name {
+	case "openai":
+		return []string{"OPENAI_API_KEY"}
+	case "anthropic":
+		return []string{"ANTHROPIC_API_KEY"}
+	case "google":
+		return []string{"GOOGLE_API_KEY", "GEMINI_API_KEY"}
+	case "openrouter":
+		return []string{"OPENROUTER_API_KEY"}
+	case "groq":
+		return []string{"GROQ_API_KEY"}
+	case "xai":
+		return []string{"XAI_API_KEY"}
+	case "mistral":
+		return []string{"MISTRAL_API_KEY"}
+	case "cohere":
+		return []string{"COHERE_API_KEY"}
+	case "ollama":
+		return []string{"OLLAMA_HOST"}
+	default:
+		return []string{}
+	}
+}
+
+func getProviderBaseURL(name string) string {
+	switch name {
+	case "openai":
+		return "https://api.openai.com/v1"
+	case "anthropic":
+		return "https://api.anthropic.com/v1"
+	case "google":
+		return "https://generativelanguage.googleapis.com/v1"
+	case "openrouter":
+		return "https://openrouter.ai/api/v1"
+	case "groq":
+		return "https://api.groq.com/openai/v1"
+	case "xai":
+		return "https://api.x.ai/v1"
+	case "mistral":
+		return "https://api.mistral.ai/v1"
+	case "cohere":
+		return "https://api.cohere.com/v1"
+	case "ollama":
+		if host := os.Getenv("OLLAMA_HOST"); host != "" {
+			return host
+		}
+		return "http://localhost:11434"
+	default:
+		return ""
+	}
+}
+
+func getProviderDescription(name string) string {
+	descriptions := map[string]string{
+		"openai":     "GPT-4, GPT-3.5, and more",
+		"anthropic":  "Claude 3 family of models",
+		"google":     "Gemini models",
+		"openrouter": "Access 100+ models via one API",
+		"ollama":     "Run models locally",
+		"groq":       "Fast inference API",
+		"xai":        "Grok models by xAI",
+		"mistral":    "Mistral AI models",
+		"cohere":     "Command and Embed models",
+		"together":   "Open source model hosting",
+	}
+
+	if desc, ok := descriptions[name]; ok {
+		return desc
+	}
+	return "AI model provider"
+}
+
 func providerAdd(name string, cfg *config.Config, path string, kc *keychain.Keychain) int {
-	// Validate provider name
-	providerInfo, ok := getProviderInfo(name)
-	if !ok {
-		fmt.Printf("Unknown provider: %s\n", name)
-		fmt.Println("Run 'pryx-core provider list' to see supported providers.")
+	// Validate provider exists in catalog
+	catalog, err := loadCatalog()
+	if err != nil {
+		fmt.Printf("Error: Could not load models catalog: %v\n", err)
 		return 1
 	}
 
-	fmt.Printf("Adding provider: %s (%s)\n", providerInfo.DisplayName, providerInfo.Description)
-	fmt.Println("")
+	providerInfo, ok := catalog.GetProvider(name)
+	if !ok {
+		fmt.Printf("Error: Unknown provider '%s'\n", name)
+		fmt.Println("Run 'pryx-core provider list --available' to see all available providers")
+		return 1
+	}
+
+	fmt.Printf("Adding provider: %s\n", providerInfo.Name)
+	fmt.Println()
 
 	reader := bufio.NewReader(os.Stdin)
 
-	// For ollama, we just need the endpoint
-	if name == "ollama" {
-		fmt.Printf("Ollama endpoint [%s]: ", providerInfo.DefaultURL)
-		endpoint, _ := reader.ReadString('\n')
-		endpoint = strings.TrimSpace(endpoint)
-		if endpoint == "" {
-			endpoint = providerInfo.DefaultURL
-		}
-		cfg.OllamaEndpoint = endpoint
-		cfg.ModelProvider = "ollama"
-		cfg.ModelName = "llama3"
-
-		if err := cfg.Save(path); err != nil {
-			fmt.Printf("Failed to save config: %v\n", err)
-			return 1
-		}
-
-		fmt.Println("Ollama provider configured successfully!")
-		fmt.Printf("  Endpoint: %s\n", endpoint)
-		fmt.Println("  Model: llama3 (change with 'pryx-core config set model_name <model>')")
-		return 0
-	}
-
-	// For cloud providers, ask for API key
-	fmt.Print("Enter API key: ")
+	// Get API key (optional for some providers like Ollama)
+	fmt.Print("API Key (press Enter to skip for local providers): ")
 	apiKey, _ := reader.ReadString('\n')
 	apiKey = strings.TrimSpace(apiKey)
 
-	if apiKey == "" {
-		fmt.Println("API key cannot be empty.")
-		return 1
+	if apiKey != "" {
+		// Store in keychain
+		if err := kc.SetProviderKey(name, apiKey); err != nil {
+			fmt.Printf("Error storing API key: %v\n", err)
+			return 1
+		}
+		fmt.Println("✓ API key stored securely in keychain")
 	}
 
-	// Store key in keychain
-	if err := kc.SetProviderKey(name, apiKey); err != nil {
-		fmt.Printf("Failed to store API key: %v\n", err)
-		return 1
-	}
-
-	// Ask if this should be the active provider
-	fmt.Print("Set as active provider? [Y/n]: ")
-	setActive, _ := reader.ReadString('\n')
-	setActive = strings.TrimSpace(strings.ToLower(setActive))
-
-	if setActive == "" || setActive == "y" || setActive == "yes" {
+	// Set as active if no provider is currently active
+	if cfg.ModelProvider == "" {
 		cfg.ModelProvider = name
-		// Set a reasonable default model
-		cfg.ModelName = getDefaultModelForProvider(name)
+		if err := cfg.Save(path); err != nil {
+			fmt.Printf("Warning: Could not save config: %v\n", err)
+		} else {
+			fmt.Printf("✓ Set as active provider\n")
+		}
 	}
 
-	if err := cfg.Save(path); err != nil {
-		fmt.Printf("Failed to save config: %v\n", err)
-		return 1
-	}
-
+	fmt.Println()
 	fmt.Printf("Provider '%s' added successfully!\n", name)
-	if cfg.ModelProvider == name {
-		fmt.Println("Set as active provider.")
-	}
+	fmt.Printf("Run 'pryx-core provider use %s' to set as active provider\n", name)
+	fmt.Printf("Run 'pryx-core provider test %s' to verify connection\n", name)
 
 	return 0
 }
 
 func providerSetKey(name string, kc *keychain.Keychain) int {
-	// Validate provider name
-	if _, ok := getProviderInfo(name); !ok {
-		fmt.Printf("Unknown provider: %s\n", name)
+	// Validate provider exists in catalog
+	catalog, err := loadCatalog()
+	if err != nil {
+		fmt.Printf("Error: Could not load models catalog: %v\n", err)
 		return 1
 	}
 
-	if name == "ollama" {
-		fmt.Println("Ollama provider does not require an API key (local deployment).")
+	if _, ok := catalog.GetProvider(name); !ok {
+		fmt.Printf("Error: Unknown provider '%s'\n", name)
 		return 1
 	}
 
-	fmt.Printf("Setting API key for provider: %s\n", name)
-	fmt.Print("Enter API key: ")
-
+	fmt.Printf("Enter API key for %s: ", name)
 	reader := bufio.NewReader(os.Stdin)
 	apiKey, _ := reader.ReadString('\n')
 	apiKey = strings.TrimSpace(apiKey)
 
 	if apiKey == "" {
-		fmt.Println("API key cannot be empty.")
+		fmt.Println("Error: API key cannot be empty")
 		return 1
 	}
 
 	if err := kc.SetProviderKey(name, apiKey); err != nil {
-		fmt.Printf("Failed to store API key: %v\n", err)
+		fmt.Printf("Error storing API key: %v\n", err)
 		return 1
 	}
 
-	fmt.Printf("API key for '%s' stored securely in keychain.\n", name)
+	fmt.Println("✓ API key stored securely in keychain")
 	return 0
 }
 
 func providerRemove(name string, cfg *config.Config, path string, kc *keychain.Keychain) int {
-	// Validate provider name
-	if _, ok := getProviderInfo(name); !ok {
-		fmt.Printf("Unknown provider: %s\n", name)
-		return 1
-	}
-
-	// Confirm removal
-	fmt.Printf("Are you sure you want to remove provider '%s'? [y/N]: ", name)
-	reader := bufio.NewReader(os.Stdin)
-	confirm, _ := reader.ReadString('\n')
-	confirm = strings.TrimSpace(strings.ToLower(confirm))
-
-	if confirm != "y" && confirm != "yes" {
-		fmt.Println("Cancelled.")
-		return 0
-	}
-
-	// Remove API key from keychain
+	// Remove from keychain
 	if err := kc.DeleteProviderKey(name); err != nil {
-		fmt.Printf("Warning: Failed to remove API key from keychain: %v\n", err)
+		fmt.Printf("Warning: Could not remove API key from keychain: %v\n", err)
 	}
 
-	// If this was the active provider, reset to ollama
+	// If this was the active provider, clear it
 	if cfg.ModelProvider == name {
-		cfg.ModelProvider = "ollama"
-		cfg.ModelName = "llama3"
+		cfg.ModelProvider = ""
 		if err := cfg.Save(path); err != nil {
-			fmt.Printf("Failed to update config: %v\n", err)
-			return 1
+			fmt.Printf("Warning: Could not update config: %v\n", err)
+		} else {
+			fmt.Printf("Cleared active provider setting\n")
 		}
-		fmt.Println("Active provider reset to 'ollama'.")
 	}
 
-	fmt.Printf("Provider '%s' removed successfully.\n", name)
+	fmt.Printf("✓ Provider '%s' removed\n", name)
 	return 0
 }
 
 func providerUse(name string, cfg *config.Config, path string, kc *keychain.Keychain) int {
-	// Validate provider name
-	providerInfo, ok := getProviderInfo(name)
+	// Validate provider exists in catalog
+	catalog, err := loadCatalog()
+	if err != nil {
+		fmt.Printf("Error: Could not load models catalog: %v\n", err)
+		return 1
+	}
+
+	providerInfo, ok := catalog.GetProvider(name)
 	if !ok {
-		fmt.Printf("Unknown provider: %s\n", name)
+		fmt.Printf("Error: Unknown provider '%s'\n", name)
 		return 1
 	}
 
 	// Check if provider is configured
-	if name != "ollama" {
-		if key, err := kc.GetProviderKey(name); err != nil || key == "" {
-			fmt.Printf("Provider '%s' is not configured. Run 'pryx-core provider add %s' first.\n", name, name)
-			return 1
-		}
-	}
-
-	// Update config
-	cfg.ModelProvider = name
-	if cfg.ModelName == "" {
-		cfg.ModelName = getDefaultModelForProvider(name)
-	}
-
-	if err := cfg.Save(path); err != nil {
-		fmt.Printf("Failed to save config: %v\n", err)
+	if !isProviderConfigured(name, cfg, kc) {
+		fmt.Printf("Warning: Provider '%s' is not configured yet\n", name)
+		fmt.Printf("Run 'pryx-core provider add %s' to configure it\n", name)
 		return 1
 	}
 
-	fmt.Printf("Now using provider: %s (%s)\n", providerInfo.DisplayName, providerInfo.Description)
-	fmt.Printf("Model: %s\n", cfg.ModelName)
+	cfg.ModelProvider = name
+	if err := cfg.Save(path); err != nil {
+		fmt.Printf("Error saving config: %v\n", err)
+		return 1
+	}
+
+	fmt.Printf("✓ %s is now the active provider\n", providerInfo.Name)
 	return 0
 }
 
 func providerTest(name string, cfg *config.Config, kc *keychain.Keychain) int {
-	// Validate provider name
-	providerInfo, ok := getProviderInfo(name)
-	if !ok {
-		fmt.Printf("Unknown provider: %s\n", name)
+	// Validate provider exists in catalog
+	catalog, err := loadCatalog()
+	if err != nil {
+		fmt.Printf("Error: Could not load models catalog: %v\n", err)
 		return 1
 	}
 
-	fmt.Printf("Testing connection to %s...\n", providerInfo.DisplayName)
+	providerInfo, ok := catalog.GetProvider(name)
+	if !ok {
+		fmt.Printf("Error: Unknown provider '%s'\n", name)
+		return 1
+	}
+
+	fmt.Printf("Testing connection to %s...\n", providerInfo.Name)
 
 	// Check if configured
-	if name != "ollama" {
-		if key, err := kc.GetProviderKey(name); err != nil || key == "" {
-			fmt.Printf("❌ Provider '%s' is not configured (no API key found).\n", name)
-			fmt.Printf("   Run 'pryx-core provider set-key %s' to configure.\n", name)
-			return 1
-		}
+	if !isProviderConfigured(name, cfg, kc) {
+		fmt.Printf("✗ Provider is not configured\n")
+		fmt.Printf("Run 'pryx-core provider add %s' to configure it\n", name)
+		return 1
 	}
 
-	// For ollama, check if endpoint is reachable
-	if name == "ollama" {
-		// Simple HTTP check to ollama endpoint
-		endpoint := cfg.OllamaEndpoint
-		if endpoint == "" {
-			endpoint = "http://localhost:11434"
-		}
-		fmt.Printf("Checking Ollama at %s...\n", endpoint)
-		// Note: In a real implementation, we'd make an HTTP request here
-		fmt.Println("✓ Ollama endpoint configured (manual verification needed)")
-		return 0
-	}
+	// Get available models
+	models := catalog.GetProviderModels(name)
+	if len(models) == 0 {
+		fmt.Printf("Warning: No models found for provider in catalog\n")
+	} else {
+		fmt.Printf("✓ Provider accessible\n")
+		fmt.Printf("✓ %d models available\n", len(models))
 
-	// For cloud providers, we'd make a test API call
-	// For now, just verify key exists
-	fmt.Printf("✓ API key found for %s\n", providerInfo.DisplayName)
-	fmt.Println("✓ Provider configuration valid")
-	fmt.Println("")
-	fmt.Println("Note: Full connection test will be implemented with LLM client integration.")
+		// Show first few models
+		fmt.Println("\nPopular models:")
+		count := 0
+		for _, m := range models {
+			if count >= 5 {
+				break
+			}
+			fmt.Printf("  - %s\n", m.Name)
+			count++
+		}
+		if len(models) > 5 {
+			fmt.Printf("  ... and %d more\n", len(models)-5)
+		}
+	}
 
 	return 0
-}
-
-func getProviderInfo(name string) (ProviderInfo, bool) {
-	name = strings.ToLower(name)
-	for _, p := range SupportedProviders {
-		if p.Name == name {
-			return p, true
-		}
-	}
-	return ProviderInfo{}, false
-}
-
-func getDefaultModelForProvider(provider string) string {
-	switch provider {
-	case "openai":
-		return "gpt-4"
-	case "anthropic":
-		return "claude-3-opus"
-	case "glm":
-		return "glm-4-flash"
-	case "openrouter":
-		return "anthropic/claude-3-opus"
-	case "together":
-		return "meta-llama/Llama-3-70b-chat-hf"
-	case "groq":
-		return "llama3-70b-8192"
-	case "xai":
-		return "grok-beta"
-	case "mistral":
-		return "mistral-large"
-	case "cohere":
-		return "command-r-plus"
-	case "google":
-		return "gemini-pro"
-	case "ollama":
-		return "llama3"
-	default:
-		return ""
-	}
 }

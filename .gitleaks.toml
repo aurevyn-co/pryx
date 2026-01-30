@@ -1,0 +1,41 @@
+title = "Pryx Gitleaks Config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+paths = [
+    '''\.git''',
+    '''node_modules''',
+    '''vendor''',
+    '''dist''',
+    '''build''',
+    '''\.next''',
+    '''\.astro''',
+    '''apps\/web\/dist''',
+    '''apps\/host\/src-tauri\/gen''',
+]
+
+regexes = [
+    '''sk-[0-9]{10,20}''',
+    '''sk-[a-z]+-[0-9]{3,5}''',
+    '''apiKey.*sk-.*test''',
+    '''apiKey.*sk-.*123''',
+    '''MyStr0ng.*Mast3r.*P@ssw0rd''',
+    '''master-password''',
+    '''CorrectP@ss''',
+    '''WrongP@ss''',
+    '''my-secret-data''',
+    '''"key":"[A-Za-z0-9+/=]{40,60}"''',
+    '''serverIslandNameMap.*key''',
+]
+
+stopwords = [
+    "example",
+    "test",
+    "fake",
+    "mock",
+    "dummy",
+    "sample",
+    "placeholder",
+]

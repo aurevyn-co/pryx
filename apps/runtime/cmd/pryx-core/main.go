@@ -14,6 +14,7 @@ import (
 	// 	"pryx-core/internal/auth"
 
 	"pryx-core/internal/agent"
+	"pryx-core/internal/agent/spawn"
 	"pryx-core/internal/bus"
 	"pryx-core/internal/channels"
 	"pryx-core/internal/channels/telegram"
@@ -115,6 +116,25 @@ func main() {
 		go agt.Run(context.Background())
 	}
 
+	spawner := spawn.NewSpawner(cfg, b, kc)
+	spawnTool := spawn.NewSpawnTool(spawner, b)
+	srv.SetSpawnTool(spawnTool)
+	log.Println("Sub-agent spawner initialized (max agents: 10)")
+
+	cleanupCtx, cleanupCancel := context.WithCancel(context.Background())
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				spawner.Cleanup(1 * time.Hour)
+			case <-cleanupCtx.Done():
+				return
+			}
+		}
+	}()
+
 	srv.Bus().Publish(bus.NewEvent(bus.EventTraceEvent, "", map[string]interface{}{
 		"kind":      "runtime.started",
 		"version":   Version,
@@ -133,6 +153,7 @@ func main() {
 	<-stop
 
 	log.Println("Shutting down...")
+	cleanupCancel()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(ctx)

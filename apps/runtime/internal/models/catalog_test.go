@@ -1,154 +1,217 @@
-package models_test
+package models
 
 import (
-	"os"
 	"testing"
 	"time"
-
-	"pryx-core/internal/store"
-	"pryx-core/internal/models"
 )
 
-// TestCatalog_Load tests catalog loading
-func TestCatalog_Load(t *testing.T) {
-	tmpDB := t.TempDir() + "/test.db"
-	defer os.Remove(tmpDB)
-
-	store, err := store.New(tmpDB)
-	if err != nil {
-		t.Fatalf("Failed to create store: %v", err)
+func TestCatalog_IsStale(t *testing.T) {
+	fresh := &Catalog{
+		CachedAt:  time.Now(),
+		Models:    make(map[string]ModelInfo),
+		Providers: make(map[string]ProviderInfo),
 	}
-	defer store.Close()
-
-	catalog, err := models.LoadCatalog(store)
-	if err != nil {
-		t.Logf("Load catalog error (expected if no models): %v", err)
+	if fresh.IsStale() {
+		t.Error("Expected fresh catalog to not be stale")
 	}
 
-	if catalog == nil {
-		t.Fatal("Catalog should not be nil")
+	stale := &Catalog{
+		CachedAt:  time.Now().Add(-25 * time.Hour),
+		Models:    make(map[string]ModelInfo),
+		Providers: make(map[string]ProviderInfo),
 	}
-
-	t.Logf("Catalog loaded with %d models", len(catalog.Models))
+	if !stale.IsStale() {
+		t.Error("Expected old catalog to be stale")
+	}
 }
 
-// TestCatalog_GetProviderModels tests filtering by provider
 func TestCatalog_GetProviderModels(t *testing.T) {
-	tmpDB := t.TempDir() + "/test.db"
-	store, _ := store.New(tmpDB)
-	defer store.Close()
-
-	catalog, _ := models.LoadCatalog(store)
-
-	// Create test models
-	testModel1 := models.ModelInfo{
-		ID:       "model-1",
-		Name:     "Test Model 1",
-		Provider: "openai",
-	}
-	testModel2 := models.ModelInfo{
-		ID:       "model-2",
-		Name:     "Test Model 2",
-		Provider: "anthropic",
-	}
-
-	// Use time.Now() to satisfy LSP "imported and not used" warning
-	_ = time.Now()
-
-	// Simulate catalog by creating a slice with value types
-	modelsSlice := []models.ModelInfo{testModel1, testModel2}
-	testCatalog := struct {
-		Models []models.ModelInfo
-	}
-	testCatalog.Models = modelsSlice
-
-	// Test filtering
-	openaiModels := testCatalog.GetProviderModels("openai")
-	if len(openaiModels) != 1 {
-		t.Errorf("Expected 1 OpenAI model, got %d", len(openaiModels))
+	catalog := &Catalog{
+		Models: map[string]ModelInfo{
+			"gpt-4": {
+				ID:       "gpt-4",
+				Name:     "GPT-4",
+				Provider: "openai",
+			},
+			"claude-3": {
+				ID:       "claude-3",
+				Name:     "Claude 3",
+				Provider: "anthropic",
+			},
+			"gpt-3.5": {
+				ID:       "gpt-3.5",
+				Name:     "GPT-3.5",
+				Provider: "openai",
+			},
+		},
+		Providers: make(map[string]ProviderInfo),
+		CachedAt:  time.Now(),
 	}
 
-	// Test model properties
-	if len(openaiModels) > 0 {
-		if openaiModels[0].ID != "model-1" {
-			t.Errorf("Expected model ID to be model-1, got %s", openaiModels[0].ID)
-		}
-		if openaiModels[0].Name != "Test Model 1" {
-			t.Errorf("Expected model Name to be Test Model 1, got %s", openaiModels[0].Name)
-		}
-		if openaiModels[0].Provider != "openai" {
-			t.Errorf("Expected model Provider to be openai, got %s", openaiModels[0].Provider)
-		}
+	openaiModels := catalog.GetProviderModels("openai")
+	if len(openaiModels) != 2 {
+		t.Errorf("Expected 2 OpenAI models, got %d", len(openaiModels))
 	}
 
-	anthropicModels := testCatalog.GetProviderModels("anthropic")
+	anthropicModels := catalog.GetProviderModels("anthropic")
 	if len(anthropicModels) != 1 {
 		t.Errorf("Expected 1 Anthropic model, got %d", len(anthropicModels))
 	}
+
+	nonexistent := catalog.GetProviderModels("nonexistent")
+	if len(nonexistent) != 0 {
+		t.Errorf("Expected 0 models for nonexistent provider, got %d", len(nonexistent))
+	}
 }
 
-	// Test filtering by existing provider
-	openaiModels := catalog.GetProviderModels("openai")
-	if len(openaiModels) == 0 {
-		t.Error("Expected OpenAI models, got none")
+func TestCatalog_GetModel(t *testing.T) {
+	catalog := &Catalog{
+		Models: map[string]ModelInfo{
+			"gpt-4": {
+				ID:   "gpt-4",
+				Name: "GPT-4",
+			},
+		},
+		Providers: make(map[string]ProviderInfo),
+		CachedAt:  time.Now(),
 	}
 
-	t.Logf("Found %d OpenAI models", len(openaiModels))
-}
-
-// TestCatalog_GetModelByID tests model lookup
-func TestCatalog_GetModelByID(t *testing.T) {
-	tmpDB := t.TempDir() + "/test.db"
-	store, _ := store.New(tmpDB)
-	defer store.Close()
-
-	catalog, _ := models.LoadCatalog(store)
-
-	model := catalog.GetModelByID("nonexistent-model")
-	if model != nil {
-		t.Error("Expected model to be nil for non-existent ID")
-	}
-
-	if catalog.GetModelByID("gpt-4") == nil {
+	model, ok := catalog.GetModel("gpt-4")
+	if !ok {
 		t.Error("Expected to find GPT-4 model")
 	}
-}
+	if model.Name != "GPT-4" {
+		t.Errorf("Expected model name 'GPT-4', got '%s'", model.Name)
+	}
 
-// TestCatalog_IsStale tests staleness detection
-func TestCatalog_IsStale(t *testing.T) {
-	tmpDB := t.TempDir() + "/test.db"
-	defer os.Remove(tmpDB)
-
-	store, _ := store.New(tmpDB)
-	defer store.Close()
-
-	catalog, _ := models.LoadCatalog(store)
-
-	if catalog.IsStale() {
-		t.Log("Catalog is stale (as expected)")
-	} else {
-		t.Error("Expected catalog to be stale immediately after load")
+	_, ok = catalog.GetModel("nonexistent")
+	if ok {
+		t.Error("Expected to not find nonexistent model")
 	}
 }
 
-// TestCatalog_GetPricing tests pricing retrieval
-func TestCatalog_GetPricing(t *testing.T) {
-	tmpDB := t.TempDir() + "/test.db"
-	defer os.Remove(tmpDB)
-
-	store, _ := store.New(tmpDB)
-	defer store.Close()
-
-	catalog, _ := models.LoadCatalog(store)
-
-	pricing := catalog.GetPricing()
-	if pricing == nil {
-		t.Fatal("Pricing should not be nil")
+func TestCatalog_GetProvider(t *testing.T) {
+	catalog := &Catalog{
+		Models: make(map[string]ModelInfo),
+		Providers: map[string]ProviderInfo{
+			"openai": {Name: "OpenAI"},
+		},
+		CachedAt: time.Now(),
 	}
 
-	if len(pricing.Models) == 0 {
-		t.Error("Expected pricing to have models")
+	provider, ok := catalog.GetProvider("openai")
+	if !ok {
+		t.Error("Expected to find OpenAI provider")
+	}
+	if provider.Name != "OpenAI" {
+		t.Errorf("Expected provider name 'OpenAI', got '%s'", provider.Name)
 	}
 
-	t.Logf("Pricing loaded with %d models", len(pricing.Models))
+	_, ok = catalog.GetProvider("nonexistent")
+	if ok {
+		t.Error("Expected to not find nonexistent provider")
+	}
+}
+
+func TestModelInfo_SupportsTools(t *testing.T) {
+	withTools := ModelInfo{ToolCall: true}
+	if !withTools.SupportsTools() {
+		t.Error("Expected model with ToolCall=true to support tools")
+	}
+
+	withoutTools := ModelInfo{ToolCall: false}
+	if withoutTools.SupportsTools() {
+		t.Error("Expected model with ToolCall=false to not support tools")
+	}
+}
+
+func TestModelInfo_SupportsVision(t *testing.T) {
+	withVision := ModelInfo{
+		Modalities: struct {
+			Input  []string `json:"input"`
+			Output []string `json:"output"`
+		}{
+			Input: []string{"text", "image"},
+		},
+	}
+	if !withVision.SupportsVision() {
+		t.Error("Expected model with image input to support vision")
+	}
+
+	withoutVision := ModelInfo{
+		Modalities: struct {
+			Input  []string `json:"input"`
+			Output []string `json:"output"`
+		}{
+			Input: []string{"text"},
+		},
+	}
+	if withoutVision.SupportsVision() {
+		t.Error("Expected model without image input to not support vision")
+	}
+}
+
+func TestModelInfo_CalculateCost(t *testing.T) {
+	model := ModelInfo{}
+	model.Cost.Input = 2.50
+	model.Cost.Output = 10.00
+
+	cost := model.CalculateCost(1_000_000, 500_000)
+	expected := 2.50 + 5.00
+	if cost != expected {
+		t.Errorf("Expected cost %.2f, got %.2f", expected, cost)
+	}
+}
+
+func TestService_NewService(t *testing.T) {
+	service := NewService()
+	if service == nil {
+		t.Fatal("NewService should return a non-nil service")
+	}
+	if service.cachePath == "" {
+		t.Error("Service should have a cache path set")
+	}
+}
+
+func TestGetSupportedProviders(t *testing.T) {
+	providers := GetSupportedProviders()
+	if len(providers) == 0 {
+		t.Error("Expected non-empty list of supported providers")
+	}
+
+	hasOpenAI := false
+	for _, p := range providers {
+		if p == "openai" {
+			hasOpenAI = true
+			break
+		}
+	}
+	if !hasOpenAI {
+		t.Error("Expected 'openai' in supported providers")
+	}
+}
+
+func TestRawProviderDataStructure(t *testing.T) {
+	// Test that RawProviderData can hold the expected structure
+	provider := RawProviderData{
+		ID:   "test-provider",
+		Name: "Test Provider",
+		NPM:  "@test/sdk",
+		Env:  []string{"TEST_API_KEY"},
+		Doc:  "https://test.com/docs",
+		API:  "https://api.test.com",
+		Models: map[string]ModelInfo{
+			"model-1": {
+				ID:   "model-1",
+				Name: "Model 1",
+			},
+		},
+	}
+
+	if provider.ID != "test-provider" {
+		t.Error("Provider ID mismatch")
+	}
+	if len(provider.Models) != 1 {
+		t.Error("Expected 1 model")
+	}
 }

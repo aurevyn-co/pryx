@@ -9,6 +9,8 @@ try {
   render(() => <App />, {
     targetFps: 60,
     exitOnCtrlC: false,
+    useMouse: true,
+    enableMouseMovement: true,
   });
 } catch (e) {
   console.error("Failed to start TUI:", e);

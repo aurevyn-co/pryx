@@ -1,35 +1,16 @@
-import { createSignal, For, createEffect, onCleanup, onMount } from "solid-js";
+import { createSignal, For, createEffect, onCleanup } from "solid-js";
 import { Effect, Stream, Fiber } from "effect";
+import { useKeyboard, usePaste } from "@opentui/solid";
 import { useEffectService } from "../lib/hooks";
 import { WebSocketService } from "../services/ws";
 import Message, { MessageProps } from "./Message";
-
-// ANSI escape sequences for special keys
-const KEYS = {
-  ARROW_UP: "\u001b[A",
-  ARROW_DOWN: "\u001b[B",
-  ARROW_RIGHT: "\u001b[C",
-  ARROW_LEFT: "\u001b[D",
-  HOME: "\u001b[H",
-  END: "\u001b[F",
-  DELETE: "\u001b[3~",
-  BACKSPACE: "\u007f",
-  RETURN: "\r",
-  NEWLINE: "\n",
-  TAB: "\t",
-  ESCAPE: "\u001b",
-  CTRL_A: "\u0001",
-  CTRL_E: "\u0005",
-  CTRL_K: "\u000b",
-  CTRL_U: "\u0015",
-  CTRL_W: "\u0017",
-  CTRL_C: "\u0003",
-};
+import { isPrintable } from "../lib/keybindings";
 
 type RuntimeEvent = any;
 
 interface ChatProps {
   disabled?: boolean;
+  onConnectCommand?: () => void;
 }
 
 export default function Chat(props: ChatProps) {
@@ -160,6 +141,15 @@ export default function Chat(props: ChatProps) {
       }
     }
 
+    if (value.trim() === "/connect") {
+      setInputValue("");
+      setCursorPosition(0);
+      if (props.onConnectCommand) {
+        props.onConnectCommand();
+      }
+      return;
+    }
+
     // Add to history
     setHistory(prev => [value, ...prev].slice(0, 100));
     setHistoryIndex(-1);
@@ -177,20 +167,37 @@ export default function Chat(props: ChatProps) {
     setIsStreaming(true);
   };
 
-  const handleKey = (data: Buffer) => {
+  // Handle keyboard input using OpenTUI's useKeyboard hook
+  useKeyboard(evt => {
     if (props.disabled) return;
 
-    const seq = data.toString();
     const pos = cursorPosition();
     const value = inputValue();
 
-    switch (seq) {
-      case KEYS.RETURN:
-      case KEYS.NEWLINE:
+    // Handle Ctrl+C for copy when text is selected (if we had selection)
+    // For now, let it pass through to allow system copy
+    if (evt.ctrl && evt.name === "c") {
+      // Allow system copy - don't prevent default
+      return;
+    }
+
+    // Handle Ctrl+V for paste - OpenTUI's usePaste handles this separately
+    // But we need to handle it here to prevent default behavior
+    if (evt.ctrl && evt.name === "v") {
+      // Paste is handled by usePaste hook
+      evt.preventDefault();
+      return;
+    }
+
+    switch (evt.name) {
+      case "return":
+      case "enter":
+        evt.preventDefault();
         handleSubmit();
         break;
 
-      case KEYS.BACKSPACE:
+      case "backspace":
+        evt.preventDefault();
         if (pos > 0) {
           const newValue = value.slice(0, pos - 1) + value.slice(pos);
           setInputValue(newValue);
@@ -198,54 +205,39 @@ export default function Chat(props: ChatProps) {
         }
         break;
 
-      case KEYS.DELETE:
+      case "delete":
+        evt.preventDefault();
         if (pos < value.length) {
           const newValue = value.slice(0, pos) + value.slice(pos + 1);
           setInputValue(newValue);
         }
         break;
 
-      case KEYS.ARROW_LEFT:
+      case "left":
+      case "arrowleft":
+        evt.preventDefault();
         setCursorPosition(Math.max(0, pos - 1));
         break;
 
-      case KEYS.ARROW_RIGHT:
+      case "right":
+      case "arrowright":
+        evt.preventDefault();
         setCursorPosition(Math.min(value.length, pos + 1));
         break;
 
-      case KEYS.HOME:
-      case KEYS.CTRL_A:
+      case "home":
+        evt.preventDefault();
         setCursorPosition(0);
         break;
 
-      case KEYS.END:
-      case KEYS.CTRL_E:
+      case "end":
+        evt.preventDefault();
         setCursorPosition(value.length);
         break;
 
-      case KEYS.CTRL_K:
-        // Clear from cursor to end
-        setInputValue(value.slice(0, pos));
-        break;
-
-      case KEYS.CTRL_U:
-        // Clear from start to cursor
-        setInputValue(value.slice(pos));
-        setCursorPosition(0);
-        break;
-
-      case KEYS.CTRL_W: {
-        const beforeCursor = value.slice(0, pos);
-        const match = beforeCursor.match(/^(.*\s)?(\S+)$/);
-        if (match) {
-          const newValue = (match[1] || "") + value.slice(pos);
-          setInputValue(newValue);
-          setCursorPosition(match[1]?.length || 0);
-        }
-        break;
-      }
-
-      case KEYS.ARROW_UP: {
+      case "up":
+      case "arrowup": {
+        evt.preventDefault();
         const h = history();
         if (h.length > 0) {
           const newIndex = Math.min(historyIndex() + 1, h.length - 1);
@@ -256,7 +248,9 @@ export default function Chat(props: ChatProps) {
         break;
       }
 
-      case KEYS.ARROW_DOWN: {
+      case "down":
+      case "arrowdown": {
+        evt.preventDefault();
         const idx = historyIndex();
         if (idx > 0) {
           const newIndex = idx - 1;
@@ -271,46 +265,81 @@ export default function Chat(props: ChatProps) {
         break;
       }
 
-      case KEYS.ESCAPE:
+      case "escape":
+        evt.preventDefault();
         // Cancel/Clear
         setInputValue("");
         setCursorPosition(0);
         setHistoryIndex(-1);
         break;
 
-      case KEYS.TAB:
-        // Ignore tab in chat input
+      case "tab":
+        // Ignore tab in chat input - let it propagate for view switching
         break;
 
       default:
-        // Handle printable characters (including multi-byte for copy-paste)
-        if (seq.length >= 1 && !seq.startsWith("\u001b")) {
-          // Check if it's a printable character or paste
-          const isPrintable = seq.split("").every(c => {
-            const code = c.charCodeAt(0);
-            return code >= 32 && code < 127;
-          });
+        // Handle Ctrl+A (beginning of line)
+        if (evt.ctrl && evt.name === "a") {
+          evt.preventDefault();
+          setCursorPosition(0);
+          return;
+        }
 
-          if (isPrintable) {
-            const newValue = value.slice(0, pos) + seq + value.slice(pos);
+        // Handle Ctrl+E (end of line)
+        if (evt.ctrl && evt.name === "e") {
+          evt.preventDefault();
+          setCursorPosition(value.length);
+          return;
+        }
+
+        // Handle Ctrl+K (clear from cursor to end)
+        if (evt.ctrl && evt.name === "k") {
+          evt.preventDefault();
+          setInputValue(value.slice(0, pos));
+          return;
+        }
+
+        // Handle Ctrl+U (clear from start to cursor)
+        if (evt.ctrl && evt.name === "u") {
+          evt.preventDefault();
+          setInputValue(value.slice(pos));
+          setCursorPosition(0);
+          return;
+        }
+
+        // Handle Ctrl+W (delete word before cursor)
+        if (evt.ctrl && evt.name === "w") {
+          evt.preventDefault();
+          const beforeCursor = value.slice(0, pos);
+          const match = beforeCursor.match(/^(.*\s)?(\S+)$/);
+          if (match) {
+            const newValue = (match[1] || "") + value.slice(pos);
             setInputValue(newValue);
-            setCursorPosition(pos + seq.length);
+            setCursorPosition(match[1]?.length || 0);
           }
+          return;
+        }
+
+        // Handle printable characters
+        if (isPrintable(evt.name)) {
+          evt.preventDefault();
+          const newValue = value.slice(0, pos) + evt.name + value.slice(pos);
+          setInputValue(newValue);
+          setCursorPosition(pos + 1);
         }
         break;
     }
-  };
-
-  onMount(() => {
-    if (typeof process !== "undefined" && process.stdin.isTTY) {
-      process.stdin.on("data", handleKey);
-    }
   });
 
-  onCleanup(() => {
-    if (typeof process !== "undefined" && process.stdin) {
-      process.stdin.off("data", handleKey);
-    }
+  usePaste((evt: { text: string }) => {
+    if (props.disabled) return;
+
+    const pos = cursorPosition();
+    const value = inputValue();
+    const text = evt.text;
+    const newValue = value.slice(0, pos) + text + value.slice(pos);
+    setInputValue(newValue);
+    setCursorPosition(pos + text.length);
   });
 
   const displayMessages = () => [...messages()];

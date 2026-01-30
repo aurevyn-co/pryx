@@ -12,6 +12,7 @@ import Skills from "./Skills";
 import SearchableCommandPalette, { Command } from "./SearchableCommandPalette";
 import KeyboardShortcuts from "./KeyboardShortcuts";
 import SetupRequired from "./SetupRequired";
+import ProviderManager from "./ProviderManager";
 
 type View = "chat" | "sessions" | "settings" | "channels" | "skills";
 
@@ -23,6 +24,7 @@ export default function App() {
   const [view, setView] = createSignal<View>("chat");
   const [showCommands, setShowCommands] = createSignal(false);
   const [showHelp, setShowHelp] = createSignal(false);
+  const [showProviderManager, setShowProviderManager] = createSignal(false);
   const [connectionStatus, setConnectionStatus] = createSignal("Connecting...");
   const [hasProvider, setHasProvider] = createSignal(false);
   const [setupRequired, setSetupRequired] = createSignal(false);
@@ -189,12 +191,24 @@ export default function App() {
         setShowCommands(false);
       },
     },
+    {
+      id: "providers",
+      name: "Manage Providers",
+      description: "Add, edit, or remove AI providers",
+      category: "System",
+      shortcut: "p",
+      keywords: ["providers", "connect", "api", "keys", "models", "ai"],
+      action: () => {
+        setShowProviderManager(true);
+        setShowCommands(false);
+      },
+    },
   ];
 
   const views: View[] = ["chat", "sessions", "channels", "skills", "settings"];
 
   useKeyboard(evt => {
-    if (showHelp() || showCommands()) {
+    if (showHelp() || showCommands() || showProviderManager()) {
       return;
     }
 
@@ -262,7 +276,10 @@ export default function App() {
         <box flexGrow={1} padding={1}>
           <Switch>
             <Match when={view() === "chat"}>
-              <Chat disabled={showCommands() || showHelp()} />
+              <Chat 
+                disabled={showCommands() || showHelp() || showProviderManager()} 
+                onConnectCommand={() => setShowProviderManager(true)}
+              />
             </Match>
             <Match when={view() === "sessions"}>
               <SessionExplorer />
@@ -295,6 +312,10 @@ export default function App() {
 
         <Show when={showHelp()}>
           <KeyboardShortcuts onClose={() => setShowHelp(false)} />
+        </Show>
+
+        <Show when={showProviderManager()}>
+          <ProviderManager onClose={() => setShowProviderManager(false)} />
         </Show>
       </box>
     </Show>

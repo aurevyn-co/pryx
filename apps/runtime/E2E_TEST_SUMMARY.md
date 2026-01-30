@@ -50,7 +50,7 @@ node scripts/e2e-test-suite.js
 
 ### GLM API Key
 
-Using provided key: dd358251b05b48c688891384f81a4398.4lq5rmHmYl2WIXrt
+Using provided key: [REDACTED - see environment variable or secure vault]
 
 ### Next Steps
 

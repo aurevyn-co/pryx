@@ -3,4 +3,7 @@ export { deriveKey, generateSalt, generateIV, encrypt, decrypt, secureClear, sec
 export { Vault, createVault, encryptWithPassword, decryptWithPassword, } from './vault.js';
 export { KeyCache, KeyCacheEntry, KeyCacheConfig, DEFAULT_CACHE_CONFIG, createKeyCache, } from './key-cache.js';
 export { PasswordManager, PasswordManagerConfig, DEFAULT_PASSWORD_MANAGER_CONFIG, createPasswordManager, } from './password-manager.js';
+export { VaultStorage, createVaultStorage, } from './storage.js';
+export { BackupManager, BackupInfo, } from './backup.js';
+export { VaultFile, VaultEntry, VaultMetadata, EntryData, EntryMetadata, EntryType, IntegrityReport, Migration, VAULT_FORMAT_VERSION, MAX_BACKUPS, StorageError, FileNotFoundError, CorruptedVaultError, EntryNotFoundError, DuplicateEntryError, MigrationError, } from './storage-types.js';
 //# sourceMappingURL=index.d.ts.map

@@ -7,6 +7,7 @@ import (
 
 	"nhooyr.io/websocket"
 	"pryx-core/internal/bus"
+	"pryx-core/internal/validation"
 )
 
 func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
@@ -23,6 +24,11 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 	surface := strings.TrimSpace(query.Get("surface"))
 	sessionFilter := strings.TrimSpace(query.Get("session_id"))
 	eventFilters := query["event"]
+
+	validator := validation.NewValidator()
+	if err := validator.ValidateSessionID(sessionFilter); err != nil {
+		return
+	}
 
 	var topics []bus.EventType
 	for _, ev := range eventFilters {
@@ -105,13 +111,17 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 
 		switch eventType {
 		case "approval.resolve":
-			if strings.TrimSpace(in.ApprovalID) != "" {
-				_ = s.mcp.ResolveApproval(in.ApprovalID, in.Approved)
+			approvalID := strings.TrimSpace(in.ApprovalID)
+			if err := validator.ValidateID("approval_id", approvalID); err == nil {
+				_ = s.mcp.ResolveApproval(approvalID, in.Approved)
 			}
 		case "chat.send":
 			if in.Payload != nil && in.Payload["content"] != nil {
-				// Publish chat request for Agent to handle
-				s.bus.Publish(bus.NewEvent(bus.EventChatRequest, sessionFilter, in.Payload))
+				if content, ok := in.Payload["content"].(string); ok {
+					if err := validator.ValidateChatContent(content); err == nil {
+						s.bus.Publish(bus.NewEvent(bus.EventChatRequest, sessionFilter, in.Payload))
+					}
+				}
 			}
 		}
 	}

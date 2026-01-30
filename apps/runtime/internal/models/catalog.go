@@ -19,7 +19,8 @@ const (
 type ModelInfo struct {
 	ID               string `json:"id"`
 	Name             string `json:"name"`
-	Provider         string `json:"provider"`
+	Provider         string `json:"-"`
+	Family           string `json:"family"`
 	Attachment       bool   `json:"attachment"`
 	Reasoning        bool   `json:"reasoning"`
 	ToolCall         bool   `json:"tool_call"`
@@ -57,6 +58,19 @@ type ProviderInfo struct {
 	API  string   `json:"api,omitempty"`
 }
 
+// RawProviderData represents the structure of each provider in the models.dev API
+// The API returns providers as top-level keys, each containing provider info and models
+type RawProviderData struct {
+	ID     string               `json:"id"`
+	Name   string               `json:"name"`
+	NPM    string               `json:"npm"`
+	Env    []string             `json:"env"`
+	Doc    string               `json:"doc"`
+	API    string               `json:"api,omitempty"`
+	Models map[string]ModelInfo `json:"models"`
+}
+
+// Catalog represents the processed catalog with flattened models and providers
 type Catalog struct {
 	Models    map[string]ModelInfo    `json:"models"`
 	Providers map[string]ProviderInfo `json:"providers"`
@@ -179,15 +193,40 @@ func (s *Service) fetchFromAPI() (*Catalog, error) {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	var catalog Catalog
-	if err := json.Unmarshal(body, &catalog); err != nil {
+	// Parse the raw API response where providers are top-level keys
+	var rawData map[string]RawProviderData
+	if err := json.Unmarshal(body, &rawData); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
-	catalog.FetchedAt = time.Now()
-	catalog.CachedAt = time.Now()
+	// Transform raw data into Catalog structure
+	catalog := &Catalog{
+		Models:    make(map[string]ModelInfo),
+		Providers: make(map[string]ProviderInfo),
+		FetchedAt: time.Now(),
+		CachedAt:  time.Now(),
+	}
 
-	return &catalog, nil
+	for providerID, providerData := range rawData {
+		// Create ProviderInfo
+		provider := ProviderInfo{
+			Name: providerData.Name,
+			NPM:  providerData.NPM,
+			Env:  providerData.Env,
+			Doc:  providerData.Doc,
+			API:  providerData.API,
+		}
+		catalog.Providers[providerID] = provider
+
+		// Add models with provider field populated
+		for modelID, model := range providerData.Models {
+			model.ID = modelID
+			model.Provider = providerID
+			catalog.Models[modelID] = model
+		}
+	}
+
+	return catalog, nil
 }
 
 func (s *Service) loadFromCache() (*Catalog, error) {

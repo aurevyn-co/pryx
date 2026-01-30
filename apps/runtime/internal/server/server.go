@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -22,15 +23,26 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
+type SpawnTool interface {
+	Name() string
+	Description() string
+	Schema() map[string]interface{}
+	Execute(ctx context.Context, params json.RawMessage, parentID string) (interface{}, error)
+	GetAgentStatus(agentID string) (map[string]interface{}, error)
+	ListAgents() []map[string]interface{}
+	ForkSession(sourceSessionID string) (string, error)
+}
+
 type Server struct {
-	cfg      *config.Config
-	db       *sql.DB
-	keychain *keychain.Keychain
-	router   *chi.Mux
-	bus      *bus.Bus
-	mcp      *mcp.Manager
-	skills   *skills.Registry
-	catalog  *models.Catalog
+	cfg       *config.Config
+	db        *sql.DB
+	keychain  *keychain.Keychain
+	router    *chi.Mux
+	bus       *bus.Bus
+	mcp       *mcp.Manager
+	skills    *skills.Registry
+	catalog   *models.Catalog
+	spawnTool SpawnTool
 
 	httpMu     sync.Mutex
 	httpServer *http.Server
@@ -106,6 +118,11 @@ func (s *Server) routes() {
 	s.router.Get("/api/v1/providers", s.handleProvidersList)
 	s.router.Get("/api/v1/providers/{id}/models", s.handleProviderModels)
 	s.router.Get("/api/v1/models", s.handleModelsList)
+	s.router.Get("/api/v1/agents", s.handleAgentsList)
+	s.router.Get("/api/v1/agents/{id}", s.handleAgentGet)
+	s.router.Post("/api/v1/agents/spawn", s.handleAgentSpawn)
+	s.router.Post("/api/v1/agents/{id}/cancel", s.handleAgentCancel)
+	s.router.Post("/api/v1/sessions/fork", s.handleSessionFork)
 }
 
 func (s *Server) Bus() *bus.Bus {
@@ -174,4 +191,8 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 func (s *Server) SetCatalog(catalog *models.Catalog) {
 	s.catalog = catalog
+}
+
+func (s *Server) SetSpawnTool(tool SpawnTool) {
+	s.spawnTool = tool
 }

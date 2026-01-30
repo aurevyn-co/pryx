@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"pryx-core/internal/bus"
 	"pryx-core/internal/config"
 	"pryx-core/internal/keychain"
@@ -301,9 +302,9 @@ func (s *Spawner) createProvider() (llm.Provider, error) {
 }
 
 func generateAgentID() string {
-	return fmt.Sprintf("agent-%d", time.Now().UnixNano())
+	return fmt.Sprintf("agent-%s", uuid.New().String())
 }
 
 func generateSessionID() string {
-	return fmt.Sprintf("session-%d", time.Now().UnixNano())
+	return fmt.Sprintf("session-%s", uuid.New().String())
 }

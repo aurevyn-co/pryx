@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"pryx-core/internal/skills"
+	"pryx-core/internal/validation"
 )
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -44,15 +45,35 @@ func (s *Server) handleMCPCall(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	if strings.TrimSpace(req.Tool) == "" {
+
+	validator := validation.NewValidator()
+
+	if err := validator.ValidateSessionID(req.SessionID); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"error": "missing tool",
+			"error": err.Error(),
 		})
 		return
 	}
+
+	if err := validator.ValidateToolName(req.Tool); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": err.Error(),
+		})
+		return
+	}
+
 	if req.Arguments == nil {
 		req.Arguments = map[string]interface{}{}
+	}
+
+	if err := validator.ValidateMap("arguments", req.Arguments); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": err.Error(),
+		})
+		return
 	}
 
 	res, err := s.mcp.CallTool(r.Context(), strings.TrimSpace(req.SessionID), req.Tool, req.Arguments)
@@ -81,13 +102,16 @@ func (s *Server) handleSkillsList(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleSkillsInfo(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimSpace(chi.URLParam(r, "id"))
-	if id == "" {
+
+	validator := validation.NewValidator()
+	if err := validator.ValidateID("id", id); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"error": "missing id",
+			"error": err.Error(),
 		})
 		return
 	}
+
 	reg := s.skills
 	if reg == nil {
 		w.WriteHeader(http.StatusNotFound)
@@ -109,13 +133,16 @@ func (s *Server) handleSkillsInfo(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleSkillsBody(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimSpace(chi.URLParam(r, "id"))
-	if id == "" {
+
+	validator := validation.NewValidator()
+	if err := validator.ValidateID("id", id); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"error": "missing id",
+			"error": err.Error(),
 		})
 		return
 	}
+
 	reg := s.skills
 	if reg == nil {
 		w.WriteHeader(http.StatusNotFound)
@@ -174,9 +201,11 @@ func (s *Server) handleProvidersList(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleProviderModels(w http.ResponseWriter, r *http.Request) {
 	providerID := strings.TrimSpace(chi.URLParam(r, "id"))
-	if providerID == "" {
+
+	validator := validation.NewValidator()
+	if err := validator.ValidateID("id", providerID); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "missing provider id"})
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
@@ -250,5 +279,128 @@ func (s *Server) handleModelsList(w http.ResponseWriter, r *http.Request) {
 			{"id": "claude-3-sonnet", "name": "Claude 3 Sonnet", "provider": "anthropic"},
 			{"id": "claude-3-haiku", "name": "Claude 3 Haiku", "provider": "anthropic"},
 		},
+	})
+}
+
+func (s *Server) handleAgentsList(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if s.spawnTool == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{"error": "spawn tool not available"})
+		return
+	}
+
+	agents := s.spawnTool.ListAgents()
+	json.NewEncoder(w).Encode(map[string]interface{}{"agents": agents})
+}
+
+func (s *Server) handleAgentGet(w http.ResponseWriter, r *http.Request) {
+	agentID := chi.URLParam(r, "id")
+
+	validator := validation.NewValidator()
+	if err := validator.ValidateID("id", agentID); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	if s.spawnTool == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{"error": "spawn tool not available"})
+		return
+	}
+
+	agent, err := s.spawnTool.GetAgentStatus(agentID)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(agent)
+}
+
+type spawnRequest struct {
+	Task      string `json:"task"`
+	Context   string `json:"context,omitempty"`
+	SessionID string `json:"session_id,omitempty"`
+}
+
+func (s *Server) handleAgentSpawn(w http.ResponseWriter, r *http.Request) {
+	if s.spawnTool == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{"error": "spawn tool not available"})
+		return
+	}
+
+	var req spawnRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request body"})
+		return
+	}
+
+	if req.Task == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "task is required"})
+		return
+	}
+
+	params, _ := json.Marshal(req)
+	result, err := s.spawnTool.Execute(r.Context(), params, "api")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(result)
+}
+
+func (s *Server) handleAgentCancel(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "cancel not yet implemented"})
+}
+
+type forkRequest struct {
+	SourceSessionID string `json:"source_session_id"`
+}
+
+func (s *Server) handleSessionFork(w http.ResponseWriter, r *http.Request) {
+	if s.spawnTool == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{"error": "spawn tool not available"})
+		return
+	}
+
+	var req forkRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request body"})
+		return
+	}
+
+	if req.SourceSessionID == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "source_session_id is required"})
+		return
+	}
+
+	newSessionID, err := s.spawnTool.ForkSession(req.SourceSessionID)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"source_session_id": req.SourceSessionID,
+		"new_session_id":    newSessionID,
 	})
 }

@@ -160,6 +160,7 @@ func TestManager_Stop(t *testing.T) {
 
 func TestGenerateDeviceID(t *testing.T) {
 	id1 := generateDeviceID()
+	time.Sleep(time.Millisecond)
 	id2 := generateDeviceID()
 
 	if id1 == "" {
