@@ -58,7 +58,7 @@ repos:
         name: Format with Oxfmt
         entry: bunx oxfmt
         language: system
-        types_or: [javascript, jsx, ts, tsx, json, css, scss, md, markdown, yaml]
+        types_or: [javascript, jsx, ts, tsx, json, css, scss, markdown, yaml]
         exclude: |
           (?x)^(
             apps/.*/node_modules/|
