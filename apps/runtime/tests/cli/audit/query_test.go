@@ -1,14 +1,24 @@
 package audit
 
 import (
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
 )
 
+const pryxCorePath = "/tmp/pryx-core"
+
+func skipIfBinaryMissing(t *testing.T) {
+	if _, err := os.Stat(pryxCorePath); err != nil {
+		t.Skipf("%s not found; build runtime binary before running CLI tests", pryxCorePath)
+	}
+}
+
 func TestAuditQueryCommand(t *testing.T) {
+	skipIfBinaryMissing(t)
 	// Check if audit command exists
-	cmd := exec.Command("/tmp/pryx-core", "--help")
+	cmd := exec.Command(pryxCorePath, "--help")
 	output, _ := cmd.CombinedOutput()
 	if !strings.Contains(string(output), "audit") {
 		t.Skip("audit command not available in CLI")
@@ -27,8 +37,9 @@ func TestAuditQueryCommand(t *testing.T) {
 }
 
 func TestAuditQueryWithSession(t *testing.T) {
+	skipIfBinaryMissing(t)
 	// Check if audit command exists
-	cmd := exec.Command("/tmp/pryx-core", "--help")
+	cmd := exec.Command(pryxCorePath, "--help")
 	output, _ := cmd.CombinedOutput()
 	if !strings.Contains(string(output), "audit") {
 		t.Skip("audit command not available in CLI")
@@ -47,8 +58,9 @@ func TestAuditQueryWithSession(t *testing.T) {
 }
 
 func TestAuditQueryWithSurface(t *testing.T) {
+	skipIfBinaryMissing(t)
 	// Check if audit command exists
-	cmd := exec.Command("/tmp/pryx-core", "--help")
+	cmd := exec.Command(pryxCorePath, "--help")
 	output, _ := cmd.CombinedOutput()
 	if !strings.Contains(string(output), "audit") {
 		t.Skip("audit command not available in CLI")
@@ -67,8 +79,9 @@ func TestAuditQueryWithSurface(t *testing.T) {
 }
 
 func TestAuditQueryWithJSON(t *testing.T) {
+	skipIfBinaryMissing(t)
 	// Check if audit command exists
-	cmd := exec.Command("/tmp/pryx-core", "--help")
+	cmd := exec.Command(pryxCorePath, "--help")
 	output, _ := cmd.CombinedOutput()
 	if !strings.Contains(string(output), "audit") {
 		t.Skip("audit command not available in CLI")
@@ -89,8 +102,9 @@ func TestAuditQueryWithJSON(t *testing.T) {
 }
 
 func TestAuditQueryWithLimit(t *testing.T) {
+	skipIfBinaryMissing(t)
 	// Check if audit command exists
-	cmd := exec.Command("/tmp/pryx-core", "--help")
+	cmd := exec.Command(pryxCorePath, "--help")
 	output, _ := cmd.CombinedOutput()
 	if !strings.Contains(string(output), "audit") {
 		t.Skip("audit command not available in CLI")
@@ -109,8 +123,9 @@ func TestAuditQueryWithLimit(t *testing.T) {
 }
 
 func TestAuditExportCommand(t *testing.T) {
+	skipIfBinaryMissing(t)
 	// Check if audit command exists
-	cmd := exec.Command("/tmp/pryx-core", "--help")
+	cmd := exec.Command(pryxCorePath, "--help")
 	output, _ := cmd.CombinedOutput()
 	if !strings.Contains(string(output), "audit") {
 		t.Skip("audit command not available in CLI")
@@ -129,8 +144,9 @@ func TestAuditExportCommand(t *testing.T) {
 }
 
 func TestAuditExportToJSON(t *testing.T) {
+	skipIfBinaryMissing(t)
 	// Check if audit command exists
-	cmd := exec.Command("/tmp/pryx-core", "--help")
+	cmd := exec.Command(pryxCorePath, "--help")
 	output, _ := cmd.CombinedOutput()
 	if !strings.Contains(string(output), "audit") {
 		t.Skip("audit command not available in CLI")
@@ -149,8 +165,9 @@ func TestAuditExportToJSON(t *testing.T) {
 }
 
 func TestAuditExportToCSV(t *testing.T) {
+	skipIfBinaryMissing(t)
 	// Check if audit command exists
-	cmd := exec.Command("/tmp/pryx-core", "--help")
+	cmd := exec.Command(pryxCorePath, "--help")
 	output, _ := cmd.CombinedOutput()
 	if !strings.Contains(string(output), "audit") {
 		t.Skip("audit command not available in CLI")
@@ -169,8 +186,9 @@ func TestAuditExportToCSV(t *testing.T) {
 }
 
 func TestAuditExportToJSONL(t *testing.T) {
+	skipIfBinaryMissing(t)
 	// Check if audit command exists
-	cmd := exec.Command("/tmp/pryx-core", "--help")
+	cmd := exec.Command(pryxCorePath, "--help")
 	output, _ := cmd.CombinedOutput()
 	if !strings.Contains(string(output), "audit") {
 		t.Skip("audit command not available in CLI")
@@ -189,8 +207,9 @@ func TestAuditExportToJSONL(t *testing.T) {
 }
 
 func TestAuditStatsCommand(t *testing.T) {
+	skipIfBinaryMissing(t)
 	// Check if audit command exists
-	cmd := exec.Command("/tmp/pryx-core", "--help")
+	cmd := exec.Command(pryxCorePath, "--help")
 	output, _ := cmd.CombinedOutput()
 	if !strings.Contains(string(output), "audit") {
 		t.Skip("audit command not available in CLI")
@@ -209,8 +228,9 @@ func TestAuditStatsCommand(t *testing.T) {
 }
 
 func TestAuditHelpCommand(t *testing.T) {
+	skipIfBinaryMissing(t)
 	// Check if audit command exists
-	cmd := exec.Command("/tmp/pryx-core", "--help")
+	cmd := exec.Command(pryxCorePath, "--help")
 	output, _ := cmd.CombinedOutput()
 	if !strings.Contains(string(output), "audit") {
 		t.Skip("audit command not available in CLI")
@@ -236,8 +256,9 @@ func TestAuditHelpCommand(t *testing.T) {
 }
 
 func TestAuditQueryWithTimeFilter(t *testing.T) {
+	skipIfBinaryMissing(t)
 	// Check if audit command exists
-	cmd := exec.Command("/tmp/pryx-core", "--help")
+	cmd := exec.Command(pryxCorePath, "--help")
 	output, _ := cmd.CombinedOutput()
 	if !strings.Contains(string(output), "audit") {
 		t.Skip("audit command not available in CLI")
@@ -256,8 +277,9 @@ func TestAuditQueryWithTimeFilter(t *testing.T) {
 }
 
 func TestAuditQueryWithToolFilter(t *testing.T) {
+	skipIfBinaryMissing(t)
 	// Check if audit command exists
-	cmd := exec.Command("/tmp/pryx-core", "--help")
+	cmd := exec.Command(pryxCorePath, "--help")
 	output, _ := cmd.CombinedOutput()
 	if !strings.Contains(string(output), "audit") {
 		t.Skip("audit command not available in CLI")
@@ -276,8 +298,9 @@ func TestAuditQueryWithToolFilter(t *testing.T) {
 }
 
 func TestAuditQueryWithMultipleFilters(t *testing.T) {
+	skipIfBinaryMissing(t)
 	// Check if audit command exists
-	cmd := exec.Command("/tmp/pryx-core", "--help")
+	cmd := exec.Command(pryxCorePath, "--help")
 	output, _ := cmd.CombinedOutput()
 	if !strings.Contains(string(output), "audit") {
 		t.Skip("audit command not available in CLI")
@@ -296,8 +319,9 @@ func TestAuditQueryWithMultipleFilters(t *testing.T) {
 }
 
 func TestAuditUnknownCommand(t *testing.T) {
+	skipIfBinaryMissing(t)
 	// Check if audit command exists
-	cmd := exec.Command("/tmp/pryx-core", "--help")
+	cmd := exec.Command(pryxCorePath, "--help")
 	output, _ := cmd.CombinedOutput()
 	if !strings.Contains(string(output), "audit") {
 		t.Skip("audit command not available in CLI")

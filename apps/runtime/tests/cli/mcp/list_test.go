@@ -1,12 +1,22 @@
 package mcp
 
 import (
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
 )
 
+const pryxCorePath = "/tmp/pryx-core"
+
+func skipIfBinaryMissing(t *testing.T) {
+	if _, err := os.Stat(pryxCorePath); err != nil {
+		t.Skipf("%s not found; build runtime binary before running CLI tests", pryxCorePath)
+	}
+}
+
 func TestListCommand(t *testing.T) {
+	skipIfBinaryMissing(t)
 	cmd := exec.Command("/tmp/pryx-core", "mcp", "list")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -19,6 +29,7 @@ func TestListCommand(t *testing.T) {
 }
 
 func TestListCommandWithJSON(t *testing.T) {
+	skipIfBinaryMissing(t)
 	cmd := exec.Command("/tmp/pryx-core", "mcp", "list", "--json")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -34,6 +45,7 @@ func TestListCommandWithJSON(t *testing.T) {
 }
 
 func TestAddCommand(t *testing.T) {
+	skipIfBinaryMissing(t)
 	cmd := exec.Command("/tmp/pryx-core", "mcp", "add", "test-server", "--command", "echo", "test")
 	output, err := cmd.CombinedOutput()
 
@@ -53,6 +65,7 @@ func TestAddCommand(t *testing.T) {
 }
 
 func TestRemoveCommand(t *testing.T) {
+	skipIfBinaryMissing(t)
 	cmd := exec.Command("/tmp/pryx-core", "mcp", "remove", "nonexistent-server")
 	output, err := cmd.CombinedOutput()
 
@@ -72,6 +85,7 @@ func TestRemoveCommand(t *testing.T) {
 }
 
 func TestTestCommand(t *testing.T) {
+	skipIfBinaryMissing(t)
 	cmd := exec.Command("/tmp/pryx-core", "mcp", "test", "nonexistent-server")
 	output, err := cmd.CombinedOutput()
 
@@ -91,6 +105,7 @@ func TestTestCommand(t *testing.T) {
 }
 
 func TestAuthCommand(t *testing.T) {
+	skipIfBinaryMissing(t)
 	cmd := exec.Command("/tmp/pryx-core", "mcp", "auth", "nonexistent-server")
 	output, err := cmd.CombinedOutput()
 
@@ -110,6 +125,7 @@ func TestAuthCommand(t *testing.T) {
 }
 
 func TestHelpCommand(t *testing.T) {
+	skipIfBinaryMissing(t)
 	cmd := exec.Command("/tmp/pryx-core", "mcp")
 	output, err := cmd.CombinedOutput()
 
@@ -130,6 +146,7 @@ func TestHelpCommand(t *testing.T) {
 }
 
 func TestAddCommandWithInvalidArgs(t *testing.T) {
+	skipIfBinaryMissing(t)
 	cmd := exec.Command("/tmp/pryx-core", "mcp", "add")
 	output, err := cmd.CombinedOutput()
 
@@ -143,6 +160,7 @@ func TestAddCommandWithInvalidArgs(t *testing.T) {
 }
 
 func TestRemoveCommandWithMissingServer(t *testing.T) {
+	skipIfBinaryMissing(t)
 	cmd := exec.Command("/tmp/pryx-core", "mcp", "remove")
 	output, err := cmd.CombinedOutput()
 
@@ -156,6 +174,7 @@ func TestRemoveCommandWithMissingServer(t *testing.T) {
 }
 
 func TestUnknownCommand(t *testing.T) {
+	skipIfBinaryMissing(t)
 	cmd := exec.Command("/tmp/pryx-core", "mcp", "unknown-cmd")
 	output, err := cmd.CombinedOutput()
 
@@ -169,6 +188,7 @@ func TestUnknownCommand(t *testing.T) {
 }
 
 func TestAddCommandWithAuth(t *testing.T) {
+	skipIfBinaryMissing(t)
 	cmd := exec.Command("/tmp/pryx-core", "mcp", "add", "auth-test", "--command", "echo", "test", "--auth", "bearer-token")
 	output, err := cmd.CombinedOutput()
 
@@ -188,6 +208,7 @@ func TestAddCommandWithAuth(t *testing.T) {
 }
 
 func TestListCommandWithVerbose(t *testing.T) {
+	skipIfBinaryMissing(t)
 	cmd := exec.Command("/tmp/pryx-core", "mcp", "list", "--verbose")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
