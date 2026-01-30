@@ -285,9 +285,8 @@ jobs:
           cd apps/host && cargo build --release --lib --target ${{ matrix.target }}
 
       - name: Build runtime (Go)
-        run: |
-          cd apps/runtime && \
-            go build -o bin/pryx-core-${{ runner.os }} ./cmd/pryx-core
+        working-directory: apps/runtime
+        run: go build -o bin/pryx-core-${{ runner.os }} ./cmd/pryx-core
 
       - name: Build TUI (CI bundle)
         run: |
