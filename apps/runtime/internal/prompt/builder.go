@@ -105,18 +105,16 @@ func (b *Builder) buildFull(metadata Metadata) (string, error) {
 	parts = append(parts, "=== CONSTRAINTS ===")
 	parts = append(parts, getDefaultConstraints())
 
-	if metadata.Confidence != 0 {
-		parts = append(parts, "")
-		parts = append(parts, "=== CONFIDENCE LEVEL ===")
-		parts = append(parts, fmt.Sprintf("Current confidence: %s", metadata.Confidence.String()))
-		switch metadata.Confidence {
-		case ConfidenceLow:
-			parts = append(parts, "GUIDANCE: You have LOW confidence. Ask for clarification rather than guessing.")
-		case ConfidenceMedium:
-			parts = append(parts, "GUIDANCE: You have MEDIUM confidence. Proceed with caution and note uncertainties.")
-		case ConfidenceHigh:
-			parts = append(parts, "GUIDANCE: You have HIGH confidence. Proceed with the task.")
-		}
+	parts = append(parts, "")
+	parts = append(parts, "=== CONFIDENCE LEVEL ===")
+	parts = append(parts, fmt.Sprintf("Current confidence: %s", metadata.Confidence.String()))
+	switch metadata.Confidence {
+	case ConfidenceLow:
+		parts = append(parts, "GUIDANCE: You have LOW confidence. Ask for clarification rather than guessing.")
+	case ConfidenceMedium:
+		parts = append(parts, "GUIDANCE: You have MEDIUM confidence. Proceed with caution and note uncertainties.")
+	case ConfidenceHigh:
+		parts = append(parts, "GUIDANCE: You have HIGH confidence. Proceed with the task.")
 	}
 
 	return strings.Join(parts, "\n"), nil

@@ -190,10 +190,12 @@ func TestAuditLogger_QueryTimeRange(t *testing.T) {
 	defer logger.Close()
 
 	oldTime := time.Now().Add(-24 * time.Hour)
-	newTime := time.Now()
 
 	logger.Log(ActionUnlock, "vault", "user1", true, nil, nil)
 	logger.flushBuffer()
+
+	// Set endTime AFTER creating the log entry to avoid race condition
+	newTime := time.Now()
 
 	entries, err := logger.Query(QueryOptions{
 		StartTime: &oldTime,

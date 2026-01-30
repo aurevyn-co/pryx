@@ -67,16 +67,16 @@ func TestSkillsCLI_EnableDisable(t *testing.T) {
 
 // TestSkillsCLI_Info tests info for valid skill
 func TestSkillsCLI_Info(t *testing.T) {
-	// Test info for a bundled skill
-	cmd := exec.Command("/tmp/pryx-core", "skills", "info", "filesystem")
+	// Test info for a bundled skill (git-tool is a bundled skill)
+	cmd := exec.Command("/tmp/pryx-core", "skills", "info", "git-tool")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("skills info failed: %v", err)
 	}
 
 	outputStr := string(output)
-	if !strings.Contains(outputStr, "filesystem") {
-		t.Errorf("Expected 'filesystem' in output, got: %s", outputStr)
+	if !strings.Contains(outputStr, "git-tool") {
+		t.Errorf("Expected 'git-tool' in output, got: %s", outputStr)
 	}
 }
 

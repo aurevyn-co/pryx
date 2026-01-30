@@ -522,10 +522,13 @@ func (a *AuditLogger) readLogFile(filename string, opts QueryOptions) ([]AuditEn
 }
 
 func (a *AuditLogger) matchesFilters(entry AuditEntry, opts QueryOptions) bool {
-	if opts.StartTime != nil && entry.Timestamp.Before(*opts.StartTime) {
+	// Convert entry timestamp to UTC for consistent comparison
+	entryTime := entry.Timestamp.UTC()
+
+	if opts.StartTime != nil && entryTime.Before(opts.StartTime.UTC()) {
 		return false
 	}
-	if opts.EndTime != nil && entry.Timestamp.After(*opts.EndTime) {
+	if opts.EndTime != nil && entryTime.After(opts.EndTime.UTC()) {
 		return false
 	}
 
