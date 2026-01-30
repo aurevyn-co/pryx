@@ -2,6 +2,8 @@ package server
 
 import "net/http"
 
+// corsMiddleware adds CORS headers to all HTTP responses.
+// It allows all origins and common HTTP methods for local development.
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")

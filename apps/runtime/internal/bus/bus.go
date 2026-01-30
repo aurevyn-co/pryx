@@ -7,10 +7,12 @@ import (
 	"github.com/google/uuid"
 )
 
-// Handler is a function that handles an event
+// Handler is a function that handles an event.
+// It receives the event as its only parameter.
 type Handler func(Event)
 
-// Subscription represents a subscription to the bus
+// Subscription represents a subscription to the event bus.
+// It contains the channel for receiving events and metadata about the subscription.
 type Subscription struct {
 	id     string
 	ch     chan Event
@@ -18,14 +20,17 @@ type Subscription struct {
 	closer func()
 }
 
-// Bus is the event bus
+// Bus is the central event bus for pub/sub communication.
+// It manages subscriptions and routes events to interested subscribers.
+// The bus is safe for concurrent use.
 type Bus struct {
 	mu   sync.RWMutex
 	subs map[string]*Subscription
 	ver  int64
 }
 
-// New creates a new Bus
+// New creates a new event Bus with no subscribers.
+// Use Subscribe to add subscribers and Publish to send events.
 func New() *Bus {
 	return &Bus{
 		subs: make(map[string]*Subscription),
@@ -54,7 +59,9 @@ func (b *Bus) Subscribe(topics ...EventType) (<-chan Event, func()) {
 	return ch, sub.closer
 }
 
-// Publish publishes an event to all subscribers
+// Publish publishes an event to all matching subscribers.
+// The event is assigned a monotonically increasing version number.
+// Events are dropped if a subscriber's channel is full (non-blocking).
 func (b *Bus) Publish(event Event) {
 	event.Version = int(atomic.AddInt64(&b.ver, 1))
 
@@ -73,7 +80,9 @@ func (b *Bus) Publish(event Event) {
 	}
 }
 
-// Unsubscribe removes a subscription
+// Unsubscribe removes a subscription by its ID.
+// This closes the subscription's channel and removes it from the bus.
+// Safe to call multiple times for the same ID.
 func (b *Bus) Unsubscribe(id string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -84,6 +93,8 @@ func (b *Bus) Unsubscribe(id string) {
 	}
 }
 
+// matches checks if a subscription matches a given topic.
+// Returns true if the subscription has no topics (subscribes to all) or if the topic is in the subscription's topic list.
 func (b *Bus) matches(sub *Subscription, topic EventType) bool {
 	if len(sub.topics) == 0 {
 		return true // Subscribe to all

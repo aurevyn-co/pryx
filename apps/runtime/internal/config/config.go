@@ -1,3 +1,5 @@
+// Package config provides configuration management for the Pryx runtime.
+// Configuration can be loaded from YAML files and overridden via environment variables.
 package config
 
 import (
@@ -7,22 +9,32 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Config holds all configuration settings for the Pryx runtime.
 type Config struct {
-	ListenAddr   string `yaml:"listen_addr"`
+	// ListenAddr is the address to listen on (e.g., ":3000" or ":0" for dynamic port).
+	ListenAddr string `yaml:"listen_addr"`
+	// DatabasePath is the path to the SQLite database file.
 	DatabasePath string `yaml:"database_path"`
-	CloudAPIUrl  string `yaml:"cloud_api_url"`
+	// CloudAPIUrl is the URL of the Pryx Cloud API.
+	CloudAPIUrl string `yaml:"cloud_api_url"`
 
 	// AI Configuration
-	ModelProvider  string `yaml:"model_provider"` // openai, anthropic, ollama, glm
-	ModelName      string `yaml:"model_name"`     // e.g. gpt-4, claude-3-opus, llama3, glm-4-flash
+	// ModelProvider is the LLM provider to use (openai, anthropic, ollama, glm).
+	ModelProvider string `yaml:"model_provider"`
+	// ModelName is the specific model to use (e.g., gpt-4, claude-3-opus, llama3).
+	ModelName string `yaml:"model_name"`
+	// OllamaEndpoint is the URL of the Ollama server (when using Ollama provider).
 	OllamaEndpoint string `yaml:"ollama_endpoint"`
 
 	// Channels
-	TelegramToken   string `yaml:"telegram_token"`
-	TelegramEnabled bool   `yaml:"telegram_enabled"`
+	// TelegramToken is the bot token for Telegram integration.
+	TelegramToken string `yaml:"telegram_token"`
+	// TelegramEnabled enables or disables the Telegram bot.
+	TelegramEnabled bool `yaml:"telegram_enabled"`
 }
 
-// ProviderKeyNames maps provider IDs to their keychain key names
+// ProviderKeyNames maps provider IDs to their keychain key names.
+// These keys are used to store and retrieve API keys from the system keychain.
 var ProviderKeyNames = map[string]string{
 	"openai":     "provider:openai",
 	"anthropic":  "provider:anthropic",
@@ -36,14 +48,19 @@ var ProviderKeyNames = map[string]string{
 	"glm":        "provider:glm",
 }
 
+// DefaultPath returns the default configuration file path.
+// The config is stored in ~/.pryx/config.yaml.
 func DefaultPath() string {
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".pryx", "config.yaml")
 }
 
+// Load loads configuration from the default file and environment variables.
+// Environment variables take precedence over file configuration.
+// Returns a Config with default values if no configuration file exists.
 func Load() *Config {
 	cfg := &Config{
-		ListenAddr:     ":0", // Use :0 for dynamic port allocation (like OpenCode/moltbot)
+		ListenAddr:     ":0", // Use :0 for dynamic port allocation
 		DatabasePath:   "pryx.db",
 		CloudAPIUrl:    "https://pryx.dev/api",
 		ModelProvider:  "ollama",
@@ -59,7 +76,7 @@ func Load() *Config {
 		}
 	}
 
-	// Env overrides
+	// Environment variables override file configuration
 	if v := os.Getenv("PRYX_LISTEN_ADDR"); v != "" {
 		cfg.ListenAddr = v
 	}
@@ -73,6 +90,8 @@ func Load() *Config {
 	return cfg
 }
 
+// LoadFromFile loads configuration from a specific YAML file path.
+// Returns an error if the file cannot be read or parsed.
 func LoadFromFile(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -85,6 +104,9 @@ func LoadFromFile(path string) (*Config, error) {
 	return &cfg, nil
 }
 
+// Save writes the configuration to a YAML file at the specified path.
+// Creates parent directories if they don't exist.
+// Returns an error if the file cannot be written.
 func (c *Config) Save(path string) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -99,6 +121,8 @@ func (c *Config) Save(path string) error {
 	return os.WriteFile(path, data, 0644)
 }
 
+// getEnv returns the value of an environment variable or a fallback value.
+// Returns fallback if the environment variable is not set.
 func getEnv(key, fallback string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value

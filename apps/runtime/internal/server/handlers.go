@@ -1,3 +1,6 @@
+// Package server provides the HTTP server and WebSocket handlers for the Pryx runtime.
+// It handles REST API endpoints, WebSocket connections, and serves as the main interface
+// for clients like the TUI and host application.
 package server
 
 import (
@@ -10,11 +13,15 @@ import (
 	"pryx-core/internal/validation"
 )
 
+// handleHealth returns a simple health check response.
+// Returns HTTP 200 with "OK" body if the server is running.
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("OK"))
 }
 
+// handleMCPTools returns the list of available MCP tools.
+// Supports a "refresh" query parameter to force reloading tools from MCP servers.
 func (s *Server) handleMCPTools(w http.ResponseWriter, r *http.Request) {
 	refresh := strings.TrimSpace(r.URL.Query().Get("refresh")) == "1"
 	tools, err := s.mcp.ListToolsFlat(r.Context(), refresh)
@@ -30,12 +37,15 @@ func (s *Server) handleMCPTools(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// mcpCallRequest represents a request to call an MCP tool.
 type mcpCallRequest struct {
 	SessionID string                 `json:"session_id"`
 	Tool      string                 `json:"tool"`
 	Arguments map[string]interface{} `json:"arguments"`
 }
 
+// handleMCPCall executes an MCP tool call.
+// Validates the request, calls the tool, and returns the result.
 func (s *Server) handleMCPCall(w http.ResponseWriter, r *http.Request) {
 	req := mcpCallRequest{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -87,6 +97,7 @@ func (s *Server) handleMCPCall(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(res)
 }
 
+// handleSkillsList returns the list of available skills.
 func (s *Server) handleSkillsList(w http.ResponseWriter, r *http.Request) {
 	reg := s.skills
 	if reg == nil {
@@ -100,6 +111,7 @@ func (s *Server) handleSkillsList(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleSkillsInfo returns detailed information about a specific skill.
 func (s *Server) handleSkillsInfo(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimSpace(chi.URLParam(r, "id"))
 
@@ -131,6 +143,7 @@ func (s *Server) handleSkillsInfo(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(skill)
 }
 
+// handleSkillsBody returns the body/content of a specific skill.
 func (s *Server) handleSkillsBody(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimSpace(chi.URLParam(r, "id"))
 
@@ -172,6 +185,7 @@ func (s *Server) handleSkillsBody(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleProvidersList returns the list of available LLM providers.
 func (s *Server) handleProvidersList(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -199,6 +213,7 @@ func (s *Server) handleProvidersList(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleProviderModels returns the list of models available for a specific provider.
 func (s *Server) handleProviderModels(w http.ResponseWriter, r *http.Request) {
 	providerID := strings.TrimSpace(chi.URLParam(r, "id"))
 
@@ -254,6 +269,7 @@ func (s *Server) handleProviderModels(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handleModelsList returns the list of all available LLM models.
 func (s *Server) handleModelsList(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -282,6 +298,7 @@ func (s *Server) handleModelsList(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleAgentsList returns the list of active spawned agents.
 func (s *Server) handleAgentsList(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -295,6 +312,7 @@ func (s *Server) handleAgentsList(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"agents": agents})
 }
 
+// handleAgentGet returns the status of a specific agent.
 func (s *Server) handleAgentGet(w http.ResponseWriter, r *http.Request) {
 	agentID := chi.URLParam(r, "id")
 

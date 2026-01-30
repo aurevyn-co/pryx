@@ -1,3 +1,5 @@
+// Package factory provides LLM provider factory functionality.
+// It creates and configures LLM providers based on the models catalog and user configuration.
 package factory
 
 import (
@@ -11,11 +13,13 @@ import (
 	"pryx-core/internal/models"
 )
 
+// ProviderFactory creates LLM provider instances based on configuration.
 type ProviderFactory struct {
 	catalog  *models.Catalog
 	keychain *keychain.Keychain
 }
 
+// NewProviderFactory creates a new provider factory with the given catalog and keychain.
 func NewProviderFactory(catalog *models.Catalog, kc *keychain.Keychain) *ProviderFactory {
 	return &ProviderFactory{
 		catalog:  catalog,
@@ -23,6 +27,8 @@ func NewProviderFactory(catalog *models.Catalog, kc *keychain.Keychain) *Provide
 	}
 }
 
+// CreateProvider creates an LLM provider for the specified provider and model.
+// It resolves the API key from the provided value, keychain, or environment variables.
 func (f *ProviderFactory) CreateProvider(providerID, modelID, apiKey string) (llm.Provider, error) {
 	if f.catalog == nil {
 		return nil, fmt.Errorf("catalog not loaded")
@@ -56,6 +62,7 @@ func (f *ProviderFactory) CreateProvider(providerID, modelID, apiKey string) (ll
 	}
 }
 
+// CreateProviderFromConfig creates an LLM provider using configuration defaults for the model.
 func (f *ProviderFactory) CreateProviderFromConfig(providerID, apiKey string) (llm.Provider, error) {
 	if f.catalog == nil {
 		return nil, fmt.Errorf("catalog not loaded")
@@ -81,15 +88,18 @@ func (f *ProviderFactory) CreateProviderFromConfig(providerID, apiKey string) (l
 	}
 }
 
+// IsProviderSupported checks if the given provider ID is supported.
 func (f *ProviderFactory) IsProviderSupported(providerID string) bool {
 	_, ok := models.DefaultProviderMapping[providerID]
 	return ok
 }
 
+// GetSupportedProviders returns a list of all supported provider IDs.
 func (f *ProviderFactory) GetSupportedProviders() []string {
 	return models.GetSupportedProviders()
 }
 
+// GetProviderModels returns all models available for the specified provider.
 func (f *ProviderFactory) GetProviderModels(providerID string) ([]models.ModelInfo, error) {
 	if f.catalog == nil {
 		return nil, fmt.Errorf("catalog not loaded")
@@ -97,6 +107,7 @@ func (f *ProviderFactory) GetProviderModels(providerID string) ([]models.ModelIn
 	return f.catalog.GetProviderModels(providerID), nil
 }
 
+// GetModelInfo returns information about a specific model.
 func (f *ProviderFactory) GetModelInfo(modelID string) (models.ModelInfo, bool) {
 	if f.catalog == nil {
 		return models.ModelInfo{}, false
@@ -104,10 +115,12 @@ func (f *ProviderFactory) GetModelInfo(modelID string) (models.ModelInfo, bool) 
 	return f.catalog.GetModel(modelID)
 }
 
+// GetCatalog returns the models catalog used by this factory.
 func (f *ProviderFactory) GetCatalog() *models.Catalog {
 	return f.catalog
 }
 
+// resolveAPIKey resolves the API key from the provided value, keychain, or environment.
 func (f *ProviderFactory) resolveAPIKey(providerID, providedKey string, providerInfo models.ProviderInfo) string {
 	if providedKey != "" {
 		return providedKey
@@ -122,6 +135,7 @@ func (f *ProviderFactory) resolveAPIKey(providerID, providedKey string, provider
 	return f.getAPIKeyFromEnv(providerID, providerInfo)
 }
 
+// getAPIKeyFromEnv retrieves the API key from environment variables.
 func (f *ProviderFactory) getAPIKeyFromEnv(providerID string, providerInfo models.ProviderInfo) string {
 	for _, envVar := range providerInfo.Env {
 		if key := os.Getenv(envVar); key != "" {
@@ -153,6 +167,7 @@ func (f *ProviderFactory) getAPIKeyFromEnv(providerID string, providerInfo model
 	return ""
 }
 
+// getImplementationType determines the implementation type for a provider.
 func (f *ProviderFactory) getImplementationType(providerID string, providerInfo models.ProviderInfo) string {
 	npm := providerInfo.NPM
 
@@ -167,6 +182,7 @@ func (f *ProviderFactory) getImplementationType(providerID string, providerInfo 
 	return "openai-compatible"
 }
 
+// getBaseURL returns the base URL for the specified provider.
 func (f *ProviderFactory) getBaseURL(providerID string, providerInfo models.ProviderInfo) string {
 	if providerInfo.API != "" {
 		return providerInfo.API
@@ -205,6 +221,7 @@ func (f *ProviderFactory) getBaseURL(providerID string, providerInfo models.Prov
 	return ""
 }
 
+// ensureV1Suffix ensures the URL ends with "/v1" for OpenAI-compatible endpoints.
 func ensureV1Suffix(url string) string {
 	if !strings.HasSuffix(url, "/v1") {
 		return url + "/v1"
@@ -212,14 +229,22 @@ func ensureV1Suffix(url string) string {
 	return url
 }
 
+// Provider constants for supported LLM providers.
 const (
-	ProviderOpenAI     = "openai"
-	ProviderAnthropic  = "anthropic"
+	// ProviderOpenAI is the OpenAI provider.
+	ProviderOpenAI = "openai"
+	// ProviderAnthropic is the Anthropic provider.
+	ProviderAnthropic = "anthropic"
+	// ProviderOpenRouter is the OpenRouter provider aggregator.
 	ProviderOpenRouter = "openrouter"
-	ProviderOllama     = "ollama"
-	ProviderGLM        = "glm"
+	// ProviderOllama is the local Ollama provider.
+	ProviderOllama = "ollama"
+	// ProviderGLM is the GLM (Zhipu AI) provider.
+	ProviderGLM = "glm"
 )
 
+// NewProvider creates a new LLM provider instance based on the provider type.
+// This is a lower-level function that creates providers without using the catalog.
 func NewProvider(pt string, apiKey string, baseURL string) (llm.Provider, error) {
 	switch pt {
 	case ProviderOpenAI:
