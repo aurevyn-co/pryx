@@ -229,3 +229,75 @@ func keys(m map[string]bool) []string {
 	}
 	return out
 }
+
+func startPryxCore(t *testing.T, bin string, home string) (port string, cancel context.CancelFunc) {
+	t.Helper()
+
+	cmd := exec.Command(bin)
+	cmd.Env = append(os.Environ(),
+		"HOME="+home,
+		"PRYX_DB_PATH="+filepath.Join(home, "pryx.db"),
+		"PRYX_LISTEN_ADDR=:0",
+		"PRYX_WORKSPACE_ROOT="+repoRoot(t),
+		"PRYX_BUNDLED_SKILLS_DIR="+filepath.Join(runtimeRoot(t), "internal", "skills", "bundled"),
+	)
+
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start runtime: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go func() {
+		<-ctx.Done()
+		_ = cmd.Process.Signal(os.Interrupt)
+		select {
+		case <-time.After(2 * time.Second):
+			_ = cmd.Process.Kill()
+		case <-func() chan struct{} {
+			ch := make(chan struct{})
+			go func() {
+				_ = cmd.Wait()
+				close(ch)
+			}()
+			return ch
+		}():
+		}
+	}()
+
+	portFile := filepath.Join(home, ".pryx", "runtime.port")
+	if err := waitForFile(portFile, 5*time.Second); err != nil {
+		cancel()
+		t.Fatalf("%v", err)
+	}
+
+	portBytes, err := os.ReadFile(portFile)
+	if err != nil {
+		cancel()
+		t.Fatalf("read port file: %v", err)
+	}
+	port = strings.TrimSpace(string(portBytes))
+	if port == "" {
+		cancel()
+		t.Fatalf("empty port file")
+	}
+
+	return port, cancel
+}
+
+func waitForServer(t *testing.T, port string, timeout time.Duration) {
+	t.Helper()
+
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		resp, err := http.Get("http://localhost:" + port + "/health")
+		if err == nil {
+			resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				return
+			}
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatalf("timeout waiting for server to be ready")
+}

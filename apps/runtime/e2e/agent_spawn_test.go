@@ -15,12 +15,14 @@ func TestAgentSpawning(t *testing.T) {
 	bin := buildPryxCore(t)
 	home := t.TempDir()
 
-	// Start pryx-core in background
-	ctx, cancel := startPryxCore(t, bin, home)
+	// Start pryx-core in background with dynamic port
+	port, cancel := startPryxCore(t, bin, home)
 	defer cancel()
 
 	// Wait for server to be ready
-	waitForServer(t, 5*time.Second)
+	waitForServer(t, port, 5*time.Second)
+
+	baseURL := "http://localhost:" + port
 
 	// Test 1: Spawn a new agent
 	t.Run("spawn_agent", func(t *testing.T) {
@@ -31,7 +33,7 @@ func TestAgentSpawning(t *testing.T) {
 		}
 
 		body, _ := json.Marshal(payload)
-		resp, err := http.Post("http://localhost:3000/api/v1/agents/spawn", "application/json", bytes.NewBuffer(body))
+		resp, err := http.Post(baseURL+"/api/v1/agents/spawn", "application/json", bytes.NewBuffer(body))
 		if err != nil {
 			t.Fatalf("Failed to spawn agent: %v", err)
 		}
@@ -55,7 +57,7 @@ func TestAgentSpawning(t *testing.T) {
 
 	// Test 2: List agents
 	t.Run("list_agents", func(t *testing.T) {
-		resp, err := http.Get("http://localhost:3000/api/v1/agents")
+		resp, err := http.Get(baseURL + "/api/v1/agents")
 		if err != nil {
 			t.Fatalf("Failed to list agents: %v", err)
 		}
@@ -85,7 +87,7 @@ func TestAgentSpawning(t *testing.T) {
 	// Test 3: Get agent status
 	t.Run("get_agent_status", func(t *testing.T) {
 		// First spawn an agent
-		resp, err := http.Get("http://localhost:3000/api/v1/agents")
+		resp, err := http.Get(baseURL + "/api/v1/agents")
 		if err != nil {
 			t.Fatalf("Failed to list agents: %v", err)
 		}
@@ -102,7 +104,7 @@ func TestAgentSpawning(t *testing.T) {
 		firstAgent := agents[0].(map[string]interface{})
 		agentID := firstAgent["id"].(string)
 
-		resp, err = http.Get("http://localhost:3000/api/v1/agents/" + agentID)
+		resp, err = http.Get(baseURL + "/api/v1/agents/" + agentID)
 		if err != nil {
 			t.Fatalf("Failed to get agent: %v", err)
 		}
@@ -132,7 +134,7 @@ func TestAgentSpawning(t *testing.T) {
 		}
 
 		body, _ := json.Marshal(payload)
-		resp, err := http.Post("http://localhost:3000/api/v1/agents/spawn", "application/json", bytes.NewBuffer(body))
+		resp, err := http.Post(baseURL+"/api/v1/agents/spawn", "application/json", bytes.NewBuffer(body))
 		if err != nil {
 			t.Fatalf("Failed to spawn agent: %v", err)
 		}
@@ -144,7 +146,7 @@ func TestAgentSpawning(t *testing.T) {
 		agentID := spawnResult["id"].(string)
 
 		// Cancel it
-		req, _ := http.NewRequest("POST", "http://localhost:3000/api/v1/agents/"+agentID+"/cancel", nil)
+		req, _ := http.NewRequest("POST", baseURL+"/api/v1/agents/"+agentID+"/cancel", nil)
 		resp, err = http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatalf("Failed to cancel agent: %v", err)

@@ -122,6 +122,10 @@ func (s *Server) routes() {
 	s.router.Get("/api/v1/agents/{id}", s.handleAgentGet)
 	s.router.Post("/api/v1/agents/spawn", s.handleAgentSpawn)
 	s.router.Post("/api/v1/agents/{id}/cancel", s.handleAgentCancel)
+	s.router.Get("/api/v1/sessions", s.handleSessionsList)
+	s.router.Post("/api/v1/sessions", s.handleSessionCreate)
+	s.router.Get("/api/v1/sessions/{id}", s.handleSessionGet)
+	s.router.Delete("/api/v1/sessions/{id}", s.handleSessionDelete)
 	s.router.Post("/api/v1/sessions/fork", s.handleSessionFork)
 }
 

@@ -25,9 +25,13 @@ func GetAvailablePort() (int, error) {
 // This allows clients (like the TUI) to discover the runtime's port.
 // Creates the .pryx directory if it doesn't exist.
 func WritePortFile(port int) error {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("failed to get home directory: %w", err)
+	homeDir := os.Getenv("HOME")
+	if homeDir == "" {
+		var err error
+		homeDir, err = os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("failed to get home directory: %w", err)
+		}
 	}
 
 	pryxDir := filepath.Join(homeDir, ".pryx")
@@ -48,9 +52,13 @@ func WritePortFile(port int) error {
 // ReadPortFile reads the port number from ~/.pryx/runtime.port.
 // Returns the port as an integer. Returns an error if the file doesn't exist or contains invalid data.
 func ReadPortFile() (int, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return 0, fmt.Errorf("failed to get home directory: %w", err)
+	homeDir := os.Getenv("HOME")
+	if homeDir == "" {
+		var err error
+		homeDir, err = os.UserHomeDir()
+		if err != nil {
+			return 0, fmt.Errorf("failed to get home directory: %w", err)
+		}
 	}
 
 	portFile := filepath.Join(homeDir, ".pryx", "runtime.port")
@@ -70,9 +78,13 @@ func ReadPortFile() (int, error) {
 // CleanupPortFile removes the port file from ~/.pryx/runtime.port.
 // Should be called on shutdown to clean up the port file.
 func CleanupPortFile() error {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return err
+	homeDir := os.Getenv("HOME")
+	if homeDir == "" {
+		var err error
+		homeDir, err = os.UserHomeDir()
+		if err != nil {
+			return err
+		}
 	}
 
 	portFile := filepath.Join(homeDir, ".pryx", "runtime.port")

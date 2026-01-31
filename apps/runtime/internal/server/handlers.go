@@ -418,6 +418,7 @@ func (s *Server) handleSessionFork(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
+		"id":                newSessionID,
 		"source_session_id": req.SourceSessionID,
 		"new_session_id":    newSessionID,
 	})

@@ -15,10 +15,12 @@ func TestSessionManagement(t *testing.T) {
 	bin := buildPryxCore(t)
 	home := t.TempDir()
 
-	// Start pryx-core
-	ctx, cancel := startPryxCore(t, bin, home)
+	// Start pryx-core with dynamic port
+	port, cancel := startPryxCore(t, bin, home)
 	defer cancel()
-	waitForServer(t, 5*time.Second)
+	waitForServer(t, port, 5*time.Second)
+
+	baseURL := "http://localhost:" + port
 
 	// Test 1: Create a new session
 	t.Run("create_session", func(t *testing.T) {
@@ -27,7 +29,7 @@ func TestSessionManagement(t *testing.T) {
 		}
 
 		body, _ := json.Marshal(payload)
-		resp, err := http.Post("http://localhost:3000/api/v1/sessions", "application/json", bytes.NewBuffer(body))
+		resp, err := http.Post(baseURL+"/api/v1/sessions", "application/json", bytes.NewBuffer(body))
 		if err != nil {
 			t.Fatalf("Failed to create session: %v", err)
 		}
@@ -51,7 +53,7 @@ func TestSessionManagement(t *testing.T) {
 
 	// Test 2: List sessions
 	t.Run("list_sessions", func(t *testing.T) {
-		resp, err := http.Get("http://localhost:3000/api/v1/sessions")
+		resp, err := http.Get(baseURL + "/api/v1/sessions")
 		if err != nil {
 			t.Fatalf("Failed to list sessions: %v", err)
 		}
@@ -79,9 +81,9 @@ func TestSessionManagement(t *testing.T) {
 		// First create a session
 		payload := map[string]interface{}{"name": "Parent Session"}
 		body, _ := json.Marshal(payload)
-		resp, err := http.Post("http://localhost:3000/api/v1/sessions", "application/json", bytes.NewBuffer(body))
+		resp, err := http.Post(baseURL+"/api/v1/sessions", "application/json", bytes.NewBuffer(body))
 		if err != nil {
-			t.Fatalf("Failed to create parent session: %v", err)
+			t.Fatalf("Failed to create session: %v", err)
 		}
 
 		var parent map[string]interface{}
@@ -92,10 +94,10 @@ func TestSessionManagement(t *testing.T) {
 
 		// Fork it
 		forkPayload := map[string]interface{}{
-			"source_id": parentID,
+			"source_session_id": parentID,
 		}
 		body, _ = json.Marshal(forkPayload)
-		resp, err = http.Post("http://localhost:3000/api/v1/sessions/fork", "application/json", bytes.NewBuffer(body))
+		resp, err = http.Post(baseURL+"/api/v1/sessions/fork", "application/json", bytes.NewBuffer(body))
 		if err != nil {
 			t.Fatalf("Failed to fork session: %v", err)
 		}
@@ -122,7 +124,7 @@ func TestSessionManagement(t *testing.T) {
 		// Create a session
 		payload := map[string]interface{}{"name": "Session to Delete"}
 		body, _ := json.Marshal(payload)
-		resp, err := http.Post("http://localhost:3000/api/v1/sessions", "application/json", bytes.NewBuffer(body))
+		resp, err := http.Post(baseURL+"/api/v1/sessions", "application/json", bytes.NewBuffer(body))
 		if err != nil {
 			t.Fatalf("Failed to create session: %v", err)
 		}
@@ -134,7 +136,7 @@ func TestSessionManagement(t *testing.T) {
 		sessionID := session["id"].(string)
 
 		// Delete it
-		req, _ := http.NewRequest("DELETE", "http://localhost:3000/api/v1/sessions/"+sessionID, nil)
+		req, _ := http.NewRequest("DELETE", baseURL+"/api/v1/sessions/"+sessionID, nil)
 		resp, err = http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatalf("Failed to delete session: %v", err)
