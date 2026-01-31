@@ -23,6 +23,7 @@ import (
 	"pryx-core/internal/keychain"
 	"pryx-core/internal/mesh"
 	"pryx-core/internal/models"
+	"pryx-core/internal/performance"
 	"pryx-core/internal/server"
 	"pryx-core/internal/store"
 	"pryx-core/internal/telemetry"
@@ -58,80 +59,146 @@ func main() {
 
 	log.Printf("Starting pryx-core version %s (built %s)", Version, BuildDate)
 
-	cfg := config.Load()
+	// Initialize startup profiler
+	profiler := performance.NewStartupProfiler()
+	defer profiler.MarkComplete()
+	defer profiler.PrintReport()
 
-	s, err := store.New(cfg.DatabasePath)
-	if err != nil {
+	// Load configuration
+	var cfg *config.Config
+	if err := profiler.TimeFunc("config.load", func() error {
+		cfg = config.Load()
+		return nil
+	}); err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	// Initialize store (database)
+	var s *store.Store
+	if err := profiler.TimeFunc("store.init", func() error {
+		var err error
+		s, err = store.New(cfg.DatabasePath)
+		return err
+	}); err != nil {
 		log.Fatalf("Failed to initialize store: %v", err)
 	}
 	defer s.Close()
 
-	kc := keychain.New("pryx")
+	// Initialize keychain
+	var kc *keychain.Keychain
+	profiler.TimeFunc("keychain.init", func() error {
+		kc = keychain.New("pryx")
+		return nil
+	})
 
-	telProvider, err := telemetry.NewProvider(cfg, kc)
-	if err != nil {
-		log.Printf("Warning: Failed to initialize telemetry: %v", err)
-	} else if telProvider.Enabled() {
-		log.Printf("Telemetry enabled (device: %s)", telProvider.DeviceID())
-		defer telProvider.Shutdown(context.Background())
-	}
+	// Initialize telemetry (async - non-blocking)
+	profiler.StartPhase("telemetry.init")
+	go func() {
+		telProvider, err := telemetry.NewProvider(cfg, kc)
+		if err != nil {
+			log.Printf("Warning: Failed to initialize telemetry: %v", err)
+		} else if telProvider.Enabled() {
+			log.Printf("Telemetry enabled (device: %s)", telProvider.DeviceID())
+			defer telProvider.Shutdown(context.Background())
+		}
+		profiler.EndPhase("telemetry.init", err)
+	}()
 
-	modelsService := models.NewService()
-	catalog, err := modelsService.Load()
-	if err != nil {
-		log.Printf("Warning: Failed to load models catalog: %v", err)
-	} else {
+	// Load models catalog (may be slow - load async)
+	profiler.StartPhase("models.load")
+	var catalog *models.Catalog
+	go func() {
+		modelsService := models.NewService()
+		cat, err := modelsService.Load()
+		if err != nil {
+			log.Printf("Warning: Failed to load models catalog: %v", err)
+			profiler.EndPhase("models.load", err)
+			return
+		}
+		catalog = cat
 		log.Printf("Loaded %d providers and %d models from catalog", len(catalog.Providers), len(catalog.Models))
-	}
+		profiler.EndPhase("models.load", nil)
+	}()
 
-	srv := server.New(cfg, s.DB, kc)
-	if catalog != nil {
-		srv.SetCatalog(catalog)
+	// Initialize server
+	var srv *server.Server
+	if err := profiler.TimeFunc("server.init", func() error {
+		srv = server.New(cfg, s.DB, kc)
+		if catalog != nil {
+			srv.SetCatalog(catalog)
+		}
+		return nil
+	}); err != nil {
+		log.Fatalf("Failed to initialize server: %v", err)
 	}
 	b := srv.Bus()
 
+	// Initialize mesh manager
+	profiler.StartPhase("mesh.init")
 	meshMgr := mesh.NewManager(cfg, b, s, kc)
-	meshMgr.Start(context.Background())
+	go func() {
+		meshMgr.Start(context.Background())
+		profiler.EndPhase("mesh.init", nil)
+	}()
 	defer meshMgr.Stop()
 
-	// Channels
-	chanMgr := channels.NewManager(b)
-	if cfg.TelegramEnabled && cfg.TelegramToken != "" {
-		log.Println("Starting Telegram Bot...")
-		tg := telegram.NewTelegramChannel("telegram-main", cfg.TelegramToken, b)
-		if err := chanMgr.Register(tg); err != nil {
-			log.Printf("Failed to register Telegram: %v", err)
-		}
-	}
-	defer chanMgr.Shutdown()
-
-	// Agent (AI Orchestrator)
-	agt, err := agent.New(cfg, b, kc)
-	if err != nil {
-		log.Printf("Warning: Failed to initialize Agent: %v", err)
-	} else {
-		log.Println("Starting AI Agent...")
-		go agt.Run(context.Background())
-	}
-
-	spawner := spawn.NewSpawner(cfg, b, kc)
-	spawnTool := spawn.NewSpawnTool(spawner, b)
-	srv.SetSpawnTool(spawnTool)
-	log.Println("Sub-agent spawner initialized (max agents: 10)")
-
-	cleanupCtx, cleanupCancel := context.WithCancel(context.Background())
-	go func() {
-		ticker := time.NewTicker(5 * time.Minute)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				spawner.Cleanup(1 * time.Hour)
-			case <-cleanupCtx.Done():
-				return
+	// Initialize channels
+	var chanMgr *channels.ChannelManager
+	profiler.TimeFunc("channels.init", func() error {
+		chanMgr = channels.NewManager(b)
+		if cfg.TelegramEnabled && cfg.TelegramToken != "" {
+			log.Println("Starting Telegram Bot...")
+			tg := telegram.NewTelegramChannel("telegram-main", cfg.TelegramToken, b)
+			if err := chanMgr.Register(tg); err != nil {
+				log.Printf("Failed to register Telegram: %v", err)
 			}
 		}
+		return nil
+	})
+	defer chanMgr.Shutdown()
+
+	// Initialize agent (AI Orchestrator) - heavy operation, defer if possible
+	profiler.StartPhase("agent.init")
+	var agt *agent.Agent
+	go func() {
+		var err error
+		agt, err = agent.New(cfg, b, kc)
+		if err != nil {
+			log.Printf("Warning: Failed to initialize Agent: %v", err)
+			profiler.EndPhase("agent.init", err)
+			return
+		}
+		log.Println("Starting AI Agent...")
+		go agt.Run(context.Background())
+		profiler.EndPhase("agent.init", nil)
 	}()
+
+	// Initialize spawner
+	profiler.TimeFunc("spawner.init", func() error {
+		spawner := spawn.NewSpawner(cfg, b, kc)
+		spawnTool := spawn.NewSpawnTool(spawner, b)
+		srv.SetSpawnTool(spawnTool)
+		log.Println("Sub-agent spawner initialized (max agents: 10)")
+
+		// Start cleanup goroutine
+		cleanupCtx, cleanupCancel := context.WithCancel(context.Background())
+		go func() {
+			ticker := time.NewTicker(5 * time.Minute)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					spawner.Cleanup(1 * time.Hour)
+				case <-cleanupCtx.Done():
+					return
+				}
+			}
+		}()
+
+		// Store cleanupCancel for shutdown
+		_ = cleanupCancel
+		return nil
+	})
 
 	srv.Bus().Publish(bus.NewEvent(bus.EventTraceEvent, "", map[string]interface{}{
 		"kind":      "runtime.started",
@@ -140,10 +207,18 @@ func main() {
 	}))
 
 	// Start server in background (with dynamic port allocation)
+	profiler.StartPhase("server.start")
 	go func() {
 		if err := srv.Start(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server error: %v", err)
 		}
+	}()
+	// Give server a moment to start, then mark phase complete
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		profiler.EndPhase("server.start", nil)
+		profiler.MarkComplete()
+		profiler.PrintReport()
 	}()
 
 	stop := make(chan os.Signal, 1)
@@ -151,7 +226,6 @@ func main() {
 	<-stop
 
 	log.Println("Shutting down...")
-	cleanupCancel()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(ctx)
