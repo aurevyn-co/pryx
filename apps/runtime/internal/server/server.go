@@ -15,6 +15,7 @@ import (
 	"pryx-core/internal/config"
 	"pryx-core/internal/keychain"
 	"pryx-core/internal/mcp"
+	"pryx-core/internal/mcp/discovery"
 	"pryx-core/internal/models"
 	"pryx-core/internal/policy"
 	"pryx-core/internal/skills"
@@ -34,15 +35,16 @@ type SpawnTool interface {
 }
 
 type Server struct {
-	cfg       *config.Config
-	db        *sql.DB
-	keychain  *keychain.Keychain
-	router    *chi.Mux
-	bus       *bus.Bus
-	mcp       *mcp.Manager
-	skills    *skills.Registry
-	catalog   *models.Catalog
-	spawnTool SpawnTool
+	cfg          *config.Config
+	db           *sql.DB
+	keychain     *keychain.Keychain
+	router       *chi.Mux
+	bus          *bus.Bus
+	mcp          *mcp.Manager
+	mcpDiscovery *discovery.DiscoveryService
+	skills       *skills.Registry
+	catalog      *models.Catalog
+	spawnTool    SpawnTool
 
 	httpMu     sync.Mutex
 	httpServer *http.Server
@@ -112,6 +114,13 @@ func (s *Server) routes() {
 	s.router.Get("/ws", s.handleWS)
 	s.router.Get("/mcp/tools", s.handleMCPTools)
 	s.router.Post("/mcp/tools/call", s.handleMCPCall)
+	s.router.Get("/mcp/discovery/curated", s.handleMCPDiscoveryCurated)
+	s.router.Get("/mcp/discovery/categories", s.handleMCPDiscoveryCategories)
+	s.router.Get("/mcp/discovery/curated/{id}", s.handleMCPDiscoveryServer)
+	s.router.Post("/mcp/discovery/validate", s.handleMCPDiscoveryValidateURL)
+	s.router.Post("/mcp/discovery/custom", s.handleMCPDiscoveryAddCustom)
+	s.router.Get("/mcp/discovery/custom", s.handleMCPDiscoveryCustomServers)
+	s.router.Delete("/mcp/discovery/custom/{id}", s.handleMCPDiscoveryRemoveCustom)
 	s.router.Get("/skills", s.handleSkillsList)
 	s.router.Get("/skills/{id}", s.handleSkillsInfo)
 	s.router.Get("/skills/{id}/body", s.handleSkillsBody)
