@@ -306,6 +306,18 @@ func (m *Manager) buildClient(name string, sc ServerConfig) (*Client, error) {
 		}
 		tr := NewHTTPTransport(sc.URL, headers)
 		return NewClient(tr, proto), nil
+	case "sse":
+		headers := map[string]string{}
+		for k, v := range sc.Headers {
+			headers[k] = v
+		}
+		if sc.Auth != nil {
+			if err := m.applyAuth(headers, *sc.Auth); err != nil {
+				return nil, err
+			}
+		}
+		tr := NewSSETransport(sc.URL, headers)
+		return NewClient(tr, proto), nil
 	default:
 		return nil, fmt.Errorf("unsupported transport: %s", sc.Transport)
 	}

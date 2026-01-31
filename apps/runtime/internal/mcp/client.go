@@ -127,6 +127,13 @@ func (c *Client) CallTool(ctx context.Context, name string, arguments map[string
 	return out, nil
 }
 
+func (c *Client) Ping(ctx context.Context) error {
+	if err := c.Initialize(ctx); err != nil {
+		return err
+	}
+	return c.call(ctx, "ping", nil, nil)
+}
+
 func (c *Client) call(ctx context.Context, method string, params interface{}, out interface{}) error {
 	id := c.idCounter.Add(1)
 	req := RPCRequest{

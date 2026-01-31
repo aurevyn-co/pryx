@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"pryx-core/internal/mcp/security"
 )
 
 // URLValidationResult contains the result of validating a custom URL
@@ -35,12 +37,13 @@ type SearchFilter struct {
 
 // DiscoveryService provides curated MCP server discovery and custom URL validation
 type DiscoveryService struct {
-	mu            sync.RWMutex
-	registry      *CuratedRegistry
-	customServers []CustomServerEntry
-	allowlist     []string
-	blocklist     []string
-	configPath    string
+	mu              sync.RWMutex
+	registry        *CuratedRegistry
+	customServers   []CustomServerEntry
+	allowlist       []string
+	blocklist       []string
+	configPath      string
+	securityService *security.SecurityService
 }
 
 // CustomServerEntry represents a user-added custom MCP server
@@ -53,22 +56,22 @@ type CustomServerEntry struct {
 	SecurityCheck URLValidationResult `json:"security_check"`
 }
 
-// NewDiscoveryService creates a new discovery service with the default curated registry
 func NewDiscoveryService() *DiscoveryService {
 	return &DiscoveryService{
-		registry:  DefaultCuratedRegistry(),
-		allowlist: defaultAllowlist(),
-		blocklist: defaultBlocklist(),
+		registry:        DefaultCuratedRegistry(),
+		allowlist:       defaultAllowlist(),
+		blocklist:       defaultBlocklist(),
+		securityService: security.NewSecurityService(),
 	}
 }
 
-// NewDiscoveryServiceWithPath creates a discovery service with custom config path
 func NewDiscoveryServiceWithPath(configPath string) *DiscoveryService {
 	ds := &DiscoveryService{
-		registry:   DefaultCuratedRegistry(),
-		allowlist:  defaultAllowlist(),
-		blocklist:  defaultBlocklist(),
-		configPath: configPath,
+		registry:        DefaultCuratedRegistry(),
+		allowlist:       defaultAllowlist(),
+		blocklist:       defaultBlocklist(),
+		configPath:      configPath,
+		securityService: security.NewSecurityService(),
 	}
 
 	if configPath != "" {
@@ -354,6 +357,85 @@ func (ds *DiscoveryService) GetSecurityWarnings(serverID string) ([]string, erro
 	warnings = append(warnings, server.SecurityWarnings...)
 
 	return warnings, nil
+}
+
+// GetSecurityAssessment performs a full security assessment for a server
+func (ds *DiscoveryService) GetSecurityAssessment(serverID string) (security.ValidationResult, security.WarningResult, error) {
+	server, ok := ds.GetCuratedServer(serverID)
+	if !ok {
+		return security.ValidationResult{}, security.WarningResult{}, fmt.Errorf("server not found: %s", serverID)
+	}
+
+	// Build tool info list for security analysis
+	var tools []security.ToolInfo
+	for _, tool := range server.Tools {
+		tools = append(tools, security.ToolInfo{
+			Name:        tool.Name,
+			Description: tool.Description,
+		})
+	}
+
+	// Get URL and transport from server config
+	url := server.URL
+	if url == "" && server.Transport == "bundled" {
+		url = "bundled://localhost"
+	}
+	if url == "" && len(server.Command) > 0 {
+		url = "stdio://" + server.Command[0]
+	}
+
+	validation, warnings := ds.securityService.ValidateServer(url, server.Transport, tools)
+	return validation, warnings, nil
+}
+
+// ValidateCustomServerWithSecurity performs enhanced validation with security checks
+func (ds *DiscoveryService) ValidateCustomServerWithSecurity(name, urlStr string) (CustomServerEntry, security.ValidationResult, security.WarningResult, error) {
+	// First perform basic URL validation
+	basicValidation := ds.ValidateCustomURL(urlStr)
+	if !basicValidation.Valid {
+		return CustomServerEntry{}, security.ValidationResult{}, security.WarningResult{},
+			errors.New("URL validation failed: " + strings.Join(basicValidation.Errors, ", "))
+	}
+
+	// Perform enhanced security validation
+	validation, warnings := ds.securityService.ValidateServer(basicValidation.NormalizedURL, "http", nil)
+
+	if validation.RiskScore.Rating == security.RiskRatingF {
+		return CustomServerEntry{}, validation, warnings,
+			errors.New("server blocked by security policy: " + strings.Join(validation.Errors, ", "))
+	}
+
+	ds.mu.Lock()
+	defer ds.mu.Unlock()
+
+	for _, existing := range ds.customServers {
+		if existing.URL == basicValidation.NormalizedURL {
+			return CustomServerEntry{}, security.ValidationResult{}, security.WarningResult{},
+				errors.New("server already exists: " + urlStr)
+		}
+	}
+
+	entry := CustomServerEntry{
+		ID:            generateID(name),
+		Name:          name,
+		URL:           basicValidation.NormalizedURL,
+		AddedAt:       time.Now(),
+		Validated:     validation.Valid,
+		SecurityCheck: basicValidation,
+	}
+
+	ds.customServers = append(ds.customServers, entry)
+
+	if ds.configPath != "" {
+		ds.saveCustomServers()
+	}
+
+	return entry, validation, warnings, nil
+}
+
+// GetSecurityService returns the internal security service (for advanced use)
+func (ds *DiscoveryService) GetSecurityService() *security.SecurityService {
+	return ds.securityService
 }
 
 func defaultAllowlist() []string {

@@ -10,12 +10,13 @@ import (
 	"pryx-core/internal/validation"
 )
 
+const WebSocketBufferSize = 256
+
 func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-		InsecureSkipVerify: true, // Allow all origins for local dev
+		InsecureSkipVerify: true,
 	})
 	if err != nil {
-		// Log error to stdout for now
 		return
 	}
 	defer c.Close(websocket.StatusInternalError, "internal error")
@@ -56,8 +57,9 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		"surface":     surface,
 	}))
 
-	// Writer goroutine: Listen to bus, write to WS
+	eventCh := make(chan bus.Event, WebSocketBufferSize)
 	go func() {
+		defer close(eventCh)
 		for {
 			select {
 			case <-ctx.Done():
@@ -69,18 +71,26 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 				if sessionFilter != "" && evt.SessionID != sessionFilter {
 					continue
 				}
-				bytes, err := json.Marshal(evt)
-				if err != nil {
-					continue
-				}
-				if err := c.Write(ctx, websocket.MessageText, bytes); err != nil {
-					return
+				select {
+				case eventCh <- evt:
+				default:
 				}
 			}
 		}
 	}()
 
-	// Reader loop: Keep connection alive and handle incoming messages
+	go func() {
+		for evt := range eventCh {
+			bytes, err := json.Marshal(evt)
+			if err != nil {
+				continue
+			}
+			if err := c.Write(ctx, websocket.MessageText, bytes); err != nil {
+				return
+			}
+		}
+	}()
+
 	for {
 		msgType, data, err := c.Read(ctx)
 		if err != nil {
@@ -90,7 +100,6 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Parse generic message structure
 		in := struct {
 			Event      string                 `json:"event"`
 			Type       string                 `json:"type"`
@@ -103,7 +112,6 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Handle different message types
 		eventType := in.Event
 		if eventType == "" {
 			eventType = in.Type

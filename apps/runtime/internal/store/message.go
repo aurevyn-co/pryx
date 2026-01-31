@@ -1,6 +1,7 @@
 package store
 
 import (
+	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -40,15 +41,37 @@ func (s *Store) AddMessage(sessionID string, role Role, content string) (*Messag
 		return nil, err
 	}
 
-	// Update session timestamp
 	_, _ = s.DB.Exec(`UPDATE sessions SET updated_at = ? WHERE id = ?`, now, sessionID)
+
+	if s.maxMessages > 0 {
+		go s.CleanupOldMessages(sessionID)
+	}
 
 	return msg, nil
 }
 
 func (s *Store) GetMessages(sessionID string) ([]*Message, error) {
-	query := `SELECT id, session_id, role, content, created_at FROM messages WHERE session_id = ? ORDER BY created_at ASC`
-	rows, err := s.DB.Query(query, sessionID)
+	return s.GetMessagesWithLimit(sessionID, s.maxMessages)
+}
+
+func (s *Store) GetMessagesWithLimit(sessionID string, limit int) ([]*Message, error) {
+	var rows *sql.Rows
+	var err error
+
+	if limit > 0 {
+		query := `SELECT id, session_id, role, content, created_at FROM (
+			SELECT * FROM messages 
+			WHERE session_id = ? 
+			ORDER BY created_at DESC 
+			LIMIT ?
+		) ORDER BY created_at ASC`
+		rows, err = s.DB.Query(query, sessionID, limit)
+	} else {
+		query := `SELECT id, session_id, role, content, created_at FROM messages 
+			WHERE session_id = ? ORDER BY created_at ASC`
+		rows, err = s.DB.Query(query, sessionID)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -63,4 +86,11 @@ func (s *Store) GetMessages(sessionID string) ([]*Message, error) {
 		messages = append(messages, msg)
 	}
 	return messages, nil
+}
+
+func (s *Store) GetRecentMessages(sessionID string, n int) ([]*Message, error) {
+	if n <= 0 {
+		n = 100
+	}
+	return s.GetMessagesWithLimit(sessionID, n)
 }

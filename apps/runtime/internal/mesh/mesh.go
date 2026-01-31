@@ -59,12 +59,17 @@ type Manager struct {
 
 // NewManager creates a new mesh manager
 func NewManager(cfg *config.Config, b *bus.Bus, s *store.Store, kc *keychain.Keychain) *Manager {
+	bufferSize := cfg.WebSocketBufferSize
+	if bufferSize <= 0 {
+		bufferSize = 256
+	}
+
 	return &Manager{
 		cfg:      cfg,
 		bus:      b,
 		store:    s,
 		keychain: kc,
-		sendCh:   make(chan WebSocketMessage, 100),
+		sendCh:   make(chan WebSocketMessage, bufferSize),
 		stopCh:   make(chan struct{}),
 	}
 }
