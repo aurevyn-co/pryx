@@ -2,12 +2,10 @@ package registry
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"pryx-core/internal/bus"
 )
 
@@ -88,22 +86,22 @@ func (s *Service) Register(ctx context.Context, agent *Agent) error {
 	}
 
 	// Check for duplicate registration
-	if _, exists := s.agents[Agent.ID]; exists {
-		return fmt.Errorf("agent with ID %s already registered", Agent.ID)
+	if _, exists := s.agents[agent.ID]; exists {
+		return fmt.Errorf("agent with ID %s already registered", agent.ID)
 	}
 
 	// Set registration time
-	Agent.RegisteredAt = time.Now().UTC()
-	Agent.LastSeen = Agent.RegisteredAt
+	agent.RegisteredAt = time.Now().UTC()
+	agent.LastSeen = agent.RegisteredAt
 
 	// Store agent
-	s.agents[Agent.ID] = Agent
+	s.agents[agent.ID] = agent
 
 	// Publish event
 	s.bus.Publish(bus.NewEvent("agent.registered", "", map[string]interface{}{
-		"agent_id": Agent.ID,
-		"name":     Agent.Name,
-		"version":  Agent.Version,
+		"agent_id": agent.ID,
+		"name":     agent.Name,
+		"version":  agent.Version,
 	}))
 
 	return nil
@@ -193,11 +191,11 @@ func (s *Service) UpdateHealth(agentID string, status HealthStatus) error {
 
 // DiscoveryCriteria specifies search criteria for agent discovery
 type DiscoveryCriteria struct {
-	CapabilityType string `json:"capability_type"` // filter by capability type
-	CapabilityName string `json:"capability_name"` // filter by capability name
-	TrustLevel     string `json:"trust_level"`     // filter by trust level
-	MinVersion     string `json:"min_version"`     // minimum version requirement
-	MaxVersion     string `json:"max_version"`     // maximum version constraint
+	CapabilityType string     `json:"capability_type"` // filter by capability type
+	CapabilityName string     `json:"capability_name"` // filter by capability name
+	TrustLevel     TrustLevel `json:"trust_level"`     // filter by trust level
+	MinVersion     string     `json:"min_version"`     // minimum version requirement
+	MaxVersion     string     `json:"max_version"`     // maximum version constraint
 }
 
 // matchesCriteria checks if an agent matches discovery criteria

@@ -2,21 +2,18 @@ package registry
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/go-chi/chi/v5"
-	"pryx-core/internal/registry"
 )
 
 // Handler wraps the registry service for HTTP handlers
 type Handler struct {
-	service *registry.Service
+	service *Service
 }
 
 // NewHandler creates a new handler for agent registry API
-func NewHandler(service *registry.Service) *Handler {
+func NewHandler(service *Service) *Handler {
 	return &Handler{
 		service: service,
 	}
@@ -24,14 +21,14 @@ func NewHandler(service *registry.Service) *Handler {
 
 // RegisterHandler handles POST /api/v1/agents requests
 func (h *Handler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
-	var agent registry.Agent
+	var agent Agent
 	if err := json.NewDecoder(r.Body).Decode(&agent); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	// Validate agent
-	if err := registry.ValidateAgent(&agent); err != nil {
+	if err := ValidateAgent(&agent); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -86,7 +83,7 @@ func (h *Handler) UnregisterHandler(w http.ResponseWriter, r *http.Request) {
 
 // DiscoverHandler handles GET /api/v1/agents/discover requests
 func (h *Handler) DiscoverHandler(w http.ResponseWriter, r *http.Request) {
-	var criteria registry.DiscoveryCriteria
+	var criteria DiscoveryCriteria
 	if err := json.NewDecoder(r.Body).Decode(&criteria); err != nil && r.Body != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -109,7 +106,7 @@ func (h *Handler) HealthHandler(w http.ResponseWriter, r *http.Request) {
 	agentID := chi.URLParam(r, "id")
 
 	var payload struct {
-		Status registry.HealthStatus `json:"status"`
+		Status HealthStatus `json:"status"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
