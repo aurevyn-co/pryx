@@ -14,9 +14,10 @@ import SearchableCommandPalette, { Command } from "./SearchableCommandPalette";
 import KeyboardShortcuts from "./KeyboardShortcuts";
 import SetupRequired from "./SetupRequired";
 import ProviderManager from "./ProviderManager";
+import McpServers from "./McpServers";
 import { palette } from "../theme";
 
-type View = "chat" | "sessions" | "settings" | "channels" | "skills";
+type View = "chat" | "sessions" | "settings" | "channels" | "skills" | "mcp";
 
 export default function App() {
   const renderer = useRenderer();
@@ -136,6 +137,18 @@ export default function App() {
       },
     },
     {
+      id: "mcp",
+      name: "MCP Servers",
+      description: "Manage MCP server connections",
+      category: "Navigation",
+      shortcut: "6",
+      keywords: ["mcp", "servers", "tools", "connections", "integrations"],
+      action: () => {
+        setView("mcp");
+        setShowCommands(false);
+      },
+    },
+    {
       id: "new-chat",
       name: "New Chat",
       description: "Start a new conversation",
@@ -201,7 +214,7 @@ export default function App() {
     },
   ];
 
-  const views: View[] = ["chat", "sessions", "channels", "skills", "settings"];
+  const views: View[] = ["chat", "sessions", "channels", "skills", "settings", "mcp"];
 
   useKeyboard(evt => {
     if (showHelp() || showCommands() || showProviderManager()) {
@@ -228,7 +241,8 @@ export default function App() {
       case "2":
       case "3":
       case "4":
-      case "5": {
+      case "5":
+      case "6": {
         evt.preventDefault();
         const idx = parseInt(evt.name) - 1;
         if (idx < views.length) {
@@ -292,6 +306,12 @@ export default function App() {
             >
               5.Settings
             </text>
+            <text 
+              fg={view() === "mcp" ? palette.accent : palette.dim}
+              bg={view() === "mcp" ? palette.bgSelected : undefined}
+            >
+              6.MCP
+            </text>
           </box>
           <box flexGrow={1} />
           <text fg="gray">/</text>
@@ -323,11 +343,14 @@ export default function App() {
             <Match when={view() === "skills"}>
               <Skills />
             </Match>
+            <Match when={view() === "mcp"}>
+              <McpServers onClose={() => setView("chat")} />
+            </Match>
           </Switch>
         </box>
 
         <box flexDirection="row" padding={1}>
-          <text fg="gray">/: Commands | Tab: Switch | 1-5: Views | ?: Help | Ctrl+C: Quit</text>
+          <text fg="gray">/: Commands | Tab: Switch | 1-6: Views | ?: Help | Ctrl+C: Quit</text>
           <box flexGrow={1} />
           <text fg="blue">v0.1.0-alpha</text>
         </box>
