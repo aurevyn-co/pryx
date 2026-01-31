@@ -19,21 +19,18 @@ import (
 )
 
 type WebhookConfig struct {
-	ID        string
-	Port      int
-	Path      string
-	Secret    string
-	TargetURL string // For outgoing, maps to 'Path' in test if confusing, strictly TargetURL here.
-	// User test uses 'Path' for TargetURL in some places?
-	// The test uses: config := WebhookConfig{ Path: server.URL }.
-	// That's confusing. Path is usually "/webhook". TargetURL is "http://..."
-	// I will support what the user test implies: if Path starts with http, treat as TargetURL?
-	// No, clean code is better. I'll inspect test usage closely.
-	// Test: config := WebhookConfig{ Path: server.URL ... } -> w.Connect() -> w.Send().
-	// It seems 'Path' is used for BOTH listen path AND target URL in the user's test mental model?
-	// or they simply meant TargetURL.
-	// I'll add both fields to Config struct, and in NewWebhookChannel mapping, I'll be smart.
-	Retries int
+	ID          string
+	Name        string
+	Port        int
+	Path        string
+	Secret      string
+	TargetURL   string
+	Retries     int
+	Headers     map[string]string
+	RetryConfig RetryConfig
+	Enabled     bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 type WebhookChannel struct {
