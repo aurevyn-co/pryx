@@ -1,0 +1,59 @@
+# Pryx .gitignore
+
+# Build artifacts
+/apps/host/target/
+/apps/runtime/bin/
+# TUI Binaries
+/apps/tui/pryx-tui
+/apps/tui/.188e9d9fffd775db-00000000.bun-build
+/apps/tui/dist/
+/apps/tui/node_modules/
+
+# Dependency lockfiles are committed by default.
+# Uncomment to ignore them (not recommended):
+# Cargo.lock
+# go.sum
+# package-lock.json
+
+# Testing
+/coverage/
+*.coverprofile
+*.prof
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS files
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Temporary reference codebases (for AI code model context)
+# - moltbot: AI agent architecture reference
+# - opencode: UI/UX design reference
+.temp_refs/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Secrets (never commit)
+*.pem
+*.key
+secrets/
+
+node_modules/

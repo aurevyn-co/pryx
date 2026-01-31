@@ -1,0 +1,20 @@
+import { render } from "@opentui/solid";
+import App from "./src/components/App";
+
+process.on("SIGINT", () => {
+  process.exit(0);
+});
+
+try {
+  render(() => <App />, {
+    targetFps: 60,
+    exitOnCtrlC: false,
+    useMouse: true,
+    enableMouseMovement: true,
+  });
+} catch (e) {
+  console.error("Failed to start TUI:", e);
+  const fs = require("fs");
+  fs.writeFileSync("tui-crash.log", String(e) + "\n" + (e instanceof Error ? e.stack : ""));
+  process.exit(1);
+}

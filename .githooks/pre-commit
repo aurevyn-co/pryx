@@ -1,0 +1,19 @@
+#!/bin/sh
+# Pre-commit hook for secret scanning
+# Install: git config core.hooksPath .githooks
+
+echo "Scanning for secrets..."
+
+if command -v gitleaks >/dev/null 2>&1; then
+    gitleaks detect --source . --config .gitleaks.toml --verbose
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Potential secrets detected! Commit aborted."
+        echo "If these are false positives, update .gitleaks.toml"
+        exit 1
+    fi
+else
+    echo "WARNING: gitleaks not installed. Skipping secret scan."
+    echo "Install with: brew install gitleaks"
+fi
+
+exit 0
