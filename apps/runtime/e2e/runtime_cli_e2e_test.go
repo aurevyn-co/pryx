@@ -169,7 +169,8 @@ func TestRuntime_HealthAndWebsocket(t *testing.T) {
 		"PRYX_DB_PATH="+filepath.Join(home, "pryx.db"),
 		"PRYX_WORKSPACE_ROOT="+repoRoot(t),
 		"PRYX_BUNDLED_SKILLS_DIR="+filepath.Join(runtimeRoot(t), "internal", "skills", "bundled"),
-		"PRYX_LISTEN_ADDR=:0",
+		"PRYX_KEYCHAIN_FILE="+filepath.Join(home, ".pryx", "keychain.json"),
+		"PRYX_TELEMETRY_DISABLED=true",
 	)
 
 	if err := cmd.Start(); err != nil {
@@ -240,6 +241,8 @@ func startPryxCore(t *testing.T, bin string, home string) (port string, cancel c
 		"PRYX_LISTEN_ADDR=:0",
 		"PRYX_WORKSPACE_ROOT="+repoRoot(t),
 		"PRYX_BUNDLED_SKILLS_DIR="+filepath.Join(runtimeRoot(t), "internal", "skills", "bundled"),
+		"PRYX_KEYCHAIN_FILE="+filepath.Join(home, ".pryx", "keychain.json"),
+		"PRYX_TELEMETRY_DISABLED=true",
 	)
 
 	if err := cmd.Start(); err != nil {

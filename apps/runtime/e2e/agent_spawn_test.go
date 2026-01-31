@@ -28,8 +28,7 @@ func TestAgentSpawning(t *testing.T) {
 	t.Run("spawn_agent", func(t *testing.T) {
 		payload := map[string]interface{}{
 			"task":    "Test task for E2E",
-			"model":   "gpt-4",
-			"context": map[string]string{"test": "data"},
+			"context": "test context data",
 		}
 
 		body, _ := json.Marshal(payload)
@@ -39,8 +38,8 @@ func TestAgentSpawning(t *testing.T) {
 		}
 		defer resp.Body.Close()
 
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("Expected 200, got %d", resp.StatusCode)
+		if resp.StatusCode != http.StatusCreated {
+			t.Fatalf("Expected 201, got %d", resp.StatusCode)
 		}
 
 		var result map[string]interface{}
@@ -48,11 +47,11 @@ func TestAgentSpawning(t *testing.T) {
 			t.Fatalf("Failed to decode response: %v", err)
 		}
 
-		if result["id"] == nil {
-			t.Fatal("Expected agent ID in response")
+		if result["agent_id"] == nil {
+			t.Fatal("Expected agent_id in response")
 		}
 
-		t.Logf("✓ Agent spawned with ID: %s", result["id"])
+		t.Logf("✓ Agent spawned with ID: %s", result["agent_id"])
 	})
 
 	// Test 2: List agents
@@ -102,7 +101,7 @@ func TestAgentSpawning(t *testing.T) {
 		}
 
 		firstAgent := agents[0].(map[string]interface{})
-		agentID := firstAgent["id"].(string)
+		agentID := firstAgent["agent_id"].(string)
 
 		resp, err = http.Get(baseURL + "/api/v1/agents/" + agentID)
 		if err != nil {
@@ -119,7 +118,7 @@ func TestAgentSpawning(t *testing.T) {
 			t.Fatalf("Failed to decode agent: %v", err)
 		}
 
-		if agent["id"] != agentID {
+		if agent["agent_id"] != agentID {
 			t.Fatal("Agent ID mismatch")
 		}
 
@@ -143,7 +142,7 @@ func TestAgentSpawning(t *testing.T) {
 		json.NewDecoder(resp.Body).Decode(&spawnResult)
 		resp.Body.Close()
 
-		agentID := spawnResult["id"].(string)
+		agentID := spawnResult["agent_id"].(string)
 
 		// Cancel it
 		req, _ := http.NewRequest("POST", baseURL+"/api/v1/agents/"+agentID+"/cancel", nil)
