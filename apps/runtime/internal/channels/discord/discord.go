@@ -20,6 +20,13 @@ type DiscordChannel struct {
 	status   channels.Status
 }
 
+// HealthStatus represents the health status of the channel
+type HealthStatus struct {
+	Healthy   bool   `json:"healthy"`
+	Message   string `json:"message,omitempty"`
+	LastError string `json:"last_error,omitempty"`
+}
+
 func NewDiscordChannel(id, token string, eventBus *bus.Bus) *DiscordChannel {
 	return &DiscordChannel{
 		id:       id,
@@ -97,6 +104,43 @@ func (d *DiscordChannel) Send(ctx context.Context, msg channels.Message) error {
 
 func (d *DiscordChannel) Status() channels.Status {
 	return d.status
+}
+
+// GetBotInfo returns information about the bot
+func (d *DiscordChannel) GetBotInfo(ctx context.Context) (*User, error) {
+	if d.session == nil {
+		return nil, fmt.Errorf("session not connected")
+	}
+
+	user := &User{
+		ID:            d.session.State.User.ID,
+		Username:      d.session.State.User.Username,
+		Discriminator: d.session.State.User.Discriminator,
+		Bot:           d.session.State.User.Bot,
+	}
+
+	return user, nil
+}
+
+// Health returns the health status of the channel
+func (d *DiscordChannel) Health() HealthStatus {
+	if d.status == channels.StatusConnected {
+		return HealthStatus{
+			Healthy: true,
+			Message: "Connected",
+		}
+	}
+	return HealthStatus{
+		Healthy: false,
+		Message: fmt.Sprintf("Status: %s", d.status),
+	}
+}
+
+// RegisterCommands registers slash commands for the bot
+func (d *DiscordChannel) RegisterCommands(ctx context.Context, cmds []ApplicationCommand) error {
+	// For now, commands are handled by the discordgo library
+	// This is a placeholder for future custom command registration
+	return nil
 }
 
 func (d *DiscordChannel) handleMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
