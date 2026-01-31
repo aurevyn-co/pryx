@@ -221,6 +221,48 @@ func (w *WebhookChannel) Status() channels.Status {
 	return w.status
 }
 
+func (w *WebhookChannel) Health() error {
+	if w.status != channels.StatusConnected {
+		return fmt.Errorf("channel not connected")
+	}
+
+	if !w.config.Enabled {
+		return fmt.Errorf("channel is disabled")
+	}
+
+	return nil
+}
+
+func (w *WebhookChannel) Config() WebhookConfig {
+	return w.config
+}
+
+func (w *WebhookChannel) Receive(msg *IncomingWebhook) error {
+	if w.status != channels.StatusConnected {
+		return fmt.Errorf("channel not connected")
+	}
+
+	channelMsg := channels.Message{
+		ID:        msg.ID,
+		Content:   string(msg.Payload),
+		Source:    w.config.ID,
+		ChannelID: msg.ChannelID,
+		SenderID:  "webhook",
+		Metadata:  msg.Headers,
+		CreatedAt: msg.Timestamp,
+	}
+
+	if w.eventBus != nil {
+		w.eventBus.Publish(bus.NewEvent(bus.EventChannelMessage, "", channelMsg))
+	}
+
+	return nil
+}
+
+func (w *WebhookChannel) GetDeliveryLogs(limit int) ([]DeliveryLog, error) {
+	return []DeliveryLog{}, nil
+}
+
 func (w *WebhookChannel) ValidateSignature(req *http.Request, secret string) (bool, error) {
 	// If secret passed, use it, else use internal
 	key := secret
