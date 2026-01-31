@@ -1,0 +1,6 @@
+[submodule ".temp_refs/opencode"]
+	path = .temp_refs/opencode
+	url = https://github.com/anomalyco/opencode
+[submodule ".temp_refs/openclaw"]
+	path = .temp_refs/openclaw
+	url = https://github.com/openclaw/openclaw
