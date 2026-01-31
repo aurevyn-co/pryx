@@ -16,9 +16,13 @@ import KeyboardShortcuts from "./KeyboardShortcuts";
 import SetupRequired from "./SetupRequired";
 import ProviderManager from "./ProviderManager";
 import McpServers from "./McpServers";
+import CostDashboard from "./CostDashboard";
+import AgentSpawning from "./AgentSpawning";
+import PolicyApprovals from "./PolicyApprovals";
+import MeshStatus from "./MeshStatus";
 import { palette } from "../theme";
 
-type View = "chat" | "sessions" | "settings" | "channels" | "skills" | "mcp";
+type View = "chat" | "sessions" | "settings" | "channels" | "skills" | "mcp" | "cost" | "agents" | "policies" | "mesh";
 
 export default function App() {
   const renderer = useRenderer();
@@ -146,6 +150,54 @@ export default function App() {
       keywords: ["mcp", "servers", "tools", "connections", "integrations"],
       action: () => {
         setView("mcp");
+        setShowCommands(false);
+      },
+    },
+    {
+      id: "cost",
+      name: "Cost Dashboard",
+      description: "View cost tracking and budget",
+      category: "Navigation",
+      shortcut: "7",
+      keywords: ["cost", "budget", "tracking", "expenses", "tokens"],
+      action: () => {
+        setView("cost");
+        setShowCommands(false);
+      },
+    },
+    {
+      id: "agents",
+      name: "Agent Spawning",
+      description: "Manage sub-agents",
+      category: "Navigation",
+      shortcut: "8",
+      keywords: ["agents", "spawning", "sub-agents", "parallel"],
+      action: () => {
+        setView("agents");
+        setShowCommands(false);
+      },
+    },
+    {
+      id: "policies",
+      name: "Policies & Approvals",
+      description: "Manage security policies",
+      category: "Navigation",
+      shortcut: "9",
+      keywords: ["policies", "approvals", "security", "rules", "permissions"],
+      action: () => {
+        setView("policies");
+        setShowCommands(false);
+      },
+    },
+    {
+      id: "mesh",
+      name: "Mesh Status",
+      description: "View multi-device coordination",
+      category: "Navigation",
+      shortcut: "0",
+      keywords: ["mesh", "devices", "sync", "multi-device", "coordination"],
+      action: () => {
+        setView("mesh");
         setShowCommands(false);
       },
     },
@@ -313,6 +365,30 @@ export default function App() {
             >
               6.MCP
             </text>
+            <text 
+              fg={view() === "cost" ? palette.accent : palette.dim}
+              bg={view() === "cost" ? palette.bgSelected : undefined}
+            >
+              7.Cost
+            </text>
+            <text 
+              fg={view() === "agents" ? palette.accent : palette.dim}
+              bg={view() === "agents" ? palette.bgSelected : undefined}
+            >
+              8.Agents
+            </text>
+            <text 
+              fg={view() === "policies" ? palette.accent : palette.dim}
+              bg={view() === "policies" ? palette.bgSelected : undefined}
+            >
+              9.Policies
+            </text>
+            <text 
+              fg={view() === "mesh" ? palette.accent : palette.dim}
+              bg={view() === "mesh" ? palette.bgSelected : undefined}
+            >
+              0.Mesh
+            </text>
           </box>
           <box flexGrow={1} />
           <text fg="gray">/</text>
@@ -347,11 +423,23 @@ export default function App() {
             <Match when={view() === "mcp"}>
               <McpServers onClose={() => setView("chat")} />
             </Match>
+            <Match when={view() === "cost"}>
+              <CostDashboard onClose={() => setView("chat")} />
+            </Match>
+            <Match when={view() === "agents"}>
+              <AgentSpawning onClose={() => setView("chat")} />
+            </Match>
+            <Match when={view() === "policies"}>
+              <PolicyApprovals onClose={() => setView("chat")} />
+            </Match>
+            <Match when={view() === "mesh">
+              <MeshStatus onClose={() => setView("chat")} />
+            </Match>
           </Switch>
         </box>
 
         <box flexDirection="row" padding={1}>
-          <text fg="gray">/: Commands | Tab: Switch | 1-6: Views | ?: Help | Ctrl+C: Quit</text>
+          <text fg="gray">/: Commands | Tab: Switch | 0-9: Views | ?: Help | Ctrl+C: Quit</text>
           <box flexGrow={1} />
           <text fg="blue">v0.1.0-alpha</text>
         </box>
