@@ -267,9 +267,10 @@ func main() {
 
 	// Start server in background (with dynamic port allocation)
 	profiler.StartPhase("server.start")
+	serverErrCh := make(chan error, 1)
 	go func() {
 		if err := srv.Start(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server error: %v", err)
+			serverErrCh <- fmt.Errorf("server error: %w", err)
 		}
 	}()
 	// Give server a moment to start, then mark phase complete
@@ -282,12 +283,21 @@ func main() {
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-	<-stop
 
-	log.Println("Shutting down...")
+	// Wait for shutdown signal or server error
+	select {
+	case <-stop:
+		log.Println("Shutting down (received signal)...")
+	case err := <-serverErrCh:
+		log.Printf("Server error encountered: %v", err)
+		log.Println("Shutting down (server error)...")
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	_ = srv.Shutdown(ctx)
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Printf("Shutdown error: %v", err)
+	}
 }
 
 func usage() {
