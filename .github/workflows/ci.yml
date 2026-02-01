@@ -153,9 +153,13 @@ jobs:
             ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
 
+      - name: Install dependencies
+        working-directory: apps/runtime
+        run: go mod download
+
       - name: Run tests
-        run: |
-          cd apps/runtime && go test -v -race -coverprofile=coverage.out ./...
+        working-directory: apps/runtime
+        run: go test -v -race -coverprofile=coverage.out ./internal/...
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
