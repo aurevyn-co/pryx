@@ -207,7 +207,7 @@ func main() {
 		}
 		if cfg.SlackEnabled && cfg.SlackAppToken != "" && cfg.SlackBotToken != "" {
 			log.Println("Starting Slack App...")
-			slackCh := channelsSlack.NewSlackChannel("slack-main", cfg.SlackAppToken, cfg.SlackBotToken, b)
+			slackCh := channelsSlack.NewSlackChannel("slack-main", cfg.SlackBotToken, cfg.SlackAppToken, b)
 			if err := chanMgr.Register(slackCh); err != nil {
 				log.Printf("Failed to register Slack: %v", err)
 			}

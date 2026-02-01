@@ -165,9 +165,10 @@ func (f *ProviderFactory) getOAuthToken(providerID string) string {
 		defer cancel()
 		// Try to refresh, but don't block too long or fail hard if it fails
 		// If refresh fails, we'll try to use the existing token (might still work) or fall back
-		if err := oauth.RefreshToken(ctx, providerID); err == nil {
-			token, _ = f.keychain.Get("oauth_" + providerID + "_access")
+		if err := oauth.RefreshToken(ctx, providerID); err != nil {
+			return ""
 		}
+		token, _ = f.keychain.Get("oauth_" + providerID + "_access")
 	}
 
 	return token

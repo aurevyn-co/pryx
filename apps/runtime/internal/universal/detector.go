@@ -256,7 +256,7 @@ func (d *Detector) parseManifest(agentDir string) DetectedAgent {
 						Version:   pkg.Version,
 						Namespace: "local",
 					},
-					Protocol:     pkg.Protocols[0],
+					Protocol:     safeProtocol(pkg.Protocols),
 					Capabilities: pkg.Capabilities,
 					HealthStatus: "unknown",
 					Metadata:     pkg.Metadata,

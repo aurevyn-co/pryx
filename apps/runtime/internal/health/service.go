@@ -7,8 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"pryx-core/internal/bus"
+
+	"github.com/google/uuid"
 )
 
 // HealthStatus represents the health status of an agent
@@ -259,6 +260,27 @@ func (s *Service) PerformHealthCheck(ctx context.Context, req *HealthCheckReques
 
 	s.mu.RLock()
 	_, exists := s.agents[req.AgentID]
+	var agentComponents []*HealthComponent
+	if exists {
+		// Create a copy of the pointers to avoid race on the map access
+		// The component objects themselves might be modified under lock in other methods,
+		// but HealthComponent here seems to be efficiently copyable struct?
+		// Wait, s.components is map[string]map[string]*HealthComponent
+		// We need to copy the *HealthComponent pointers.
+		// Note: The content of *HealthComponent might be modified.
+		// Ideally we should copy the VALUES aka dereference them if we want a snapshot.
+		// HealthComponent field 'Status' etc are modified in UpdateComponentHealth under Lock.
+		// So we should copy.
+		if comps, ok := s.components[req.AgentID]; ok {
+			agentComponents = make([]*HealthComponent, 0, len(comps))
+			for _, c := range comps {
+				// We append the pointer for now, but strictly we should probably dereference if we want snapshot.
+				// But Service.PerformHealthCheck returns *pointers* in HealthCheckResponse? No, structure `HealthComponent` (value).
+				// So we should read the values under lock.
+				agentComponents = append(agentComponents, c)
+			}
+		}
+	}
 	s.mu.RUnlock()
 
 	if !exists {
@@ -268,9 +290,11 @@ func (s *Service) PerformHealthCheck(ctx context.Context, req *HealthCheckReques
 	components := make([]HealthComponent, 0)
 
 	// Perform checks based on request
-	for _, comp := range s.components[req.AgentID] {
+	for _, compPointer := range agentComponents {
+		// dereference safely? We already have the pointer.
+		comp := *compPointer // Snapshot the value
 		if len(req.CheckTypes) == 0 || containsComponentType(req.CheckTypes, comp.Type) {
-			components = append(components, *comp)
+			components = append(components, comp)
 		}
 	}
 

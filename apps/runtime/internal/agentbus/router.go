@@ -188,10 +188,8 @@ func (mr *MessageRouter) Broadcast(msg *UniversalMessage) {
 }
 
 // notifySubscribers notifies all subscribers matching the message
+// Assumes caller holds mr.mu.RLock() or mr.mu.Lock()
 func (mr *MessageRouter) notifySubscribers(msg *UniversalMessage) {
-	mr.mu.RLock()
-	defer mr.mu.RUnlock()
-
 	for pattern, subscribers := range mr.subscribers {
 		if mr.matchesPattern(msg, pattern) {
 			for _, ch := range subscribers {

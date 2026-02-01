@@ -7,9 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"pryx-core/internal/bus"
 	"pryx-core/internal/message"
+
+	"github.com/google/uuid"
 )
 
 // AgentSession represents an active session with another agent
@@ -323,23 +324,24 @@ func (s *Service) StartConversation(ctx context.Context, participantIDs []string
 // AddMessageToConversation adds a message to a conversation
 func (s *Service) AddMessageToConversation(ctx context.Context, conversationID string, fromAgent string, msg *message.Message) error {
 	s.mu.Lock()
-	conv, exists := s.conversations[conversationID]
-	s.mu.Unlock()
+	defer s.mu.Unlock()
 
+	conv, exists := s.conversations[conversationID]
 	if !exists {
 		return fmt.Errorf("conversation not found: %s", conversationID)
 	}
 
 	// Add message to conversation
-	s.mu.Lock()
 	conv.Messages = append(conv.Messages, msg)
 	conv.UpdatedAt = time.Now().UTC()
-	s.mu.Unlock()
 
 	// Track reply-to mapping
-	s.mu.Lock()
 	s.replyTo[msg.ID] = conversationID
-	s.mu.Unlock()
+
+	// Create summary outside usage if possible, but for simplicity/safety we do it here or pre-calculate
+	// Since summarizeMessage is pure and fast, we can do it here. Or we release lock, calculate, re-acquire?
+	// s.summarizeMessage doesn't lock.
+	summary := s.summarizeMessage(msg)
 
 	// Add to history
 	historyEntry := MessageHistoryEntry{
@@ -349,14 +351,12 @@ func (s *Service) AddMessageToConversation(ctx context.Context, conversationID s
 		FromAgent:      fromAgent,
 		ToAgent:        msg.ToAgent,
 		MessageType:    string(msg.Type),
-		Summary:        s.summarizeMessage(msg),
+		Summary:        summary,
 		Timestamp:      time.Now().UTC(),
 		Tags:           []string{conversationID},
 	}
 
-	s.mu.Lock()
 	s.history = append(s.history, historyEntry)
-	s.mu.Unlock()
 
 	return nil
 }

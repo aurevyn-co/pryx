@@ -177,6 +177,9 @@ func (a *HTTPAdapter) Disconnect(ctx context.Context, conn *AgentConnection) err
 
 // HealthCheck checks the agent health via HTTP
 func (a *HTTPAdapter) HealthCheck(ctx context.Context, conn *AgentConnection) error {
+	if conn == nil {
+		return fmt.Errorf("connection is nil")
+	}
 	url := conn.AgentInfo.Endpoint.URL + "/health"
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {

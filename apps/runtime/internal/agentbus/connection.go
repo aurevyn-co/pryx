@@ -241,22 +241,36 @@ func (cm *ConnectionManager) GetCircuitBreaker(connID string, config CircuitBrea
 // HealthCheck performs health check on all connections
 func (cm *ConnectionManager) HealthCheck(ctx context.Context) error {
 	cm.mu.RLock()
-	defer cm.mu.RUnlock()
+	conns := make([]*AgentConnection, 0, len(cm.connections))
+	for _, conn := range cm.connections {
+		conns = append(conns, conn)
+	}
+	cm.mu.RUnlock()
 
 	var errs []error
-	for id, conn := range cm.connections {
+	for _, conn := range conns {
+		if conn == nil || conn.Adapter == nil {
+			continue
+		}
+
 		if err := conn.Adapter.HealthCheck(ctx, conn); err != nil {
+			cm.mu.Lock()
 			conn.ErrorCount++
 			cm.metrics.ErrorsTotal++
+			conn.AgentInfo.HealthStatus = "unhealthy"
+			cm.mu.Unlock()
+
 			errs = append(errs, err)
 
 			cm.logger.Warn("health check failed", map[string]interface{}{
-				"connection_id": id,
+				"connection_id": conn.ID,
 				"agent_name":    conn.AgentInfo.Identity.Name,
 				"error":         err.Error(),
 			})
 		} else {
+			cm.mu.Lock()
 			conn.AgentInfo.HealthStatus = "healthy"
+			cm.mu.Unlock()
 		}
 	}
 

@@ -267,7 +267,7 @@ export default function App() {
     },
   ];
 
-  const views: View[] = ["chat", "sessions", "channels", "skills", "settings", "mcp"];
+  const views: View[] = ["chat", "sessions", "channels", "skills", "settings", "mcp", "cost", "agents", "policies", "mesh"];
 
   useKeyboard(evt => {
     if (showHelp() || showCommands() || showProviderManager()) {
@@ -295,9 +295,20 @@ export default function App() {
       case "3":
       case "4":
       case "5":
-      case "6": {
+      case "6": 
+      case "7":
+      case "8":
+      case "9": {
         evt.preventDefault();
         const idx = parseInt(evt.name) - 1;
+        if (idx < views.length) {
+          setView(views[idx]);
+        }
+        break;
+      }
+      case "0": {
+        evt.preventDefault();
+        const idx = 9; // 0 maps to 10th item (index 9)
         if (idx < views.length) {
           setView(views[idx]);
         }

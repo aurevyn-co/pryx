@@ -316,7 +316,7 @@ func runSessionExport(args []string, cfg *config.Config) int {
 		output += fmt.Sprintf("Exported: %s\n\n", time.Now().Format("2006-01-02 15:04:05"))
 		output += "---\n\n"
 		for _, msg := range messages {
-			role := strings.Title(msg.Role)
+			role := strings.ToUpper(string(msg.Role[0])) + msg.Role[1:]
 			output += fmt.Sprintf("## %s\n", role)
 			output += fmt.Sprintf("%s\n\n", msg.Content)
 		}

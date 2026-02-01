@@ -64,6 +64,7 @@ type MemoryProfiler struct {
 	snapshotEvery time.Duration
 	onWarning     func(usage MemorySnapshot, limit MemoryLimit)
 	onCritical    func(usage MemorySnapshot, limit MemoryLimit)
+	monitoring    bool
 }
 
 // NewMemoryProfiler creates a new memory profiler
@@ -231,18 +232,24 @@ func (mp *MemoryProfiler) checkLimits(snapshot MemorySnapshot) {
 
 // StartMonitoring begins periodic memory monitoring
 func (mp *MemoryProfiler) StartMonitoring() {
-	mp.mu.RLock()
-	enabled := mp.enabled
-	snapshotEvery := mp.snapshotEvery
-	mp.mu.RUnlock()
-
-	if !enabled {
+	mp.mu.Lock()
+	if !mp.enabled || mp.monitoring {
+		mp.mu.Unlock()
 		return
 	}
+	mp.monitoring = true
+	snapshotEvery := mp.snapshotEvery
+	mp.mu.Unlock()
 
 	go func() {
 		ticker := time.NewTicker(snapshotEvery)
 		defer ticker.Stop()
+
+		defer func() {
+			mp.mu.Lock()
+			mp.monitoring = false
+			mp.mu.Unlock()
+		}()
 
 		for range ticker.C {
 			mp.mu.RLock()
@@ -427,12 +434,4 @@ func formatBytes(b uint64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
-}
-
-// max returns the maximum of two float64 values
-func max(a, b float64) float64 {
-	if a > b {
-		return a
-	}
-	return b
 }

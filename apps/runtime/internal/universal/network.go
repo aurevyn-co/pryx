@@ -300,8 +300,13 @@ func (a *NetworkAdapter) Receive(ctx context.Context, conn *AgentConnection) (*U
 // Disconnect closes the connection to a network agent
 func (a *NetworkAdapter) Disconnect(ctx context.Context, conn *AgentConnection) error {
 	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if !a.running {
+		// Already stopped
+		return nil
+	}
 	a.running = false
-	a.mu.Unlock()
 
 	close(a.stopCh)
 	a.stopCh = make(chan struct{})
