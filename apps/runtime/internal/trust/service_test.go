@@ -715,12 +715,15 @@ func TestEventPublishing(t *testing.T) {
 
 	// Subscribe to trust events
 	events := make([]bus.Event, 0)
+	var mu sync.Mutex
 	eventCh, closer := b.Subscribe()
 	defer closer()
 
 	go func() {
 		for event := range eventCh {
+			mu.Lock()
 			events = append(events, event)
+			mu.Unlock()
 		}
 	}()
 
@@ -730,7 +733,10 @@ func TestEventPublishing(t *testing.T) {
 	// Wait for event
 	time.Sleep(50 * time.Millisecond)
 
-	if len(events) == 0 {
+	mu.Lock()
+	eventCount := len(events)
+	mu.Unlock()
+	if eventCount == 0 {
 		t.Error("expected at least one event to be published")
 	}
 }
