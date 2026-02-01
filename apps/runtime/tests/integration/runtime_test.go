@@ -241,15 +241,16 @@ func TestCORSMiddleware(t *testing.T) {
 	go srv.Serve(listener)
 	time.Sleep(10 * time.Millisecond)
 
-	// Test preflight request
+	// Test preflight request with Origin header
 	client := &http.Client{Timeout: time.Second}
 	req, _ := http.NewRequest("OPTIONS", "http://"+listener.Addr().String()+"/skills", nil)
+	req.Header.Set("Origin", "http://localhost:3000") // Send Origin header for CORS
 	resp, err := client.Do(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, "*", resp.Header.Get("Access-Control-Allow-Origin"))
+	assert.Equal(t, "http://localhost:3000", resp.Header.Get("Access-Control-Allow-Origin"))
 	assert.NotEmpty(t, resp.Header.Get("Access-Control-Allow-Methods"))
 }
 
