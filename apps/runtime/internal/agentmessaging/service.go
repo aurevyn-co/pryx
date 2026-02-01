@@ -131,8 +131,11 @@ func (s *Service) ConnectSession(ctx context.Context, agentID, agentName, endpoi
 	}))
 
 	// Simulate connection (in real implementation, would establish actual connection)
+	// Must hold lock while updating status to prevent race conditions
+	s.mu.Lock()
 	session.Status = SessionStatusConnected
 	session.LastActivity = time.Now().UTC()
+	s.mu.Unlock()
 
 	s.bus.Publish(bus.NewEvent("agent.session.connected", "", map[string]interface{}{
 		"session_id":      session.SessionID,
