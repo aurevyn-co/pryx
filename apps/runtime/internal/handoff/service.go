@@ -287,22 +287,28 @@ func (s *Service) StartTransfer(ctx context.Context, requestID string, contexts 
 		return nil, fmt.Errorf("handoff request not found: %s", requestID)
 	}
 
+	// Check if contexts is empty to avoid nil pointer panic
+	if len(contexts) == 0 {
+		return nil, fmt.Errorf("no contexts provided for transfer: %s", requestID)
+	}
+
 	transfers := make([]*HandoffTransfer, 0)
 
-	for _, ctx := range contexts {
+	// Use 'hctx' instead of 'ctx' to avoid shadowing the context.Context parameter
+	for _, hctx := range contexts {
 		transfer := &HandoffTransfer{
 			TransferID:       uuid.New().String(),
 			RequestID:        requestID,
 			Phase:            HandoffPhaseTransfer,
 			Progress:         0,
 			BytesTransferred: 0,
-			TotalBytes:       ctx.SizeBytes,
+			TotalBytes:       hctx.SizeBytes,
 			Status:           "in_progress",
 			Timestamp:        time.Now().UTC(),
 		}
 
 		// Simulate transfer progress
-		transfer.BytesTransferred = ctx.SizeBytes
+		transfer.BytesTransferred = hctx.SizeBytes
 		transfer.Progress = 1.0
 		transfer.Status = "completed"
 
@@ -310,7 +316,7 @@ func (s *Service) StartTransfer(ctx context.Context, requestID string, contexts 
 
 		// Update active handoff
 		s.mu.Lock()
-		active.Contexts = append(active.Contexts, ctx)
+		active.Contexts = append(active.Contexts, hctx)
 		active.Transfers = append(active.Transfers, transfer)
 		active.LastUpdate = time.Now().UTC()
 		s.mu.Unlock()
