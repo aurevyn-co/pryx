@@ -9,7 +9,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   GO_VERSION: "1.24"
-  RUST_VERSION: "1.78"
+  RUST_VERSION: "stable"
   BUN_VERSION: "1.3.7"
 
 jobs:

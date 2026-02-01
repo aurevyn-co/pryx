@@ -189,8 +189,8 @@ func TestNetworkAgentCache(t *testing.T) {
 		case "/agent/test-agent/agent.json":
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(AgentPackage{
-				Name:        "test-agent",
-				Version:     "1.0.0",
+				Name:         "test-agent",
+				Version:      "1.0.0",
 				Capabilities: []string{"messaging", "social"},
 			})
 		default:
@@ -241,5 +241,3 @@ func TestNetworkAgentCache(t *testing.T) {
 		t.Fatal("expected agent to be removed from cache")
 	}
 }
-
-
