@@ -63,6 +63,20 @@ type Config struct {
 	MemoryAutoFlush bool `yaml:"memory_auto_flush"`
 	// MemoryFlushThresholdTokens triggers auto-flush when token count approaches this threshold.
 	MemoryFlushThresholdTokens int `yaml:"memory_flush_threshold_tokens"`
+
+	// Security Configuration
+	// AllowedOrigins is a list of allowed CORS origins. Use specific origins in production.
+	// Defaults include localhost for development.
+	AllowedOrigins []string `yaml:"allowed_origins"`
+	// WebSocketAllowedOrigins is a list of allowed WebSocket origins.
+	// If empty, defaults to AllowedOrigins.
+	WebSocketAllowedOrigins []string `yaml:"websocket_allowed_origins"`
+	// MaxWebSocketConnections limits concurrent WebSocket connections (0 = unlimited).
+	MaxWebSocketConnections int `yaml:"max_websocket_connections"`
+	// MaxWebSocketMessageSize sets the maximum message size in bytes (default: 10MB).
+	MaxWebSocketMessageSize int64 `yaml:"max_websocket_message_size"`
+	// WebSocketRateLimitPerMinute sets max connections per minute per IP (default: 60).
+	WebSocketRateLimitPerMinute int `yaml:"websocket_rate_limit_per_minute"`
 }
 
 // ProviderKeyNames maps provider IDs to their keychain key names.
@@ -92,23 +106,27 @@ func DefaultPath() string {
 // Returns a Config with default values if no configuration file exists.
 func Load() *Config {
 	cfg := &Config{
-		ListenAddr:                 ":0", // Use :0 for dynamic port allocation
-		DatabasePath:               "pryx.db",
-		SkillsPath:                 "skills",
-		CachePath:                  "cache",
-		CloudAPIUrl:                "https://pryx.dev/api",
-		ModelProvider:              "ollama",
-		ModelName:                  "llama3",
-		OllamaEndpoint:             "http://localhost:11434",
-		TelegramEnabled:            false,
-		SlackEnabled:               false,
-		SlackAppToken:              "",
-		SlackBotToken:              "",
-		AgentDetectEnabled:         false,
-		AgentDetectInterval:        30 * time.Second,
-		MemoryEnabled:              true,
-		MemoryAutoFlush:            true,
-		MemoryFlushThresholdTokens: 100000,
+		ListenAddr:                  ":0", // Use :0 for dynamic port allocation
+		DatabasePath:                "pryx.db",
+		SkillsPath:                  "skills",
+		CachePath:                   "cache",
+		CloudAPIUrl:                 "https://pryx.dev/api",
+		ModelProvider:               "ollama",
+		ModelName:                   "llama3",
+		OllamaEndpoint:              "http://localhost:11434",
+		TelegramEnabled:             false,
+		SlackEnabled:                false,
+		SlackAppToken:               "",
+		SlackBotToken:               "",
+		AgentDetectEnabled:          false,
+		AgentDetectInterval:         30 * time.Second,
+		MemoryEnabled:               true,
+		MemoryAutoFlush:             true,
+		MemoryFlushThresholdTokens:  100000,
+		AllowedOrigins:              []string{}, // Defaults to localhost via middleware logic
+		MaxWebSocketConnections:     1000,
+		MaxWebSocketMessageSize:     10 * 1024 * 1024, // 10MB
+		WebSocketRateLimitPerMinute: 60,
 	}
 
 	// Try loading from default file
