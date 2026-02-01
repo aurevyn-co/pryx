@@ -432,7 +432,7 @@ export default function App() {
             <Match when={view() === "policies"}>
               <PolicyApprovals onClose={() => setView("chat")} />
             </Match>
-            <Match when={view() === "mesh">
+            <Match when={view() === "mesh"}>
               <MeshStatus onClose={() => setView("chat")} />
             </Match>
           </Switch>
