@@ -86,8 +86,17 @@ jobs:
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
 
+      - name: Check for Apple certificate
+        id: check_apple_cert
+        run: |
+          if [ -n "${{ secrets.APPLE_CERTIFICATE }}" ]; then
+            echo "has_certificate=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_certificate=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Notarize macOS binary (if certificate available)
-        if: ${{ secrets.APPLE_CERTIFICATE != '' }}
+        if: steps.check_apple_cert.outputs.has_certificate == 'true'
         run: |
           # Import certificate
           echo $APPLE_CERTIFICATE | base64 --decode > certificate.p12
@@ -304,8 +313,17 @@ jobs:
         run: |
           cargo tauri build --target x86_64-pc-windows-msvc --release
 
+      - name: Check for Windows certificate
+        id: check_windows_cert
+        run: |
+          if [ -n "${{ secrets.WINDOWS_CERTIFICATE }}" ]; then
+            echo "has_certificate=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_certificate=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Sign Windows binary (if certificate available)
-        if: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
+        if: steps.check_windows_cert.outputs.has_certificate == 'true'
         shell: pwsh
         run: |
           # Import certificate
