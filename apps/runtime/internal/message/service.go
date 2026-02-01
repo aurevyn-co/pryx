@@ -100,25 +100,27 @@ type MessageResponse struct {
 
 // Service manages message exchange between agents
 type Service struct {
-	mu        sync.RWMutex
-	bus       *bus.Bus
-	messages  map[string]*Message
-	responses map[string]*Response
-	inFlight  map[string]*Message
-	handlers  map[MessageType]MessageHandler
+	mu           sync.RWMutex
+	bus          *bus.Bus
+	localAgentID string
+	messages     map[string]*Message
+	responses    map[string]*Response
+	inFlight     map[string]*Message
+	handlers     map[MessageType]MessageHandler
 }
 
 // MessageHandler is a function that handles incoming messages
 type MessageHandler func(ctx context.Context, msg *Message) (*Response, error)
 
 // NewService creates a new message exchange service
-func NewService(b *bus.Bus) *Service {
+func NewService(b *bus.Bus, localAgentID string) *Service {
 	return &Service{
-		bus:       b,
-		messages:  make(map[string]*Message),
-		responses: make(map[string]*Response),
-		inFlight:  make(map[string]*Message),
-		handlers:  make(map[MessageType]MessageHandler),
+		bus:          b,
+		localAgentID: localAgentID,
+		messages:     make(map[string]*Message),
+		responses:    make(map[string]*Response),
+		inFlight:     make(map[string]*Message),
+		handlers:     make(map[MessageType]MessageHandler),
 	}
 }
 
@@ -137,7 +139,7 @@ func (s *Service) Send(ctx context.Context, req *MessageRequest) (*MessageRespon
 	msg := &Message{
 		ID:            msgID,
 		Type:          req.Type,
-		FromAgent:     "",
+		FromAgent:     s.localAgentID,
 		ToAgent:       req.ToAgent,
 		CorrelationID: correlationID,
 		Priority:      req.Priority,
@@ -198,6 +200,10 @@ func (s *Service) HandleMessage(ctx context.Context, msg *Message) (*Response, e
 	response, err := handler(ctx, msg)
 	if err != nil {
 		return nil, err
+	}
+
+	if response == nil {
+		return nil, nil
 	}
 
 	response.CorrelationID = msg.CorrelationID

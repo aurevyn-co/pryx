@@ -14,7 +14,7 @@ import (
 func setupTestService(t *testing.T) (*Service, *bus.Bus, *message.Service) {
 	t.Helper()
 	b := bus.New()
-	msgSvc := message.NewService(b)
+	msgSvc := message.NewService(b, "test-agent")
 	svc := NewService(b, msgSvc)
 	return svc, b, msgSvc
 }
