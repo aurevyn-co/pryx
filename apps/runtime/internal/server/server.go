@@ -58,7 +58,7 @@ func New(cfg *config.Config, db *sql.DB, kc *keychain.Keychain) *Server {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	r.Use(corsMiddleware)
+	r.Use(corsMiddleware(cfg))
 
 	p := policy.NewEngine(nil)
 
