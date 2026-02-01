@@ -3,10 +3,13 @@
 package factory
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
+	"pryx-core/internal/auth"
 	"pryx-core/internal/keychain"
 	"pryx-core/internal/llm"
 	"pryx-core/internal/llm/providers"
@@ -125,6 +128,13 @@ func (f *ProviderFactory) resolveAPIKey(providerID, providedKey string, provider
 		return providedKey
 	}
 
+	// Try OAuth token first (for providers that support it)
+	if f.supportsOAuth(providerID) {
+		if token := f.getOAuthToken(providerID); token != "" {
+			return token
+		}
+	}
+
 	if f.keychain != nil {
 		if key, err := f.keychain.GetProviderKey(providerID); err == nil && key != "" {
 			return key
@@ -132,6 +142,35 @@ func (f *ProviderFactory) resolveAPIKey(providerID, providedKey string, provider
 	}
 
 	return f.getAPIKeyFromEnv(providerID, providerInfo)
+}
+
+func (f *ProviderFactory) supportsOAuth(providerID string) bool {
+	return providerID == "google" // Currently only Google supports OAuth
+}
+
+func (f *ProviderFactory) getOAuthToken(providerID string) string {
+	if f.keychain == nil {
+		return ""
+	}
+
+	token, err := f.keychain.Get("oauth_" + providerID + "_access")
+	if err != nil {
+		return ""
+	}
+
+	oauth := auth.NewProviderOAuth(f.keychain)
+	needsRefresh, _ := oauth.IsTokenExpired(providerID)
+	if needsRefresh {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		// Try to refresh, but don't block too long or fail hard if it fails
+		// If refresh fails, we'll try to use the existing token (might still work) or fall back
+		if err := oauth.RefreshToken(ctx, providerID); err == nil {
+			token, _ = f.keychain.Get("oauth_" + providerID + "_access")
+		}
+	}
+
+	return token
 }
 
 // getAPIKeyFromEnv retrieves the API key from environment variables.

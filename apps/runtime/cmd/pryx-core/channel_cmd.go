@@ -6,8 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"pryx-core/internal/config"
+	"time"
 )
 
 // ChannelConfig represents a simplified channel configuration for CLI
@@ -28,25 +27,24 @@ func runChannel(args []string) int {
 	}
 
 	cmd := args[0]
-	cfg := config.Load()
 
 	switch cmd {
 	case "list", "ls":
-		return runChannelList(args[1:], cfg)
+		return runChannelList(args[1:])
 	case "add":
-		return runChannelAdd(args[1:], cfg)
+		return runChannelAdd(args[1:])
 	case "remove", "rm", "delete":
-		return runChannelRemove(args[1:], cfg)
+		return runChannelRemove(args[1:])
 	case "enable":
-		return runChannelEnable(args[1:], cfg)
+		return runChannelEnable(args[1:])
 	case "disable":
-		return runChannelDisable(args[1:], cfg)
+		return runChannelDisable(args[1:])
 	case "test":
-		return runChannelTest(args[1:], cfg)
+		return runChannelTest(args[1:])
 	case "status":
-		return runChannelStatus(args[1:], cfg)
+		return runChannelStatus(args[1:])
 	case "sync":
-		return runChannelSync(args[1:], cfg)
+		return runChannelSync(args[1:])
 	case "help", "-h", "--help":
 		channelUsage()
 		return 0
@@ -57,7 +55,7 @@ func runChannel(args []string) int {
 	}
 }
 
-func runChannelList(args []string, cfg *config.Config) int {
+func runChannelList(args []string) int {
 	jsonOutput := false
 	detailed := false
 
@@ -122,7 +120,7 @@ func runChannelList(args []string, cfg *config.Config) int {
 	return 0
 }
 
-func runChannelAdd(args []string, cfg *config.Config) int {
+func runChannelAdd(args []string) int {
 	if len(args) < 2 {
 		fmt.Fprintf(os.Stderr, "Error: channel type and name required\n")
 		fmt.Fprintf(os.Stderr, "Usage: pryx-core channel add <type> <name> [--<key> <value>...]\n")
@@ -211,7 +209,7 @@ func runChannelAdd(args []string, cfg *config.Config) int {
 	return 0
 }
 
-func runChannelRemove(args []string, cfg *config.Config) int {
+func runChannelRemove(args []string) int {
 	if len(args) < 1 {
 		fmt.Fprintf(os.Stderr, "Error: channel name or ID required\n")
 		return 2
@@ -250,7 +248,7 @@ func runChannelRemove(args []string, cfg *config.Config) int {
 	return 0
 }
 
-func runChannelEnable(args []string, cfg *config.Config) int {
+func runChannelEnable(args []string) int {
 	if len(args) < 1 {
 		fmt.Fprintf(os.Stderr, "Error: channel name or ID required\n")
 		return 2
@@ -287,7 +285,7 @@ func runChannelEnable(args []string, cfg *config.Config) int {
 	return 0
 }
 
-func runChannelDisable(args []string, cfg *config.Config) int {
+func runChannelDisable(args []string) int {
 	if len(args) < 1 {
 		fmt.Fprintf(os.Stderr, "Error: channel name or ID required\n")
 		return 2
@@ -324,7 +322,7 @@ func runChannelDisable(args []string, cfg *config.Config) int {
 	return 0
 }
 
-func runChannelTest(args []string, cfg *config.Config) int {
+func runChannelTest(args []string) int {
 	if len(args) < 1 {
 		fmt.Fprintf(os.Stderr, "Error: channel name or ID required\n")
 		return 2
@@ -398,7 +396,7 @@ func runChannelTest(args []string, cfg *config.Config) int {
 	return 0
 }
 
-func runChannelStatus(args []string, cfg *config.Config) int {
+func runChannelStatus(args []string) int {
 	name := ""
 	if len(args) > 0 {
 		name = args[0]
@@ -468,7 +466,7 @@ func runChannelStatus(args []string, cfg *config.Config) int {
 	return 0
 }
 
-func runChannelSync(args []string, cfg *config.Config) int {
+func runChannelSync(args []string) int {
 	if len(args) < 1 {
 		fmt.Fprintf(os.Stderr, "Error: channel name or ID required\n")
 		return 2
@@ -578,5 +576,5 @@ func getChannelsPath() string {
 }
 
 func getTimestamp() string {
-	return fmt.Sprintf("%d", 0) // Simplified timestamp
+	return fmt.Sprintf("%d", time.Now().Unix())
 }

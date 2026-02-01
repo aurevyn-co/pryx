@@ -61,4 +61,5 @@ coverage.out
 *.test
 apps/runtime/*.test
 apps/runtime/coverage.out
-
+node_modules/
+apps/runtime/cmd/pryx-core/pryx-core
