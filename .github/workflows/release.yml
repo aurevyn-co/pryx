@@ -80,7 +80,7 @@ jobs:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
 
       - name: Notarize macOS binary (if certificate available)
-        if: secrets.APPLE_CERTIFICATE != ''
+        if: ${{ secrets.APPLE_CERTIFICATE != '' }}
         run: |
           # Import certificate
           echo $APPLE_CERTIFICATE | base64 --decode > certificate.p12
@@ -298,7 +298,7 @@ jobs:
           cargo tauri build --target x86_64-pc-windows-msvc --release
 
       - name: Sign Windows binary (if certificate available)
-        if: secrets.WINDOWS_CERTIFICATE != ''
+        if: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
         shell: pwsh
         run: |
           # Import certificate
