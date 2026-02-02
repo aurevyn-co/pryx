@@ -10,7 +10,7 @@
 
 > **Sovereign AI agent with local-first control center**
 
-Pryx is a second-generation AI autonomous agent platform that combines the power of local-first control with the polish of a multiple access application. Replace fragile CLI + config-file assistants with a first-class UI, secure permission gating, and transparent observability—without sacrificing data sovereignty.
+Pryx is a second-generation autonomous agent platform: local-first, sovereign, and secure. It’s a unified control center (TUI + CLI + Channels) that can bridge to other agents, any systems, use any MCP & skills, with explicit approvals for sensitive actions and clear observability—without sacrificing data sovereignty & privacy.
 
 ---
 
@@ -67,6 +67,9 @@ winget install pryx
 - **Slack** - Connect to Slack channels and DMs
 - **Webhooks** - Integrate with any HTTP endpoint
 
+### Any MCP & Skills
+- integration with any MCP and Skills as you needs
+
 ### 🔌 84+ AI Providers
 Dynamic integration via [models.dev](https://models.dev) supporting:
 - OpenAI, Anthropic, Google, xAI
@@ -82,10 +85,11 @@ Full list: `pryx provider list --available`
 - **Human-in-the-Loop Approvals** - Explicit approval for sensitive operations
 - **Comprehensive Audit Logging** - Every action traceable
 
-### 🎛️ Rich Terminal UI
-- **Provider Management** - Add, configure, and test providers
-- **Channel Configuration** - Set up Telegram, Discord, Slack
+### 🎛️ Rich Terminal UI via CLI - TUI - Desktop Apps - Any Channel You Want
+- **Provider Management** - Add, configure, and test providers of any compatible AI models
+- **Channel Configuration** - Set up Telegram, Discord, Slack, Webhooks, and more
 - **MCP Tool Management** - Discover and manage Model Context Protocol servers
+- **Skill Management** - Add, configure, and test skills of any compatible MCP tools
 - **Session Explorer** - Browse and resume conversations
 - **Settings & Configuration** - All settings in one place
 
@@ -94,6 +98,8 @@ Full list: `pryx provider list --available`
 - **Policy Engine** - Define approval rules for sensitive operations
 - **Skills System** - Extensible capabilities via MCP tools
 - **Natural Language Parser** - Intent recognition and command parsing
+- **Context Management** - Maintain conversation context for multi-turn interactions
+- **Cron Job Scheduler** - Schedule tasks with cron expressions
 
 ### 📊 Observability
 - **Cost Tracking** - Monitor token usage and costs across all providers
@@ -105,6 +111,10 @@ Full list: `pryx provider list --available`
 - **Pryx Mesh** - Secure sync across devices
 - **Device Pairing** - QR code or 6-digit code pairing
 - **WebSocket Mesh** - Real-time coordination without cloud dependency
+
+### Memory
+- **Long-Term Memory** - Store and retrieve information over sessions
+- **Short-Term Memory** - Contextual understanding for current conversations
 
 ---
 
@@ -583,6 +593,6 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-**Made with ❤️ by the Pryx Team**
+**Made with ❤️ by the [irfndi/pryx](https://github.com/irfndi/pryx) & Pryx Community**
 
 *Take control of your AI. Be sovereign.*
