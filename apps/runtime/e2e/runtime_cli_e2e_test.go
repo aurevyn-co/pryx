@@ -5,7 +5,6 @@ package e2e
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,45 +17,6 @@ import (
 
 	"nhooyr.io/websocket"
 )
-
-func runtimeRoot(t *testing.T) string {
-	t.Helper()
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	return filepath.Clean(filepath.Join(cwd, ".."))
-}
-
-func repoRoot(t *testing.T) string {
-	t.Helper()
-	return filepath.Clean(filepath.Join(runtimeRoot(t), "..", ".."))
-}
-
-func runPryxCore(t *testing.T, home string, args ...string) (string, int) {
-	t.Helper()
-
-	bin := buildPryxCore(t)
-
-	cmd := exec.Command(bin, args...)
-	cmd.Env = append(os.Environ(),
-		"HOME="+home,
-		"PRYX_DB_PATH="+filepath.Join(home, "pryx.db"),
-		"PRYX_WORKSPACE_ROOT="+repoRoot(t),
-		"PRYX_BUNDLED_SKILLS_DIR="+filepath.Join(runtimeRoot(t), "internal", "skills", "bundled"),
-	)
-
-	out, err := cmd.CombinedOutput()
-	if err == nil {
-		return string(out), 0
-	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
-		return string(out), exitErr.ExitCode()
-	}
-	t.Fatalf("run pryx-core failed: %v\n%s", err, string(out))
-	return "", 1
-}
 
 func waitForFile(path string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
@@ -71,8 +31,16 @@ func waitForFile(path string, timeout time.Duration) error {
 
 func TestCLI_SkillsListJSON_IncludesBundledSkills(t *testing.T) {
 	home := t.TempDir()
+	bundled := filepath.Join(home, "bundled-skills")
+	for _, id := range []string{"docker-manager", "git-tool", "cloud-deploy"} {
+		writeSkill(t, bundled, id, true)
+	}
 
-	out, code := runPryxCore(t, home, "skills", "list", "--json")
+	out, code := runPryxCoreWithEnv(t, home, map[string]string{
+		"PRYX_BUNDLED_SKILLS_DIR": bundled,
+		"PRYX_MANAGED_SKILLS_DIR": filepath.Join(home, "managed-skills"),
+		"PRYX_WORKSPACE_ROOT":     filepath.Join(home, "workspace"),
+	}, "skills", "list", "--json")
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d\n%s", code, out)
 	}
@@ -98,8 +66,14 @@ func TestCLI_SkillsListJSON_IncludesBundledSkills(t *testing.T) {
 
 func TestCLI_SkillsInfo_WorksForBundledSkill(t *testing.T) {
 	home := t.TempDir()
+	bundled := filepath.Join(home, "bundled-skills")
+	writeSkill(t, bundled, "docker-manager", true)
 
-	out, code := runPryxCore(t, home, "skills", "info", "docker-manager")
+	out, code := runPryxCoreWithEnv(t, home, map[string]string{
+		"PRYX_BUNDLED_SKILLS_DIR": bundled,
+		"PRYX_MANAGED_SKILLS_DIR": filepath.Join(home, "managed-skills"),
+		"PRYX_WORKSPACE_ROOT":     filepath.Join(home, "workspace"),
+	}, "skills", "info", "docker-manager")
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d\n%s", code, out)
 	}
@@ -111,17 +85,17 @@ func TestCLI_SkillsInfo_WorksForBundledSkill(t *testing.T) {
 func TestCLI_MCPConfig_RoundTrip(t *testing.T) {
 	home := t.TempDir()
 
-	out, code := runPryxCore(t, home, "mcp", "list", "--json")
+	out, code := runPryxCoreWithEnv(t, home, nil, "mcp", "list", "--json")
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d\n%s", code, out)
 	}
 
-	out, code = runPryxCore(t, home, "mcp", "add", "test-server", "--url", "https://example.com")
+	out, code = runPryxCoreWithEnv(t, home, nil, "mcp", "add", "test-server", "--url", "https://example.com")
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d\n%s", code, out)
 	}
 
-	out, code = runPryxCore(t, home, "mcp", "list", "--json")
+	out, code = runPryxCoreWithEnv(t, home, nil, "mcp", "list", "--json")
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d\n%s", code, out)
 	}
@@ -136,7 +110,7 @@ func TestCLI_MCPConfig_RoundTrip(t *testing.T) {
 		t.Fatalf("expected test-server in config, got:\n%s", out)
 	}
 
-	out, code = runPryxCore(t, home, "mcp", "remove", "test-server")
+	out, code = runPryxCoreWithEnv(t, home, nil, "mcp", "remove", "test-server")
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d\n%s", code, out)
 	}
@@ -145,12 +119,12 @@ func TestCLI_MCPConfig_RoundTrip(t *testing.T) {
 func TestCLI_Config_SetThenGet(t *testing.T) {
 	home := t.TempDir()
 
-	out, code := runPryxCore(t, home, "config", "set", "listen_addr", ":12345")
+	out, code := runPryxCoreWithEnv(t, home, nil, "config", "set", "listen_addr", ":12345")
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d\n%s", code, out)
 	}
 
-	out, code = runPryxCore(t, home, "config", "get", "listen_addr")
+	out, code = runPryxCoreWithEnv(t, home, nil, "config", "get", "listen_addr")
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d\n%s", code, out)
 	}
@@ -162,13 +136,15 @@ func TestCLI_Config_SetThenGet(t *testing.T) {
 func TestRuntime_HealthAndWebsocket(t *testing.T) {
 	home := t.TempDir()
 	bin := buildPryxCore(t)
+	bundled := filepath.Join(home, "bundled-skills")
+	writeSkill(t, bundled, "alpha-skill", true)
 
 	cmd := exec.Command(bin)
 	cmd.Env = append(os.Environ(),
 		"HOME="+home,
 		"PRYX_DB_PATH="+filepath.Join(home, "pryx.db"),
-		"PRYX_WORKSPACE_ROOT="+repoRoot(t),
-		"PRYX_BUNDLED_SKILLS_DIR="+filepath.Join(runtimeRoot(t), "internal", "skills", "bundled"),
+		"PRYX_WORKSPACE_ROOT="+filepath.Join(home, "workspace"),
+		"PRYX_BUNDLED_SKILLS_DIR="+bundled,
 		"PRYX_KEYCHAIN_FILE="+filepath.Join(home, ".pryx", "keychain.json"),
 		"PRYX_TELEMETRY_DISABLED=true",
 	)
@@ -208,8 +184,15 @@ func TestRuntime_HealthAndWebsocket(t *testing.T) {
 	}
 	body, _ := io.ReadAll(resp.Body)
 	resp.Body.Close()
-	if resp.StatusCode != http.StatusOK || strings.TrimSpace(string(body)) != "OK" {
+	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("unexpected /health response: %d %q", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatalf("expected json /health output, got:\n%s\nerror: %v", strings.TrimSpace(string(body)), err)
+	}
+	if payload["status"] != "ok" {
+		t.Fatalf("expected status ok, got: %v (body: %s)", payload["status"], strings.TrimSpace(string(body)))
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -229,6 +212,37 @@ func keys(m map[string]bool) []string {
 		out = append(out, k)
 	}
 	return out
+}
+
+func runtimeRoot(t *testing.T) string {
+	t.Helper()
+
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+
+	for i := 0; i < 8; i++ {
+		if filepath.Base(dir) == "runtime" && filepath.Base(filepath.Dir(dir)) == "apps" {
+			return dir
+		}
+		next := filepath.Dir(dir)
+		if next == dir {
+			break
+		}
+		dir = next
+	}
+
+	t.Fatalf("could not locate apps/runtime from cwd")
+	return ""
+}
+
+func repoRoot(t *testing.T) string {
+	t.Helper()
+
+	runtime := runtimeRoot(t)
+	apps := filepath.Dir(runtime)
+	return filepath.Dir(apps)
 }
 
 func startPryxCore(t *testing.T, bin string, home string) (port string, cancel context.CancelFunc) {

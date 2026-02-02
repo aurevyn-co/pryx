@@ -15,12 +15,24 @@ import (
 	"pryx-core/internal/validation"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/zalando/go-keyring"
 )
 
 // handleHealth returns a simple health check response.
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	activeProvider := strings.TrimSpace(s.cfg.ModelProvider)
 	configuredProviders := []string{}
+	configuredProvidersSet := map[string]struct{}{}
+	appendConfiguredProvider := func(providerID string) {
+		if providerID == "" {
+			return
+		}
+		if _, ok := configuredProvidersSet[providerID]; ok {
+			return
+		}
+		configuredProvidersSet[providerID] = struct{}{}
+		configuredProviders = append(configuredProviders, providerID)
+	}
 	cloudLoggedIn := false
 	if s.keychain != nil {
 		if token, err := s.keychain.Get("cloud_access_token"); err == nil && strings.TrimSpace(token) != "" {
@@ -32,16 +44,16 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	case "":
 	case "ollama":
 		if strings.TrimSpace(s.cfg.OllamaEndpoint) != "" {
-			configuredProviders = append(configuredProviders, "ollama")
+			appendConfiguredProvider("ollama")
 		}
 	default:
 		if s.keychain != nil {
 			if key, err := s.keychain.GetProviderKey(activeProvider); err == nil && strings.TrimSpace(key) != "" {
-				configuredProviders = append(configuredProviders, activeProvider)
+				appendConfiguredProvider(activeProvider)
 			}
 			if activeProvider == "google" {
 				if token, err := s.keychain.Get("oauth_google_access"); err == nil && strings.TrimSpace(token) != "" {
-					configuredProviders = append(configuredProviders, activeProvider)
+					appendConfiguredProvider(activeProvider)
 				}
 			}
 		}
@@ -661,18 +673,29 @@ func (s *Server) handleProviderKeyStatus(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if !s.providerExists(providerID) {
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "provider not found"})
+		return
+	}
+
 	if s.keychain == nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		json.NewEncoder(w).Encode(map[string]string{"error": "keychain not available"})
 		return
 	}
 
-	_, err := s.keychain.GetProviderKey(providerID)
+	key, err := s.keychain.GetProviderKey(providerID)
+	if err != nil && !isKeyNotFound(err) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to read key"})
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
 		"provider_id": providerID,
-		"configured":  err == nil,
+		"configured":  strings.TrimSpace(key) != "",
 	})
 }
 
@@ -686,6 +709,12 @@ func (s *Server) handleProviderKeySet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !s.providerExists(providerID) {
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "provider not found"})
+		return
+	}
+
 	if s.keychain == nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		json.NewEncoder(w).Encode(map[string]string{"error": "keychain not available"})
@@ -694,6 +723,7 @@ func (s *Server) handleProviderKeySet(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		APIKey string `json:"api_key"`
+		Key    string `json:"key"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -702,6 +732,9 @@ func (s *Server) handleProviderKeySet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	key := strings.TrimSpace(req.APIKey)
+	if key == "" {
+		key = strings.TrimSpace(req.Key)
+	}
 	if err := validator.ValidateRequired("api_key", key); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
@@ -731,19 +764,46 @@ func (s *Server) handleProviderKeyDelete(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if !s.providerExists(providerID) {
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "provider not found"})
+		return
+	}
+
 	if s.keychain == nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		json.NewEncoder(w).Encode(map[string]string{"error": "keychain not available"})
 		return
 	}
 
-	if err := s.keychain.DeleteProviderKey(providerID); err != nil {
+	if err := s.keychain.DeleteProviderKey(providerID); err != nil && !isKeyNotFound(err) {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"error": "failed to delete key"})
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) providerExists(providerID string) bool {
+	if s.catalog != nil {
+		_, ok := s.catalog.Providers[providerID]
+		return ok
+	}
+
+	switch providerID {
+	case "openai", "anthropic", "google", "ollama":
+		return true
+	default:
+		return false
+	}
+}
+
+func isKeyNotFound(err error) bool {
+	if errors.Is(err, keyring.ErrNotFound) {
+		return true
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "not found")
 }
 
 // handleModelsList returns the list of all available LLM models.

@@ -217,6 +217,13 @@ func TestProviderKeyEndpoints(t *testing.T) {
 	}
 
 	{
+		resp, err := client.Get(baseUrl + "/api/v1/providers/not-a-real-provider/key")
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.Equal(t, http.StatusNotFound, resp.StatusCode)
+	}
+
+	{
 		resp, err := client.Post(
 			baseUrl+"/api/v1/providers/openai/key",
 			"application/json",
@@ -225,6 +232,27 @@ func TestProviderKeyEndpoints(t *testing.T) {
 		require.NoError(t, err)
 		defer resp.Body.Close()
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	}
+
+	{
+		resp, err := client.Post(
+			baseUrl+"/api/v1/providers/openai/key",
+			"application/json",
+			strings.NewReader(`{"api_key":""}`),
+		)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	}
+
+	{
+		req, err := http.NewRequest(http.MethodDelete, baseUrl+"/api/v1/providers/openai/key", nil)
+		require.NoError(t, err)
+
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	}
 }
 
@@ -258,6 +286,59 @@ func TestWebSocketConnection(t *testing.T) {
 
 	// Connection should be established
 	assert.NotNil(t, ws)
+}
+
+func TestCloudLoginEndpoints_Validation(t *testing.T) {
+	cfg := &config.Config{ListenAddr: "127.0.0.1:0"}
+	s, _ := store.New(":memory:")
+	defer s.Close()
+	kc := newTestKeychain(t)
+
+	srv := server.New(cfg, s.DB, kc)
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer listener.Close()
+
+	go srv.Serve(listener)
+	time.Sleep(10 * time.Millisecond)
+
+	client := &http.Client{Timeout: time.Second}
+	baseUrl := "http://" + listener.Addr().String()
+
+	{
+		resp, err := client.Post(baseUrl+"/api/v1/cloud/login/start", "application/json", nil)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	}
+
+	{
+		cfgWithCloud := &config.Config{ListenAddr: "127.0.0.1:0", CloudAPIUrl: "https://example.invalid"}
+		srv2 := server.New(cfgWithCloud, s.DB, kc)
+
+		listener2, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		defer listener2.Close()
+
+		go srv2.Serve(listener2)
+		time.Sleep(10 * time.Millisecond)
+
+		baseUrl2 := "http://" + listener2.Addr().String()
+
+		resp, err := client.Post(
+			baseUrl2+"/api/v1/cloud/login/poll",
+			"application/json",
+			strings.NewReader(`{}`),
+		)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+		_ = srv2.Shutdown(context.Background())
+	}
+
+	_ = srv.Shutdown(context.Background())
 }
 
 func TestWebSocketSessionsList(t *testing.T) {
