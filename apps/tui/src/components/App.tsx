@@ -1,6 +1,7 @@
 import { createSignal, createEffect, onMount, onCleanup, Switch, Match, Show } from "solid-js";
 import { useRenderer, useKeyboard } from "@opentui/solid";
 import { useEffectService, AppRuntime } from "../lib/hooks";
+import { Effect } from "effect";
 import { WebSocketService } from "../services/ws";
 import { HealthCheckService } from "../services/health-check";
 import { loadConfig } from "../services/config";
@@ -50,12 +51,37 @@ export default function App() {
 
   onMount(() => {
     const config = loadConfig();
-    const hasValidProvider =
-      config.model_provider &&
-      (config.openai_key || config.anthropic_key || config.glm_key || config.ollama_endpoint);
-    if (!hasValidProvider) {
+    const providerId = (config.model_provider ?? "").toString().trim();
+    if (!providerId) {
       setSetupRequired(true);
+      return;
     }
+
+    const service = healthCheck();
+    if (!service) {
+      setSetupRequired(true);
+      return;
+    }
+
+    AppRuntime.runFork(
+      service.checkHealth.pipe(
+        Effect.tap(result =>
+          Effect.sync(() => {
+            if (result.status !== "ok") {
+              setSetupRequired(true);
+              return;
+            }
+            const providers = result.providers ?? [];
+            setSetupRequired(!providers.includes(providerId));
+          })
+        ),
+        Effect.catchAll(() =>
+          Effect.sync(() => {
+            setSetupRequired(true);
+          })
+        )
+      )
+    );
   });
 
   const handleSetupComplete = () => {
