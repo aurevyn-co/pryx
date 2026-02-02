@@ -4,12 +4,14 @@
 package integration
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,6 +25,18 @@ import (
 	"github.com/stretchr/testify/require"
 	"nhooyr.io/websocket"
 )
+
+type testEnv interface {
+	Helper()
+	Setenv(key, value string)
+	TempDir() string
+}
+
+func newTestKeychain(t testEnv) *keychain.Keychain {
+	t.Helper()
+	t.Setenv("PRYX_KEYCHAIN_FILE", filepath.Join(t.TempDir(), "keychain.json"))
+	return keychain.New("test")
+}
 
 // TestRuntimeStartup tests the complete runtime startup sequence
 func TestRuntimeStartup(t *testing.T) {
@@ -39,7 +53,7 @@ func TestRuntimeStartup(t *testing.T) {
 	require.NoError(t, err)
 	defer s.Close()
 
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	srv := server.New(cfg, s.DB, kc)
 	require.NotNil(t, srv)
@@ -67,7 +81,7 @@ func TestHealthEndpoint(t *testing.T) {
 	cfg := &config.Config{ListenAddr: "127.0.0.1:0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	srv := server.New(cfg, s.DB, kc)
 
@@ -88,9 +102,9 @@ func TestHealthEndpoint(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	body := make([]byte, 10)
-	n, _ := resp.Body.Read(body)
-	assert.Equal(t, "OK", string(body[:n]))
+	var result map[string]any
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&result))
+	assert.Equal(t, "ok", result["status"])
 }
 
 // TestSkillsEndpoint tests the skills API
@@ -98,7 +112,7 @@ func TestSkillsEndpoint(t *testing.T) {
 	cfg := &config.Config{ListenAddr: "127.0.0.1:0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	srv := server.New(cfg, s.DB, kc)
 
@@ -123,12 +137,103 @@ func TestSkillsEndpoint(t *testing.T) {
 	assert.Contains(t, result, "skills")
 }
 
+func TestProviderKeyEndpoints(t *testing.T) {
+	cfg := &config.Config{ListenAddr: "127.0.0.1:0"}
+	s, _ := store.New(":memory:")
+	defer s.Close()
+	kc := newTestKeychain(t)
+
+	srv := server.New(cfg, s.DB, kc)
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer listener.Close()
+
+	go srv.Serve(listener)
+	time.Sleep(10 * time.Millisecond)
+
+	client := &http.Client{Timeout: time.Second}
+	baseUrl := "http://" + listener.Addr().String()
+
+	{
+		resp, err := client.Get(baseUrl + "/api/v1/providers/openai/key")
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var result map[string]any
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&result))
+		assert.Equal(t, false, result["configured"])
+	}
+
+	{
+		body := bytes.NewBufferString(`{"api_key":"sk-test"}`)
+		resp, err := client.Post(baseUrl+"/api/v1/providers/openai/key", "application/json", body)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+	}
+
+	{
+		resp, err := client.Get(baseUrl + "/api/v1/providers/openai/key")
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var result map[string]any
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&result))
+		assert.Equal(t, true, result["configured"])
+	}
+
+	{
+		req, err := http.NewRequest(http.MethodDelete, baseUrl+"/api/v1/providers/openai/key", nil)
+		require.NoError(t, err)
+
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	}
+
+	{
+		resp, err := client.Get(baseUrl + "/api/v1/providers/openai/key")
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var result map[string]any
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&result))
+		assert.Equal(t, false, result["configured"])
+	}
+
+	{
+		resp, err := client.Get(baseUrl + "/api/v1/providers/bad%20id/key")
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	}
+
+	{
+		resp, err := client.Post(
+			baseUrl+"/api/v1/providers/openai/key",
+			"application/json",
+			strings.NewReader(`not json`),
+		)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	}
+}
+
 // TestWebSocketConnection tests WebSocket upgrade and basic communication
 func TestWebSocketConnection(t *testing.T) {
 	cfg := &config.Config{ListenAddr: "127.0.0.1:0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	srv := server.New(cfg, s.DB, kc)
 
@@ -159,7 +264,7 @@ func TestWebSocketSessionsList(t *testing.T) {
 	cfg := &config.Config{ListenAddr: "127.0.0.1:0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	sess, err := s.CreateSession("Test Session")
 	require.NoError(t, err)
@@ -215,7 +320,7 @@ func TestWebSocketSessionResume(t *testing.T) {
 	cfg := &config.Config{ListenAddr: "127.0.0.1:0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	sess, err := s.CreateSession("Test Session")
 	require.NoError(t, err)
@@ -280,7 +385,7 @@ func TestWebSocketEventSubscription(t *testing.T) {
 	cfg := &config.Config{ListenAddr: "127.0.0.1:0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	srv := server.New(cfg, s.DB, kc)
 
@@ -320,7 +425,7 @@ func TestMCPEndpoint(t *testing.T) {
 	cfg := &config.Config{ListenAddr: "127.0.0.1:0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	srv := server.New(cfg, s.DB, kc)
 
@@ -350,7 +455,7 @@ func TestCORSMiddleware(t *testing.T) {
 	cfg := &config.Config{ListenAddr: "127.0.0.1:0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	srv := server.New(cfg, s.DB, kc)
 
@@ -379,7 +484,7 @@ func TestCompleteWorkflow(t *testing.T) {
 	cfg := &config.Config{ListenAddr: "127.0.0.1:0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	srv := server.New(cfg, s.DB, kc)
 

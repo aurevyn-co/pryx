@@ -24,6 +24,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type testEnv interface {
+	Helper()
+	Setenv(key, value string)
+	TempDir() string
+}
+
+func newTestKeychain(t testEnv) *keychain.Keychain {
+	t.Helper()
+	t.Setenv("PRYX_KEYCHAIN_FILE", filepath.Join(t.TempDir(), "keychain.json"))
+	return keychain.New("test")
+}
+
 func TestNewServer(t *testing.T) {
 	cfg := &config.Config{
 		ListenAddr:   ":0",
@@ -34,7 +46,7 @@ func TestNewServer(t *testing.T) {
 	require.NoError(t, err)
 	defer s.Close()
 
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -49,7 +61,7 @@ func TestServer_Routes(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -91,7 +103,7 @@ func TestHandleSkillsEnableDisableRoundTrip(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	st, _ := store.New(":memory:")
 	defer st.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	t.Setenv("PRYX_SKILLS_CONFIG_PATH", filepath.Join(t.TempDir(), "skills.yaml"))
 
@@ -132,7 +144,7 @@ func TestHandleSkillsInstallFromURLAndUninstall(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	st, _ := store.New(":memory:")
 	defer st.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	managedRoot := t.TempDir()
 	t.Setenv("PRYX_MANAGED_SKILLS_DIR", managedRoot)
@@ -184,7 +196,7 @@ func TestHandleHealth(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -194,14 +206,17 @@ func TestHandleHealth(t *testing.T) {
 	server.handleHealth(rec, req)
 
 	assert.Equal(t, http.StatusOK, rec.Code)
-	assert.Equal(t, "OK", rec.Body.String())
+	var response map[string]interface{}
+	err := json.Unmarshal(rec.Body.Bytes(), &response)
+	require.NoError(t, err)
+	assert.Equal(t, "ok", response["status"])
 }
 
 func TestHandleSkillsList(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -222,7 +237,7 @@ func TestHandleSkillsInfo_MissingID(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -242,7 +257,7 @@ func TestHandleSkillsInfo_NotFound(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -261,7 +276,7 @@ func TestHandleMCPTools(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -283,7 +298,7 @@ func TestHandleMCPCall_InvalidJSON(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -299,7 +314,7 @@ func TestHandleMCPCall_MissingTool(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -324,7 +339,7 @@ func TestCorsMiddleware(t *testing.T) {
 	}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -341,11 +356,142 @@ func TestCorsMiddleware(t *testing.T) {
 	assert.Contains(t, rec.Header().Get("Access-Control-Allow-Methods"), "GET")
 }
 
+func TestHandleProviderKey_RoundTrip(t *testing.T) {
+	cfg := &config.Config{ListenAddr: ":0"}
+	s, _ := store.New(":memory:")
+	defer s.Close()
+	kc := newTestKeychain(t)
+
+	server := New(cfg, s.DB, kc)
+
+	{
+		req := httptest.NewRequest("GET", "/api/v1/providers/openai/key", nil)
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		assert.Equal(t, false, body["configured"])
+	}
+
+	{
+		req := httptest.NewRequest("POST", "/api/v1/providers/openai/key", strings.NewReader(`{"api_key":"sk-test"}`))
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		assert.Equal(t, true, body["ok"])
+	}
+
+	{
+		req := httptest.NewRequest("GET", "/api/v1/providers/openai/key", nil)
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		assert.Equal(t, true, body["configured"])
+	}
+
+	{
+		req := httptest.NewRequest("DELETE", "/api/v1/providers/openai/key", nil)
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusNoContent, rec.Code)
+	}
+
+	{
+		req := httptest.NewRequest("GET", "/api/v1/providers/openai/key", nil)
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		assert.Equal(t, false, body["configured"])
+	}
+}
+
+func TestHandleProviderKeySet_InvalidBody(t *testing.T) {
+	cfg := &config.Config{ListenAddr: ":0"}
+	s, _ := store.New(":memory:")
+	defer s.Close()
+	kc := newTestKeychain(t)
+
+	server := New(cfg, s.DB, kc)
+
+	{
+		req := httptest.NewRequest("POST", "/api/v1/providers/openai/key", strings.NewReader("not json"))
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	}
+
+	{
+		req := httptest.NewRequest("POST", "/api/v1/providers/openai/key", strings.NewReader(`{"api_key":""}`))
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	}
+}
+
+func TestHandleProviderKey_InvalidProviderID(t *testing.T) {
+	cfg := &config.Config{ListenAddr: ":0"}
+	s, _ := store.New(":memory:")
+	defer s.Close()
+	kc := newTestKeychain(t)
+
+	server := New(cfg, s.DB, kc)
+
+	{
+		req := httptest.NewRequest("GET", "/api/v1/providers/bad%20id/key", nil)
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	}
+
+	{
+		req := httptest.NewRequest("POST", "/api/v1/providers/bad%20id/key", strings.NewReader(`{"api_key":"x"}`))
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	}
+
+	{
+		req := httptest.NewRequest("DELETE", "/api/v1/providers/bad%20id/key", nil)
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	}
+}
+
+func TestHandleProviderKey_KeychainUnavailable(t *testing.T) {
+	cfg := &config.Config{ListenAddr: ":0"}
+	s, _ := store.New(":memory:")
+	defer s.Close()
+
+	server := New(cfg, s.DB, nil)
+
+	req := httptest.NewRequest("GET", "/api/v1/providers/openai/key", nil)
+	rec := httptest.NewRecorder()
+	server.router.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
+}
+
 func TestServer_Bus(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -358,7 +504,7 @@ func TestServer_Handler(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -370,7 +516,7 @@ func TestServer_Serve(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -415,7 +561,7 @@ func TestServer_Shutdown(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -438,7 +584,7 @@ func TestServer_Shutdown_NotStarted(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -454,7 +600,7 @@ func TestServer_DynamicPortAllocation(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -489,7 +635,7 @@ func BenchmarkHandleHealth(b *testing.B) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(b)
 
 	server := New(cfg, s.DB, kc)
 
