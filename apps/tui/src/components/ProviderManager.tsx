@@ -20,8 +20,6 @@ interface ConfiguredProvider {
 
 type ViewMode = "list" | "add" | "edit" | "test" | "delete_confirm";
 
-const API_BASE = "http://localhost:3000";
-
 interface ProviderManagerProps {
   onClose: () => void;
 }
@@ -125,8 +123,8 @@ export default function ProviderManager(props: ProviderManagerProps) {
       updates[keyField] = apiKey().trim();
     }
 
-    if (provider.id === "ollama") {
-      updates.ollama_endpoint = apiKey().trim() || "http://localhost:11434";
+    if (provider.id === "ollama" && apiKey().trim()) {
+      updates.ollama_endpoint = apiKey().trim();
     }
 
     try {

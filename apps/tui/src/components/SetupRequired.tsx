@@ -12,8 +12,6 @@ interface SetupRequiredProps {
   onSetupComplete: () => void;
 }
 
-const API_BASE = "http://localhost:3000";
-
 export default function SetupRequired(props: SetupRequiredProps) {
   const providerService = useEffectService(ProviderService);
   const [step, setStep] = createSignal(1);
@@ -93,8 +91,8 @@ export default function SetupRequired(props: SetupRequiredProps) {
       config[configKey] = apiKey();
     }
 
-    if (provider() === "ollama") {
-      config.ollama_endpoint = apiKey().trim() || "http://localhost:11434";
+    if (provider() === "ollama" && apiKey().trim()) {
+      config.ollama_endpoint = apiKey().trim();
     }
 
     try {
@@ -212,7 +210,7 @@ export default function SetupRequired(props: SetupRequiredProps) {
                   {apiKey() ||
                     (selectedProvider()?.requires_api_key
                       ? "Enter API key..."
-                      : "http://localhost:11434")}
+                      : "Enter endpoint (optional)...")}
                 </text>
                 <box flexGrow={1} />
                 <text fg="cyan">▌</text>

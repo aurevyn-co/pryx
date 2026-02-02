@@ -1,4 +1,5 @@
 import { Effect, Context, Layer } from "effect";
+import { getRuntimeHttpUrl } from "./skills-api";
 
 export interface Provider {
   id: string;
@@ -42,16 +43,11 @@ export interface ProviderService {
 
 export const ProviderService = Context.GenericTag<ProviderService>("@pryx/tui/ProviderService");
 
-const getApiUrl = (): string => {
-  return process.env.PRYX_API_URL || "http://localhost:3000";
-};
-
 const makeProviderService = Effect.gen(function* () {
   const fetchProviders = Effect.gen(function* () {
     const result = yield* Effect.tryPromise({
       try: async () => {
-        const apiUrl = getApiUrl();
-        const res = await fetch(`${apiUrl}/api/v1/providers`);
+        const res = await fetch(`${getRuntimeHttpUrl()}/api/v1/providers`);
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);
         }
@@ -67,8 +63,7 @@ const makeProviderService = Effect.gen(function* () {
     Effect.gen(function* () {
       const result = yield* Effect.tryPromise({
         try: async () => {
-          const apiUrl = getApiUrl();
-          const res = await fetch(`${apiUrl}/api/v1/providers/${providerId}/models`);
+          const res = await fetch(`${getRuntimeHttpUrl()}/api/v1/providers/${providerId}/models`);
           if (!res.ok) {
             throw new Error(`HTTP ${res.status}`);
           }

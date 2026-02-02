@@ -1,7 +1,7 @@
 import { createSignal, For, Show, onMount } from "solid-js";
 import { useKeyboard } from "@opentui/solid";
-import { useEffectService, AppRuntime } from "../lib/hooks";
 import { palette } from "../theme";
+import { getRuntimeHttpUrl } from "../services/skills-api";
 
 type AgentStatus = "running" | "stopped" | "idle" | "error";
 type AgentType = "chat" | "task" | "code" | "analysis";
@@ -25,8 +25,11 @@ interface CreateAgentRequest {
   tools?: string[];
 }
 
-export default function AgentSpawning() {
-  const keyboard = useKeyboard();
+interface AgentSpawningProps {
+  onClose: () => void;
+}
+
+export default function AgentSpawning(props: AgentSpawningProps) {
   const [agents, setAgents] = createSignal<Agent[]>([]);
   const [selectedIndex, setSelectedIndex] = createSignal(0);
   const [showCreateModal, setShowCreateModal] = createSignal(false);
@@ -39,43 +42,71 @@ export default function AgentSpawning() {
 
   onMount(() => {
     loadAgents();
-    setupKeyboard();
     startPolling();
   });
 
-  const setupKeyboard = () => {
-    keyboard.bind("c", () => {
-      setShowCreateModal(true);
-      setNewAgentName("");
-      setNewAgentPrompt("");
-    });
-    keyboard.bind("s", () => stopAgent());
-    keyboard.bind("k", () => killAgent());
-    keyboard.bind("v", () => viewAgent());
-    keyboard.bind("a", () => attachToSession());
-    keyboard.bind("r", () => restartAgent());
-    keyboard.bind("l", () => viewLogs());
-    keyboard.bind("q", () => {
-      props.onClose();
-    });
-    keyboard.bind("esc", () => {
-      if (showCreateModal()) {
-        setShowCreateModal(false);
-      }
-    });
+  const getErrorMessage = (err: unknown): string => {
+    return err instanceof Error ? err.message : String(err);
   };
+
+  useKeyboard(evt => {
+    if (showCreateModal()) {
+      if (evt.name === "escape") {
+        evt.preventDefault?.();
+        setShowCreateModal(false);
+        return;
+      }
+    }
+
+    switch (evt.name) {
+      case "c":
+        evt.preventDefault?.();
+        setShowCreateModal(true);
+        setNewAgentName("");
+        setNewAgentPrompt("");
+        return;
+      case "s":
+        evt.preventDefault?.();
+        stopAgent();
+        return;
+      case "k":
+        evt.preventDefault?.();
+        killAgent();
+        return;
+      case "v":
+        evt.preventDefault?.();
+        viewAgent();
+        return;
+      case "a":
+        evt.preventDefault?.();
+        attachToSession();
+        return;
+      case "r":
+        evt.preventDefault?.();
+        restartAgent();
+        return;
+      case "l":
+        evt.preventDefault?.();
+        viewLogs();
+        return;
+      case "q":
+        evt.preventDefault?.();
+        props.onClose();
+        return;
+    }
+  });
 
   const loadAgents = async () => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:3000/api/agents");
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/agents`);
       if (!response.ok) {
         throw new Error("Failed to load agents");
       }
       const data = await response.json();
       setAgents(data.agents || []);
     } catch (err) {
-      setError(`Failed to load agents: ${err.message}`);
+      setError(`Failed to load agents: ${getErrorMessage(err)}`);
     } finally {
       setLoading(false);
     }
@@ -101,7 +132,7 @@ export default function AgentSpawning() {
     };
 
     try {
-      const response = await fetch("http://localhost:3000/api/agents", {
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/agents`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -116,7 +147,7 @@ export default function AgentSpawning() {
       setShowCreateModal(false);
       loadAgents();
     } catch (err) {
-      setError(`Failed to create agent: ${err.message}`);
+      setError(`Failed to create agent: ${getErrorMessage(err)}`);
     }
   };
 
@@ -125,7 +156,7 @@ export default function AgentSpawning() {
     if (!agent) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/agents/${agent.id}/stop`, {
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/agents/${agent.id}/stop`, {
         method: "POST",
       });
 
@@ -135,7 +166,7 @@ export default function AgentSpawning() {
 
       loadAgents();
     } catch (err) {
-      setError(`Failed to stop agent: ${err.message}`);
+      setError(`Failed to stop agent: ${getErrorMessage(err)}`);
     }
   };
 
@@ -144,7 +175,7 @@ export default function AgentSpawning() {
     if (!agent) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/agents/${agent.id}/kill`, {
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/agents/${agent.id}/kill`, {
         method: "POST",
       });
 
@@ -154,7 +185,7 @@ export default function AgentSpawning() {
 
       loadAgents();
     } catch (err) {
-      setError(`Failed to kill agent: ${err.message}`);
+      setError(`Failed to kill agent: ${getErrorMessage(err)}`);
     }
   };
 
@@ -163,7 +194,7 @@ export default function AgentSpawning() {
     if (!agent) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/agents/${agent.id}/restart`, {
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/agents/${agent.id}/restart`, {
         method: "POST",
       });
 
@@ -173,7 +204,7 @@ export default function AgentSpawning() {
 
       loadAgents();
     } catch (err) {
-      setError(`Failed to restart agent: ${err.message}`);
+      setError(`Failed to restart agent: ${getErrorMessage(err)}`);
     }
   };
 
@@ -246,8 +277,8 @@ export default function AgentSpawning() {
       <Box
         flexDirection="row"
         padding={1}
-        backgroundColor={palette.primary}
-        color={palette.background}
+        backgroundColor={palette.accent}
+        color={palette.bgPrimary}
       >
         <Text bold>🤖 Agent Spawning</Text>
         <Box flexGrow={1} />
@@ -269,7 +300,7 @@ export default function AgentSpawning() {
 
       <Show when={error()}>
         <Box padding={1} backgroundColor={palette.error}>
-          <Text color={palette.background}>{error()}</Text>
+          <Text color={palette.bgPrimary}>{error()}</Text>
         </Box>
       </Show>
 
@@ -355,11 +386,11 @@ export default function AgentSpawning() {
             </Box>
           </Show>
 
-          <Box padding={1} marginTop={1} backgroundColor={palette.background}>
+          <Box padding={1} marginTop={1} backgroundColor={palette.bgPrimary}>
             <Text bold>Active Agents</Text>
           </Box>
 
-          <Box flexDirection="column" flexGrow={1} padding={1} backgroundColor={palette.background}>
+          <Box flexDirection="column" flexGrow={1} padding={1} backgroundColor={palette.bgPrimary}>
             <For each={agents()}>
               {(agent, index) => (
                 <Box
@@ -408,24 +439,30 @@ const Text: any = (props: any) => {
     typeof props.children === "string" ? props.children : props.children?.join?.("") || "";
   return <span style={props}>{content}</span>;
 };
-const TextInput: any = (props: any) => (
-  <input
-    type={props.multiline ? "textarea" : "text"}
-    value={props.value}
-    onInput={props.onInput}
-    placeholder={props.placeholder}
-    style={{
-      width: "100%",
-      padding: "0.5",
-      backgroundColor: palette.bgSecondary,
-      border: `1px solid ${palette.border}`,
-      color: palette.text,
-      ...props.style,
-    }}
-  />
-);
+const NativeInput: any = "input";
+const NativeTextarea: any = "textarea";
+const NativeSelect: any = "select";
+const TextInput: any = (props: any) => {
+  const Component = props.multiline ? NativeTextarea : NativeInput;
+  return (
+    <Component
+      {...(props.multiline ? {} : { type: "text" })}
+      value={props.value}
+      onInput={props.onInput}
+      placeholder={props.placeholder}
+      style={{
+        width: "100%",
+        padding: "0.5",
+        backgroundColor: palette.bgSecondary,
+        border: `1px solid ${palette.border}`,
+        color: palette.text,
+        ...props.style,
+      }}
+    />
+  );
+};
 const Select: any = (props: any) => (
-  <select
+  <NativeSelect
     value={props.value}
     onChange={props.onChange}
     style={{
@@ -438,15 +475,15 @@ const Select: any = (props: any) => (
     }}
   >
     {props.children}
-  </select>
+  </NativeSelect>
 );
 const Button: any = (props: any) => (
   <button
     onClick={props.onClick}
     style={{
       padding: "0.5 1",
-      backgroundColor: palette.primary,
-      color: palette.background,
+      backgroundColor: palette.accent,
+      color: palette.bgPrimary,
       border: "none",
       cursor: "pointer",
       ...props.style,

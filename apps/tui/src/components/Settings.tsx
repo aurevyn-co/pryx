@@ -8,7 +8,7 @@ export default function Settings() {
     { key: "model_name", label: "Model Name", placeholder: "llama3, gpt-4" },
     { key: "openai_key", label: "OpenAI Key", placeholder: "sk-..." },
     { key: "anthropic_key", label: "Anthropic Key", placeholder: "sk-ant-..." },
-    { key: "ollama_endpoint", label: "Ollama URL", placeholder: "http://localhost:11434" },
+    { key: "ollama_endpoint", label: "Ollama URL", placeholder: "http://<host>:11434" },
   ]);
   const [selectedIndex, setSelectedIndex] = createSignal(0);
   const [isEditing, setIsEditing] = createSignal(false);

@@ -5,14 +5,6 @@ import { WebSocketServiceLive } from "../services/ws";
 import { HealthCheckServiceLive } from "../services/health-check";
 import { ProviderServiceLive } from "../services/provider-service";
 import { SkillsServiceLive } from "../services/skills-api";
-import { appendFileSync } from "fs";
-
-function log(msg: string) {
-  appendFileSync("debug.log", `[hooks] ${msg}\n`);
-  // console.error(`[hooks] ${msg}`); // Fallback
-}
-
-log("MODULE LOADED");
 
 // Create a managed runtime that includes our Live services
 export const AppRuntime = ManagedRuntime.make(
@@ -69,34 +61,18 @@ export function useEffectStream<A, E = never>(stream: Stream.Stream<A, E>): Acce
  * Access the WebSocketService
  */
 export function useEffectService<I, S>(tag: Context.Tag<I, S>): Accessor<S | undefined> {
-  log("useEffectService: start");
-  try {
-    log("useEffectService: calling createSignal");
-    const [service, setService] = createSignal<S | undefined>();
-    log("useEffectService: createSignal done");
+  const [service, setService] = createSignal<S | undefined>();
 
-    log("useEffectService: scheduling onMount");
-    onMount(() => {
-      log("useEffectService: onMount running");
-      // Run an effect to extract the service
-      // This is safe because we use ManagedRuntime which keeps services alive
-      AppRuntime.runPromise(tag as any)
-        .then(svc => {
-          log("useEffectService: service resolved");
-          setService(() => svc as S);
-        })
-        .catch(err => {
-          log(`useEffectService: service error ${err}`);
-          console.error("Failed to get service:", err);
-        });
-    });
-    log("useEffectService: onMount scheduled");
+  onMount(() => {
+    try {
+      const svc = AppRuntime.runSync(tag as any);
+      setService(() => svc as S);
+    } catch (err) {
+      console.error("Failed to get service:", err);
+    }
+  });
 
-    return service;
-  } catch (e) {
-    log(`useEffectService: CRASHED ${e}`);
-    throw e;
-  }
+  return service;
 }
 
 // Global runtime for ad-hoc usage

@@ -1,4 +1,5 @@
 import { Effect, Context, Layer, Schedule } from "effect";
+import { getRuntimeHttpUrl } from "./skills-api";
 
 export interface HealthCheckResponse {
   status: "ok" | "error";
@@ -26,16 +27,11 @@ export const HealthCheckService = Context.GenericTag<HealthCheckService>(
   "@pryx/tui/HealthCheckService"
 );
 
-const getApiUrl = (): string => {
-  return process.env.PRYX_API_URL || "http://localhost:3000";
-};
-
 const makeHealthCheckService = Effect.gen(function* () {
   const checkHealth = Effect.gen(function* () {
     const result = yield* Effect.tryPromise({
       try: async () => {
-        const apiUrl = getApiUrl();
-        const res = await fetch(`${apiUrl}/health`, { method: "GET" });
+        const res = await fetch(`${getRuntimeHttpUrl()}/health`, { method: "GET" });
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);
         }

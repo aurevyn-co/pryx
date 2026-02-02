@@ -1,8 +1,8 @@
 import { createSignal, For, Show, onMount } from "solid-js";
 import { useKeyboard } from "@opentui/solid";
-import { useEffectService, AppRuntime } from "../lib/hooks";
-import { loadConfig, saveConfig } from "../services/config";
+import { loadConfig } from "../services/config";
 import { palette } from "../theme";
+import { getRuntimeHttpUrl } from "../services/skills-api";
 
 type CostPeriod = "daily" | "weekly" | "monthly";
 type SortOrder = "date" | "cost" | "tokens";
@@ -28,7 +28,6 @@ interface CostDashboardProps {
 }
 
 export default function CostDashboard(props: CostDashboardProps) {
-  const keyboard = useKeyboard();
   const [period, setPeriod] = createSignal<CostPeriod>("daily");
   const [sortOrder, setSortOrder] = createSignal<SortOrder>("date");
   const [costs, setCosts] = createSignal<CostEntry[]>([]);
@@ -42,25 +41,49 @@ export default function CostDashboard(props: CostDashboardProps) {
   onMount(() => {
     loadCostData();
     loadBudget();
-    setupKeyboard();
   });
 
-  const setupKeyboard = () => {
-    keyboard.bind("1", () => setPeriod("daily"));
-    keyboard.bind("2", () => setPeriod("weekly"));
-    keyboard.bind("3", () => setPeriod("monthly"));
-    keyboard.bind("s", () => toggleSort());
-    keyboard.bind("b", () => showBudgetSettings());
-    keyboard.bind("o", () => showOptimizations());
-    keyboard.bind("q", () => {
-      props.onClose();
-    });
+  const getErrorMessage = (err: unknown): string => {
+    return err instanceof Error ? err.message : String(err);
   };
+
+  useKeyboard(evt => {
+    switch (evt.name) {
+      case "1":
+        evt.preventDefault?.();
+        setPeriod("daily");
+        return;
+      case "2":
+        evt.preventDefault?.();
+        setPeriod("weekly");
+        return;
+      case "3":
+        evt.preventDefault?.();
+        setPeriod("monthly");
+        return;
+      case "s":
+        evt.preventDefault?.();
+        toggleSort();
+        return;
+      case "b":
+        evt.preventDefault?.();
+        showBudgetSettings();
+        return;
+      case "o":
+        evt.preventDefault?.();
+        showOptimizations();
+        return;
+      case "q":
+        evt.preventDefault?.();
+        props.onClose();
+        return;
+    }
+  });
 
   const loadCostData = async () => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:3000/api/cost");
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/cost`);
       if (!response.ok) {
         throw new Error("Failed to load cost data");
       }
@@ -69,7 +92,7 @@ export default function CostDashboard(props: CostDashboardProps) {
       setTotalCost(data.totalCost || 0);
       setTotalTokens(data.totalTokens || 0);
     } catch (err) {
-      setError(`Failed to load cost data: ${err.message}`);
+      setError(`Failed to load cost data: ${getErrorMessage(err)}`);
     } finally {
       setLoading(false);
     }
@@ -127,8 +150,8 @@ export default function CostDashboard(props: CostDashboardProps) {
     return tokens.toString();
   };
 
-  const getBudgetUsage = () => {
-    if (!budget()) return 0;
+  const getBudgetUsage = (): string => {
+    if (!budget()) return "0.0";
     return ((budget()!.current / budget()!.limit) * 100).toFixed(1);
   };
 
@@ -141,12 +164,7 @@ export default function CostDashboard(props: CostDashboardProps) {
 
   return (
     <Box flexDirection="column" width="100%" height="100%">
-      <Box
-        flexDirection="row"
-        padding={1}
-        backgroundColor={palette.primary}
-        color={palette.background}
-      >
+      <Box flexDirection="row" padding={1} backgroundColor={palette.bgPrimary} color={palette.text}>
         <Text bold>💰 Cost Dashboard</Text>
         <Box flexGrow={1} />
         <Text>
@@ -166,13 +184,13 @@ export default function CostDashboard(props: CostDashboardProps) {
 
       <Show when={error()}>
         <Box padding={2} backgroundColor={palette.error}>
-          <Text color={palette.background}>{error()}</Text>
+          <Text color={palette.bgPrimary}>{error()}</Text>
         </Box>
       </Show>
 
       <Show when={!loading() && !error()}>
         <Box flexDirection="column" padding={1}>
-          <Box flexDirection="row" padding={1} backgroundColor={palette.secondary}>
+          <Box flexDirection="row" padding={1} backgroundColor={palette.bgSecondary}>
             <Box flexGrow={1}>
               <Text bold>Total Cost</Text>
               <Text fontSize={2}>{formatCurrency(totalCost())}</Text>
@@ -192,7 +210,7 @@ export default function CostDashboard(props: CostDashboardProps) {
           </Box>
 
           <Show when={budget() && budget()!.enabled}>
-            <Box padding={1} marginTop={1} backgroundColor={palette.background}>
+            <Box padding={1} marginTop={1} backgroundColor={palette.bgPrimary}>
               <Text bold>Budget Status</Text>
               <Box flexDirection="row" alignItems="center" marginTop={1}>
                 <Text width={15}>Usage:</Text>
@@ -223,11 +241,11 @@ export default function CostDashboard(props: CostDashboardProps) {
             </Box>
           </Show>
 
-          <Box padding={1} marginTop={1} backgroundColor={palette.background}>
+          <Box padding={1} marginTop={1} backgroundColor={palette.bgPrimary}>
             <Text bold>Cost Breakdown</Text>
           </Box>
 
-          <Box flexDirection="column" flexGrow={1} padding={1} backgroundColor={palette.background}>
+          <Box flexDirection="column" flexGrow={1} padding={1} backgroundColor={palette.bgPrimary}>
             <Box flexDirection="row" padding={0.5}>
               <Text width={15}>Date</Text>
               <Text width={20}>Provider</Text>
@@ -246,8 +264,7 @@ export default function CostDashboard(props: CostDashboardProps) {
                   <Box
                     flexDirection="row"
                     padding={0.5}
-                    backgroundColor={index() === selectedIndex() ? palette.primary : undefined}
-                    color={index() === selectedIndex() ? palette.background : undefined}
+                    backgroundColor={index() === selectedIndex() ? palette.bgSelected : undefined}
                   >
                     <Text width={15}>{entry.date}</Text>
                     <Text width={20}>{entry.provider}</Text>
@@ -264,7 +281,7 @@ export default function CostDashboard(props: CostDashboardProps) {
             </Box>
           </Box>
 
-          <Box flexDirection="row" padding={1} marginTop={1} backgroundColor={palette.secondary}>
+          <Box flexDirection="row" padding={1} marginTop={1} backgroundColor={palette.bgSecondary}>
             <Text>
               Show Budget: <Text bold>[B]</Text>
             </Text>

@@ -1,6 +1,7 @@
 import { createSignal, For, Show, onMount } from "solid-js";
 import { useKeyboard } from "@opentui/solid";
 import { palette } from "../theme";
+import { getRuntimeHttpUrl } from "../services/skills-api";
 
 type DeviceStatus = "online" | "offline" | "syncing" | "error";
 type DeviceRole = "primary" | "secondary";
@@ -32,7 +33,6 @@ interface MeshStatusProps {
 }
 
 export default function MeshStatus(props: MeshStatusProps) {
-  const keyboard = useKeyboard();
   const [devices, setDevices] = createSignal<Device[]>([]);
   const [events, setEvents] = createSignal<SyncEvent[]>([]);
   const [selectedIndex, setSelectedIndex] = createSignal(0);
@@ -48,43 +48,69 @@ export default function MeshStatus(props: MeshStatusProps) {
   onMount(() => {
     loadDevices();
     loadEvents();
-    setupKeyboard();
     startPolling();
   });
 
-  const setupKeyboard = () => {
-    keyboard.bind("1", () => setView("devices"));
-    keyboard.bind("2", () => setView("events"));
-    keyboard.bind("p", () => {
-      setShowPairModal(true);
-      setPairingCode("");
-      setPairingStatus("idle");
-    });
-    keyboard.bind("r", () => refreshDevices());
-    keyboard.bind("u", () => unpairDevice());
-    keyboard.bind("v", () => viewDevice());
-    keyboard.bind("s", () => syncDevice());
-    keyboard.bind("q", () => {
-      props.onClose();
-    });
-    keyboard.bind("esc", () => {
-      if (showPairModal()) {
-        setShowPairModal(false);
-      }
-    });
+  const getErrorMessage = (err: unknown): string => {
+    return err instanceof Error ? err.message : String(err);
   };
+
+  useKeyboard(evt => {
+    if (showPairModal() && evt.name === "escape") {
+      evt.preventDefault?.();
+      setShowPairModal(false);
+      return;
+    }
+
+    switch (evt.name) {
+      case "1":
+        evt.preventDefault?.();
+        setView("devices");
+        return;
+      case "2":
+        evt.preventDefault?.();
+        setView("events");
+        return;
+      case "p":
+        evt.preventDefault?.();
+        setShowPairModal(true);
+        setPairingCode("");
+        setPairingStatus("idle");
+        return;
+      case "r":
+        evt.preventDefault?.();
+        refreshDevices();
+        return;
+      case "u":
+        evt.preventDefault?.();
+        unpairDevice();
+        return;
+      case "v":
+        evt.preventDefault?.();
+        viewDevice();
+        return;
+      case "s":
+        evt.preventDefault?.();
+        syncDevice();
+        return;
+      case "q":
+        evt.preventDefault?.();
+        props.onClose();
+        return;
+    }
+  });
 
   const loadDevices = async () => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:3000/api/mesh/devices");
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/mesh/devices`);
       if (!response.ok) {
         throw new Error("Failed to load devices");
       }
       const data = await response.json();
       setDevices(data.devices || []);
     } catch (err) {
-      setError(`Failed to load devices: ${err.message}`);
+      setError(`Failed to load devices: ${getErrorMessage(err)}`);
     } finally {
       setLoading(false);
     }
@@ -92,14 +118,14 @@ export default function MeshStatus(props: MeshStatusProps) {
 
   const loadEvents = async () => {
     try {
-      const response = await fetch("http://localhost:3000/api/mesh/events");
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/mesh/events`);
       if (!response.ok) {
         throw new Error("Failed to load events");
       }
       const data = await response.json();
       setEvents(data.events || []);
     } catch (err) {
-      setError(`Failed to load events: ${err.message}`);
+      setError(`Failed to load events: ${getErrorMessage(err)}`);
     }
   };
 
@@ -123,7 +149,7 @@ export default function MeshStatus(props: MeshStatusProps) {
     setPairingStatus("pairing");
 
     try {
-      const response = await fetch("http://localhost:3000/api/mesh/pair", {
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/mesh/pair`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -145,7 +171,7 @@ export default function MeshStatus(props: MeshStatusProps) {
         loadDevices();
       }, 2000);
     } catch (err) {
-      setError(`Failed to pair device: ${err.message}`);
+      setError(`Failed to pair device: ${getErrorMessage(err)}`);
       setPairingStatus("failed");
     }
   };
@@ -155,7 +181,7 @@ export default function MeshStatus(props: MeshStatusProps) {
     if (!device) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/mesh/devices/${device.id}/unpair`, {
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/mesh/devices/${device.id}/unpair`, {
         method: "POST",
       });
 
@@ -165,7 +191,7 @@ export default function MeshStatus(props: MeshStatusProps) {
 
       loadDevices();
     } catch (err) {
-      setError(`Failed to unpair device: ${err.message}`);
+      setError(`Failed to unpair device: ${getErrorMessage(err)}`);
     }
   };
 
@@ -174,7 +200,7 @@ export default function MeshStatus(props: MeshStatusProps) {
     if (!device) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/mesh/devices/${device.id}/sync`, {
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/mesh/devices/${device.id}/sync`, {
         method: "POST",
       });
 
@@ -184,7 +210,7 @@ export default function MeshStatus(props: MeshStatusProps) {
 
       loadDevices();
     } catch (err) {
-      setError(`Failed to sync device: ${err.message}`);
+      setError(`Failed to sync device: ${getErrorMessage(err)}`);
     }
   };
 
@@ -243,12 +269,7 @@ export default function MeshStatus(props: MeshStatusProps) {
 
   return (
     <Box flexDirection="column" width="100%" height="100%">
-      <Box
-        flexDirection="row"
-        padding={1}
-        backgroundColor={palette.primary}
-        color={palette.background}
-      >
+      <Box flexDirection="row" padding={1} backgroundColor={palette.bgPrimary} color={palette.text}>
         <Text bold>🔗 Mesh Status</Text>
         <Box flexGrow={1} />
         <Text>
@@ -267,7 +288,7 @@ export default function MeshStatus(props: MeshStatusProps) {
 
       <Show when={error()}>
         <Box padding={1} backgroundColor={palette.error}>
-          <Text color={palette.background}>{error()}</Text>
+          <Text color={palette.bgPrimary}>{error()}</Text>
         </Box>
       </Show>
 
@@ -341,7 +362,7 @@ export default function MeshStatus(props: MeshStatusProps) {
               </Box>
             </Box>
 
-            <Box padding={1} marginTop={1} backgroundColor={palette.background}>
+            <Box padding={1} marginTop={1} backgroundColor={palette.bgPrimary}>
               <Text bold>Mesh Devices</Text>
             </Box>
 
@@ -349,7 +370,7 @@ export default function MeshStatus(props: MeshStatusProps) {
               flexDirection="column"
               flexGrow={1}
               padding={1}
-              backgroundColor={palette.background}
+              backgroundColor={palette.bgPrimary}
             >
               <For each={devices()}>
                 {(device, index) => (
@@ -423,7 +444,7 @@ export default function MeshStatus(props: MeshStatusProps) {
               </Box>
             </Box>
 
-            <Box padding={1} marginTop={1} backgroundColor={palette.background}>
+            <Box padding={1} marginTop={1} backgroundColor={palette.bgPrimary}>
               <Text bold>Sync Events</Text>
             </Box>
 
@@ -431,7 +452,7 @@ export default function MeshStatus(props: MeshStatusProps) {
               flexDirection="column"
               flexGrow={1}
               padding={1}
-              backgroundColor={palette.background}
+              backgroundColor={palette.bgPrimary}
             >
               <For each={events()}>
                 {(event, index) => (
@@ -470,9 +491,9 @@ const Text: any = (props: any) => {
     typeof props.children === "string" ? props.children : props.children?.join?.("") || "";
   return <span style={props}>{content}</span>;
 };
+const NativeInput: any = "input";
 const TextInput: any = (props: any) => (
-  <input
-    type="text"
+  <NativeInput
     value={props.value}
     onInput={props.onInput}
     placeholder={props.placeholder}
@@ -492,8 +513,8 @@ const Button: any = (props: any) => (
     onClick={props.onClick}
     style={{
       padding: "0.5 1",
-      backgroundColor: palette.primary,
-      color: palette.background,
+      backgroundColor: palette.accent,
+      color: palette.bgPrimary,
       border: "none",
       cursor: "pointer",
       ...props.style,

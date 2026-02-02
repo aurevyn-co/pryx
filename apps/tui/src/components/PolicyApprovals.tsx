@@ -1,9 +1,19 @@
 import { createSignal, For, Show, onMount } from "solid-js";
 import { useKeyboard } from "@opentui/solid";
 import { palette } from "../theme";
+import { getRuntimeHttpUrl } from "../services/skills-api";
 
 type ApprovalAction = "allow" | "deny" | "require_review";
 type ActionType = "file_ops" | "shell" | "network" | "channel_message" | "credential_access";
+
+interface ApprovalRequest {
+  id: string;
+  agentName: string;
+  actionType: ActionType;
+  tool: string;
+  status: "pending" | "approved" | "denied";
+  timestamp: string;
+}
 
 interface PolicyRule {
   id: string;
@@ -23,7 +33,6 @@ interface PolicyApprovalsProps {
 }
 
 export default function PolicyApprovals(props: PolicyApprovalsProps) {
-  const keyboard = useKeyboard();
   const [policies, setPolicies] = createSignal<PolicyRule[]>([]);
   const [requests, setRequests] = createSignal<ApprovalRequest[]>([]);
   const [view, setView] = createSignal<"policies" | "requests">("policies");
@@ -37,46 +46,74 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal("");
 
+  const getErrorMessage = (err: unknown): string => {
+    return err instanceof Error ? err.message : String(err);
+  };
+
+  useKeyboard(evt => {
+    if (showCreateModal()) {
+      if (evt.name === "escape") {
+        evt.preventDefault?.();
+        setShowCreateModal(false);
+        return;
+      }
+    }
+
+    switch (evt.name) {
+      case "1":
+        evt.preventDefault?.();
+        setView("policies");
+        return;
+      case "2":
+        evt.preventDefault?.();
+        setView("requests");
+        return;
+      case "n":
+        evt.preventDefault?.();
+        setShowCreateModal(true);
+        setNewPolicyName("");
+        setNewMaxCost("");
+        return;
+      case "e":
+        evt.preventDefault?.();
+        editPolicy();
+        return;
+      case "d":
+        evt.preventDefault?.();
+        deletePolicy();
+        return;
+      case "a":
+        evt.preventDefault?.();
+        togglePolicy();
+        return;
+      case "r":
+        evt.preventDefault?.();
+        reviewRequest();
+        return;
+      case "q":
+        evt.preventDefault?.();
+        props.onClose();
+        return;
+    }
+  });
+
   onMount(() => {
     loadPolicies();
     loadRequests();
-    setupKeyboard();
     startPolling();
   });
-
-  const setupKeyboard = () => {
-    keyboard.bind("1", () => setView("policies"));
-    keyboard.bind("2", () => setView("requests"));
-    keyboard.bind("n", () => {
-      setShowCreateModal(true);
-      setNewPolicyName("");
-      setNewMaxCost("");
-    });
-    keyboard.bind("e", () => editPolicy());
-    keyboard.bind("d", () => deletePolicy());
-    keyboard.bind("a", () => togglePolicy());
-    keyboard.bind("r", () => reviewRequest());
-    keyboard.bind("esc", () => {
-      if (showCreateModal()) {
-        setShowCreateModal(false);
-      }
-    });
-    keyboard.bind("q", () => {
-      props.onClose();
-    });
-  };
 
   const loadPolicies = async () => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:3000/api/policies");
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/policies`);
       if (!response.ok) {
         throw new Error("Failed to load policies");
       }
       const data = await response.json();
       setPolicies(data.policies || []);
     } catch (err) {
-      setError(`Failed to load policies: ${err.message}`);
+      setError(`Failed to load policies: ${getErrorMessage(err)}`);
     } finally {
       setLoading(false);
     }
@@ -84,14 +121,14 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
 
   const loadRequests = async () => {
     try {
-      const response = await fetch("http://localhost:3000/api/approvals/pending");
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/approvals/pending`);
       if (!response.ok) {
         throw new Error("Failed to load approval requests");
       }
       const data = await response.json();
       setRequests(data.requests || []);
     } catch (err) {
-      setError(`Failed to load requests: ${err.message}`);
+      setError(`Failed to load requests: ${getErrorMessage(err)}`);
     }
   };
 
@@ -117,7 +154,7 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
     };
 
     try {
-      const response = await fetch("http://localhost:3000/api/policies", {
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/policies`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -132,7 +169,7 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
       setShowCreateModal(false);
       loadPolicies();
     } catch (err) {
-      setError(`Failed to create policy: ${err.message}`);
+      setError(`Failed to create policy: ${getErrorMessage(err)}`);
     }
   };
 
@@ -148,7 +185,7 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
     if (!policy) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/policies/${policy.id}`, {
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/policies/${policy.id}`, {
         method: "DELETE",
       });
 
@@ -158,7 +195,7 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
 
       loadPolicies();
     } catch (err) {
-      setError(`Failed to delete policy: ${err.message}`);
+      setError(`Failed to delete policy: ${getErrorMessage(err)}`);
     }
   };
 
@@ -167,7 +204,7 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
     if (!policy) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/policies/${policy.id}/toggle`, {
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/policies/${policy.id}/toggle`, {
         method: "POST",
       });
 
@@ -177,7 +214,7 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
 
       loadPolicies();
     } catch (err) {
-      setError(`Failed to toggle policy: ${err.message}`);
+      setError(`Failed to toggle policy: ${getErrorMessage(err)}`);
     }
   };
 
@@ -190,7 +227,7 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
 
   const approveRequest = async (requestId: string) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/approvals/${requestId}/approve`, {
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/approvals/${requestId}/approve`, {
         method: "POST",
       });
 
@@ -200,13 +237,13 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
 
       loadRequests();
     } catch (err) {
-      setError(`Failed to approve request: ${err.message}`);
+      setError(`Failed to approve request: ${getErrorMessage(err)}`);
     }
   };
 
   const denyRequest = async (requestId: string) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/approvals/${requestId}/deny`, {
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/approvals/${requestId}/deny`, {
         method: "POST",
       });
 
@@ -216,7 +253,7 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
 
       loadRequests();
     } catch (err) {
-      setError(`Failed to deny request: ${err.message}`);
+      setError(`Failed to deny request: ${getErrorMessage(err)}`);
     }
   };
 
@@ -270,12 +307,7 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
 
   return (
     <Box flexDirection="column" width="100%" height="100%">
-      <Box
-        flexDirection="row"
-        padding={1}
-        backgroundColor={palette.primary}
-        color={palette.background}
-      >
+      <Box flexDirection="row" padding={1} backgroundColor={palette.bgPrimary} color={palette.text}>
         <Text bold>🛡️ Policies & Approvals</Text>
         <Box flexGrow={1} />
         <Text>
@@ -288,7 +320,7 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
 
       <Show when={error()}>
         <Box padding={1} backgroundColor={palette.error}>
-          <Text color={palette.background}>{error()}</Text>
+          <Text color={palette.bgPrimary}>{error()}</Text>
         </Box>
       </Show>
 
@@ -382,7 +414,7 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
               </Box>
             </Show>
 
-            <Box padding={1} marginTop={1} backgroundColor={palette.background}>
+            <Box padding={1} marginTop={1} backgroundColor={palette.bgPrimary}>
               <Text bold>Policy Rules</Text>
             </Box>
 
@@ -390,7 +422,7 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
               flexDirection="column"
               flexGrow={1}
               padding={1}
-              backgroundColor={palette.background}
+              backgroundColor={palette.bgPrimary}
             >
               <For each={policies()}>
                 {(policy, index) => (
@@ -455,7 +487,7 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
               </Box>
             </Box>
 
-            <Box padding={1} marginTop={1} backgroundColor={palette.background}>
+            <Box padding={1} marginTop={1} backgroundColor={palette.bgPrimary}>
               <Text bold>Approval Requests</Text>
             </Box>
 
@@ -463,7 +495,7 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
               flexDirection="column"
               flexGrow={1}
               padding={1}
-              backgroundColor={palette.background}
+              backgroundColor={palette.bgPrimary}
             >
               <For each={requests()}>
                 {(request, index) => (
@@ -537,24 +569,30 @@ const Text: any = (props: any) => {
     typeof props.children === "string" ? props.children : props.children?.join?.("") || "";
   return <span style={props}>{content}</span>;
 };
-const TextInput: any = (props: any) => (
-  <input
-    type={props.multiline ? "textarea" : "text"}
-    value={props.value}
-    onInput={props.onInput}
-    placeholder={props.placeholder}
-    style={{
-      width: "100%",
-      padding: "0.5",
-      backgroundColor: palette.bgSecondary,
-      border: `1px solid ${palette.border}`,
-      color: palette.text,
-      ...props.style,
-    }}
-  />
-);
+const NativeInput: any = "input";
+const NativeTextarea: any = "textarea";
+const NativeSelect: any = "select";
+const TextInput: any = (props: any) => {
+  const Component = props.multiline ? NativeTextarea : NativeInput;
+  return (
+    <Component
+      {...(props.multiline ? {} : { type: "text" })}
+      value={props.value}
+      onInput={props.onInput}
+      placeholder={props.placeholder}
+      style={{
+        width: "100%",
+        padding: "0.5",
+        backgroundColor: palette.bgSecondary,
+        border: `1px solid ${palette.border}`,
+        color: palette.text,
+        ...props.style,
+      }}
+    />
+  );
+};
 const Select: any = (props: any) => (
-  <select
+  <NativeSelect
     value={props.value}
     onChange={props.onChange}
     style={{
@@ -567,15 +605,15 @@ const Select: any = (props: any) => (
     }}
   >
     {props.children}
-  </select>
+  </NativeSelect>
 );
 const Button: any = (props: any) => (
   <button
     onClick={props.onClick}
     style={{
       padding: "0.5 1",
-      backgroundColor: props.style?.backgroundColor || palette.primary,
-      color: palette.background,
+      backgroundColor: props.style?.backgroundColor || palette.accent,
+      color: palette.bgPrimary,
       border: "none",
       cursor: "pointer",
       ...props.style,

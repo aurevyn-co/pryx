@@ -3,13 +3,22 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
-function getApiUrl(): string {
+const getRuntimeHost = (): string => {
+  return process.env.PRYX_RUNTIME_HOST || "localhost";
+};
+
+const getDefaultRuntimePort = (): string => {
+  return process.env.PRYX_RUNTIME_PORT || "3000";
+};
+
+export function getRuntimeHttpUrl(): string {
   if (process.env.PRYX_API_URL) return process.env.PRYX_API_URL;
+  const host = getRuntimeHost();
   try {
     const port = readFileSync(join(homedir(), ".pryx", "runtime.port"), "utf-8").trim();
-    return `http://localhost:${port}`;
+    return `http://${host}:${port}`;
   } catch {
-    return "http://localhost:3000";
+    return `http://${host}:${getDefaultRuntimePort()}`;
   }
 }
 
@@ -51,7 +60,7 @@ const makeSkillsService = Effect.gen(function* () {
   const fetchSkills = Effect.gen(function* () {
     const result = yield* Effect.tryPromise({
       try: async () => {
-        const res = await fetch(`${getApiUrl()}/skills`);
+        const res = await fetch(`${getRuntimeHttpUrl()}/skills`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as SkillsResponse;
         return data.skills || [];
@@ -66,7 +75,7 @@ const makeSkillsService = Effect.gen(function* () {
       yield* Effect.tryPromise({
         try: async () => {
           const endpoint = enabled ? "/skills/enable" : "/skills/disable";
-          const res = await fetch(`${getApiUrl()}${endpoint}`, {
+          const res = await fetch(`${getRuntimeHttpUrl()}${endpoint}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ id: skillId }),
@@ -82,7 +91,7 @@ const makeSkillsService = Effect.gen(function* () {
     Effect.gen(function* () {
       yield* Effect.tryPromise({
         try: async () => {
-          const res = await fetch(`${getApiUrl()}/skills/install`, {
+          const res = await fetch(`${getRuntimeHttpUrl()}/skills/install`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ id: skillId }),
@@ -97,7 +106,7 @@ const makeSkillsService = Effect.gen(function* () {
     Effect.gen(function* () {
       yield* Effect.tryPromise({
         try: async () => {
-          const res = await fetch(`${getApiUrl()}/skills/uninstall`, {
+          const res = await fetch(`${getRuntimeHttpUrl()}/skills/uninstall`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ id: skillId }),

@@ -1,8 +1,6 @@
 import { Effect, Context, Layer, Stream, PubSub, Ref, Console, Schedule } from "effect";
 import WebSocket from "ws";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { homedir } from "node:os";
+import { getRuntimeHttpUrl } from "./skills-api";
 
 // Define errors
 export class ConnectionError {
@@ -48,19 +46,18 @@ const make = Effect.gen(function* (_) {
   // Initial status
   yield* PubSub.publish(statusHub, { _tag: "Disconnected" });
 
-  const getRuntimeURL = () => {
+  const getRuntimeWsUrl = () => {
     if (process.env.PRYX_WS_URL) return process.env.PRYX_WS_URL;
-    try {
-      const port = readFileSync(join(homedir(), ".pryx", "runtime.port"), "utf-8").trim();
-      return `ws://localhost:${port}/ws`;
-    } catch {
-      return "ws://localhost:3000/ws";
-    }
+    const http = getRuntimeHttpUrl();
+    const wsBase = http.replace(/^https?:\/\//, match =>
+      match === "https://" ? "wss://" : "ws://"
+    );
+    return `${wsBase}/ws`;
   };
 
   const connect = Effect.gen(function* (_) {
     yield* PubSub.publish(statusHub, { _tag: "Connecting" });
-    const url = getRuntimeURL();
+    const url = getRuntimeWsUrl();
 
     yield* Effect.async<void, ConnectionError>(resume => {
       let ws: WebSocket;
