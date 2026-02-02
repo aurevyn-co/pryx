@@ -19,6 +19,7 @@
 /coverage/
 *.coverprofile
 *.prof
+/apps/runtime/internal/store/test_pryx.db
 
 # IDE and editor files
 .vscode/

@@ -109,7 +109,6 @@ type Service struct {
 	agents     map[string]*AgentHealth
 	components map[string]map[string]*HealthComponent // agentID -> componentID -> component
 	alerts     []HealthAlert
-	lastCheck  time.Time
 }
 
 // NewService creates a new health monitoring service

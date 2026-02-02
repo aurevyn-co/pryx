@@ -6,10 +6,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-chi/chi/v5"
 	"pryx-core/internal/memory"
 	"pryx-core/internal/skills"
 	"pryx-core/internal/validation"
+
+	"github.com/go-chi/chi/v5"
 )
 
 // handleHealth returns a simple health check response.
@@ -179,6 +180,220 @@ func (s *Server) handleSkillsBody(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"body": body,
 	})
+}
+
+type skillActionRequest struct {
+	ID string `json:"id"`
+}
+
+func (s *Server) handleSkillsEnable(w http.ResponseWriter, r *http.Request) {
+	req := skillActionRequest{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "invalid json body"})
+		return
+	}
+	id := strings.TrimSpace(req.ID)
+
+	validator := validation.NewValidator()
+	if err := validator.ValidateID("id", id); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+		return
+	}
+
+	reg := s.skills
+	if reg == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "skills registry not available"})
+		return
+	}
+	if _, ok := reg.Get(id); !ok {
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "not found"})
+		return
+	}
+
+	configPath := skills.EnabledConfigPath()
+	enabledCfg, err := skills.LoadEnabledConfig(configPath)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+		return
+	}
+
+	enabledCfg.EnabledSkills[id] = true
+	if err := skills.SaveEnabledConfig(configPath, enabledCfg); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+		return
+	}
+
+	reg.Enable(id)
+
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
+}
+
+func (s *Server) handleSkillsDisable(w http.ResponseWriter, r *http.Request) {
+	req := skillActionRequest{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "invalid json body"})
+		return
+	}
+	id := strings.TrimSpace(req.ID)
+
+	validator := validation.NewValidator()
+	if err := validator.ValidateID("id", id); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+		return
+	}
+
+	reg := s.skills
+	if reg == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "skills registry not available"})
+		return
+	}
+	if _, ok := reg.Get(id); !ok {
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "not found"})
+		return
+	}
+
+	configPath := skills.EnabledConfigPath()
+	enabledCfg, err := skills.LoadEnabledConfig(configPath)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+		return
+	}
+
+	delete(enabledCfg.EnabledSkills, id)
+	if err := skills.SaveEnabledConfig(configPath, enabledCfg); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+		return
+	}
+
+	reg.Disable(id)
+
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
+}
+
+func (s *Server) handleSkillsInstall(w http.ResponseWriter, r *http.Request) {
+	req := skillActionRequest{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "invalid json body"})
+		return
+	}
+	id := strings.TrimSpace(req.ID)
+	if id == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "id is required"})
+		return
+	}
+
+	reg := s.skills
+	if reg == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "skills registry not available"})
+		return
+	}
+
+	if existing, ok := reg.Get(id); ok {
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "skill": existing})
+		return
+	}
+
+	if strings.HasPrefix(id, "http://") || strings.HasPrefix(id, "https://") {
+		opts := skills.DefaultOptions()
+		res, err := skills.InstallFromURL(r.Context(), id, opts)
+		if err != nil {
+			w.WriteHeader(http.StatusBadGateway)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+			return
+		}
+
+		reg.Upsert(res.Skill)
+
+		configPath := skills.EnabledConfigPath()
+		enabledCfg, err := skills.LoadEnabledConfig(configPath)
+		if err == nil {
+			enabledCfg.EnabledSkills[res.Skill.ID] = true
+			_ = skills.SaveEnabledConfig(configPath, enabledCfg)
+			reg.Enable(res.Skill.ID)
+		}
+
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "skill": res.Skill})
+		return
+	}
+
+	validator := validation.NewValidator()
+	if err := validator.ValidateID("id", id); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+		return
+	}
+
+	w.WriteHeader(http.StatusNotFound)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "not found"})
+}
+
+func (s *Server) handleSkillsUninstall(w http.ResponseWriter, r *http.Request) {
+	req := skillActionRequest{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "invalid json body"})
+		return
+	}
+	id := strings.TrimSpace(req.ID)
+
+	validator := validation.NewValidator()
+	if err := validator.ValidateID("id", id); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+		return
+	}
+
+	reg := s.skills
+	if reg == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "skills registry not available"})
+		return
+	}
+	skill, ok := reg.Get(id)
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "not found"})
+		return
+	}
+
+	if skill.Source != skills.SourceRemote && skill.Source != skills.SourceManaged {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "cannot uninstall non-managed skill"})
+		return
+	}
+
+	opts := skills.DefaultOptions()
+	if err := skills.UninstallSkill(id, opts); err != nil {
+		w.WriteHeader(http.StatusBadGateway)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+		return
+	}
+
+	reg.Delete(id)
+
+	configPath := skills.EnabledConfigPath()
+	enabledCfg, err := skills.LoadEnabledConfig(configPath)
+	if err == nil {
+		delete(enabledCfg.EnabledSkills, id)
+		_ = skills.SaveEnabledConfig(configPath, enabledCfg)
+	}
+
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
 }
 
 // handleProvidersList returns the list of available LLM providers.

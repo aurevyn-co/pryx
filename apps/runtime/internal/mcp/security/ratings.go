@@ -76,7 +76,6 @@ func CalculateRiskScore(factors RiskFactors) RiskScore {
 	}
 
 	if factors.DomainBlocked {
-		score = 0
 		warnings = append(warnings, "Domain is in blocklist")
 		return RiskScore{
 			Rating:           RiskRatingF,
@@ -128,7 +127,6 @@ func CalculateRiskScore(factors RiskFactors) RiskScore {
 
 	// Reputation factors
 	if factors.KnownMalicious {
-		score = 0
 		warnings = append(warnings, "Server matches known malicious patterns")
 		return RiskScore{
 			Rating:           RiskRatingF,

@@ -569,26 +569,26 @@ func (s *Service) sortListings(listings []*AgentListing, sortBy, sortOrder strin
 	switch sortBy {
 	case "rating":
 		if reverse {
-			listings = sortByRatingDesc(listings)
+			sortByRatingDesc(listings)
 		} else {
-			listings = sortByRatingAsc(listings)
+			sortByRatingAsc(listings)
 		}
 	case "downloads":
 		if reverse {
-			listings = sortByDownloadsDesc(listings)
+			sortByDownloadsDesc(listings)
 		} else {
-			listings = sortByDownloadsAsc(listings)
+			sortByDownloadsAsc(listings)
 		}
 	case "price":
 		if reverse {
-			listings = sortByPriceDesc(listings)
+			sortByPriceDesc(listings)
 		} else {
-			listings = sortByPriceAsc(listings)
+			sortByPriceAsc(listings)
 		}
 	case "newest":
-		listings = sortByNewest(listings)
+		sortByNewest(listings)
 	case "name":
-		listings = sortByName(listings)
+		sortByName(listings)
 	}
 }
 

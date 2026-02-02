@@ -13,7 +13,6 @@ import (
 
 // Detector manages auto-detection of running agents
 type Detector struct {
-	mu      sync.RWMutex
 	ports   []int
 	running bool
 	stopCh  chan struct{}

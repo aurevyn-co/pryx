@@ -16,7 +16,6 @@ import (
 type StructuredLogger struct {
 	name     string
 	level    string
-	mu       sync.Mutex
 	instance *log.Logger
 	output   *os.File
 }

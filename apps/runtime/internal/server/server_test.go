@@ -16,6 +16,7 @@ import (
 
 	"pryx-core/internal/config"
 	"pryx-core/internal/keychain"
+	"pryx-core/internal/skills"
 	"pryx-core/internal/store"
 
 	"github.com/go-chi/chi/v5"
@@ -61,6 +62,10 @@ func TestServer_Routes(t *testing.T) {
 		{"health GET", "GET", "/health", http.StatusOK},
 		{"skills GET", "GET", "/skills", http.StatusOK},
 		{"skills info GET", "GET", "/skills/test-id", http.StatusNotFound},
+		{"skills enable POST", "POST", "/skills/enable", http.StatusBadRequest},
+		{"skills disable POST", "POST", "/skills/disable", http.StatusBadRequest},
+		{"skills install POST", "POST", "/skills/install", http.StatusBadRequest},
+		{"skills uninstall POST", "POST", "/skills/uninstall", http.StatusBadRequest},
 		{"mcp tools GET", "GET", "/mcp/tools", http.StatusOK},
 		{"mcp call POST no body", "POST", "/mcp/tools/call", http.StatusBadRequest},
 	}
@@ -79,6 +84,99 @@ func TestServer_Routes(t *testing.T) {
 
 			assert.Equal(t, tt.expectCode, rec.Code)
 		})
+	}
+}
+
+func TestHandleSkillsEnableDisableRoundTrip(t *testing.T) {
+	cfg := &config.Config{ListenAddr: ":0"}
+	st, _ := store.New(":memory:")
+	defer st.Close()
+	kc := keychain.New("test")
+
+	t.Setenv("PRYX_SKILLS_CONFIG_PATH", filepath.Join(t.TempDir(), "skills.yaml"))
+
+	server := New(cfg, st.DB, kc)
+	server.skills = skills.NewRegistry()
+	server.skills.Upsert(skills.Skill{ID: "test-skill"})
+
+	{
+		reqBody := `{"id":"test-skill"}`
+		req := httptest.NewRequest("POST", "/skills/enable", strings.NewReader(reqBody))
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	}
+
+	{
+		s, ok := server.skills.Get("test-skill")
+		require.True(t, ok)
+		assert.True(t, s.Enabled)
+	}
+
+	{
+		reqBody := `{"id":"test-skill"}`
+		req := httptest.NewRequest("POST", "/skills/disable", strings.NewReader(reqBody))
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	}
+
+	{
+		s, ok := server.skills.Get("test-skill")
+		require.True(t, ok)
+		assert.False(t, s.Enabled)
+	}
+}
+
+func TestHandleSkillsInstallFromURLAndUninstall(t *testing.T) {
+	cfg := &config.Config{ListenAddr: ":0"}
+	st, _ := store.New(":memory:")
+	defer st.Close()
+	kc := keychain.New("test")
+
+	managedRoot := t.TempDir()
+	t.Setenv("PRYX_MANAGED_SKILLS_DIR", managedRoot)
+	t.Setenv("PRYX_SKILLS_CONFIG_PATH", filepath.Join(t.TempDir(), "skills.yaml"))
+
+	skillDoc := []byte(`---
+name: installed-skill
+description: from url
+---
+# Installed skill`)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(skillDoc)
+	}))
+	defer ts.Close()
+
+	server := New(cfg, st.DB, kc)
+	server.skills = skills.NewRegistry()
+
+	{
+		reqBody := `{"id":"` + ts.URL + `"}`
+		req := httptest.NewRequest("POST", "/skills/install", strings.NewReader(reqBody))
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	}
+
+	{
+		s, ok := server.skills.Get("installed-skill")
+		require.True(t, ok)
+		assert.Equal(t, skills.SourceRemote, s.Source)
+	}
+
+	{
+		reqBody := `{"id":"installed-skill"}`
+		req := httptest.NewRequest("POST", "/skills/uninstall", strings.NewReader(reqBody))
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	}
+
+	{
+		_, ok := server.skills.Get("installed-skill")
+		assert.False(t, ok)
 	}
 }
 

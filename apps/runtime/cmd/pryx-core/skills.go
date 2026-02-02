@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -268,24 +267,18 @@ func runEnableSkill(args []string, cfg *config.Config) int {
 		return 1
 	}
 
-	// Update skill enabled status in config
-	home, _ := os.UserHomeDir()
-	configPath := filepath.Join(home, ".pryx", "skills.yaml")
-	skillsConfig, err := loadSkillsConfig(configPath)
+	configPath := skills.EnabledConfigPath()
+	enabledCfg, err := skills.LoadEnabledConfig(configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to load skills config: %v\n", err)
 		return 1
 	}
 
-	if skillsConfig.EnabledSkills == nil {
-		skillsConfig.EnabledSkills = make(map[string]bool)
-	}
-
-	if skillsConfig.EnabledSkills[name] {
+	if enabledCfg.EnabledSkills[name] {
 		fmt.Printf("ℹ Skill %s is already enabled\n", name)
 	} else {
-		skillsConfig.EnabledSkills[name] = true
-		if err := saveSkillsConfig(configPath, skillsConfig); err != nil {
+		enabledCfg.EnabledSkills[name] = true
+		if err := skills.SaveEnabledConfig(configPath, enabledCfg); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to save skills config: %v\n", err)
 			return 1
 		}
@@ -316,24 +309,18 @@ func runDisableSkill(args []string, cfg *config.Config) int {
 		return 1
 	}
 
-	// Update skill enabled status in config
-	home, _ := os.UserHomeDir()
-	configPath := filepath.Join(home, ".pryx", "skills.yaml")
-	skillsConfig, err := loadSkillsConfig(configPath)
+	configPath := skills.EnabledConfigPath()
+	enabledCfg, err := skills.LoadEnabledConfig(configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to load skills config: %v\n", err)
 		return 1
 	}
 
-	if skillsConfig.EnabledSkills == nil {
-		skillsConfig.EnabledSkills = make(map[string]bool)
-	}
-
-	if !skillsConfig.EnabledSkills[name] {
+	if !enabledCfg.EnabledSkills[name] {
 		fmt.Printf("ℹ Skill %s is already disabled\n", name)
 	} else {
-		delete(skillsConfig.EnabledSkills, name)
-		if err := saveSkillsConfig(configPath, skillsConfig); err != nil {
+		delete(enabledCfg.EnabledSkills, name)
+		if err := skills.SaveEnabledConfig(configPath, enabledCfg); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to save skills config: %v\n", err)
 			return 1
 		}
@@ -386,34 +373,4 @@ func skillsUsage() {
 	fmt.Println("Options:")
 	fmt.Println("  --eligible, -e                    Show only eligible skills")
 	fmt.Println("  --json, -j                        Output in JSON format")
-}
-
-type skillsConfig struct {
-	EnabledSkills map[string]bool `json:"enabled_skills"`
-}
-
-func loadSkillsConfig(path string) (*skillsConfig, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return &skillsConfig{EnabledSkills: make(map[string]bool)}, nil
-		}
-		return nil, err
-	}
-
-	var config skillsConfig
-	if err := json.Unmarshal(data, &config); err != nil {
-		return nil, err
-	}
-
-	return &config, nil
-}
-
-func saveSkillsConfig(path string, config *skillsConfig) error {
-	data, err := json.MarshalIndent(config, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(path, data, 0644)
 }

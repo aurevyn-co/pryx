@@ -93,6 +93,9 @@ func (m *Manager) Start(ctx context.Context) {
 	// Handle incoming messages
 	go m.handleIncoming(ctx)
 
+	// Send queued messages
+	go m.sendLoop(ctx)
+
 	// Send periodic presence updates
 	go m.presenceLoop(ctx)
 

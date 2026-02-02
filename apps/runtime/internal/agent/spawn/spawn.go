@@ -30,7 +30,6 @@ type SubAgent struct {
 	provider  llm.Provider
 	maxTokens int
 	maxTools  int
-	toolCount int
 	tokenUsed int
 	mu        sync.RWMutex // Protects Status and tokenUsed from concurrent access
 }
