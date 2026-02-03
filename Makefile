@@ -257,7 +257,11 @@ test-e2e-runtime: build-runtime ## Run Go runtime E2E tests
 test-e2e-tui: build-runtime build-tui ## Run TUI E2E tests
 	@echo "$(BLUE)Testing TUI E2E tests (Playwright)$(NC)"
 	@if [ -d "$(TUI_DIR)" ]; then \
-		cd $(TUI_DIR) && bunx playwright test || echo "$(YELLOW)Playwright tests not configured yet$(NC)"; \
+		if [ ! -f "$(TUI_DIR)/playwright.config.ts" ] && [ ! -f "$(TUI_DIR)/playwright.config.js" ]; then \
+			echo "$(YELLOW)Playwright tests not configured yet$(NC)"; \
+		else \
+			cd $(TUI_DIR) && bunx playwright test || echo "$(YELLOW)Playwright tests failed$(NC)"; \
+		fi; \
 	else \
 		echo "$(YELLOW)Warning: tui directory not found, skipping$(NC)"; \
 	fi
@@ -326,7 +330,7 @@ lint-runtime: ## Run Go linters (gofmt, golangci-lint)
 		echo "  - Running oxlint..." && \
 		bunx oxlint . && echo "    $(GREEN)✓$(NC) No oxlint errors" || (echo "    $(RED)✗$(NC) oxlint found issues" && exit 1) && \
 		echo "  - Checking formatting (oxfmt)..." && \
-		bunx oxfmt --check . && echo "    $(GREEN)✓$(NC) Oxfmt format OK" || (echo "    $(RED)✗$(NC) Oxfmt format issues found. Run 'make format' to fix." && exit 1); \
+		bunx oxfmt --check . --ignore-path ../../.gitignore && echo "    $(GREEN)✓$(NC) Oxfmt format OK" || (echo "    $(RED)✗$(NC) Oxfmt format issues found. Run 'make format' to fix." && exit 1); \
 	else \
 		echo "$(YELLOW)Warning: tui directory not found, skipping$(NC)"; \
 	fi
@@ -353,7 +357,7 @@ format-runtime: ## Format Go code
  format-tui: ## Format TypeScript TUI code
 	@echo "$(BLUE)Formatting TUI (TypeScript)$(NC)"
 	@if [ -d "$(TUI_DIR)" ]; then \
-		cd $(TUI_DIR) && bunx oxfmt --write . && echo "  $(GREEN)✓$(NC) Formatted"; \
+		cd $(TUI_DIR) && bunx oxfmt --write . --ignore-path ../../.gitignore && echo "  $(GREEN)✓$(NC) Formatted"; \
 	else \
 		echo "$(YELLOW)Warning: tui directory not found, skipping$(NC)"; \
 	fi
