@@ -39,10 +39,16 @@ type SpawnTool interface {
 	ForkSession(sourceSessionID string) (string, error)
 }
 
+type pkceEntry struct {
+	params    *auth.PKCEParams
+	expiresAt time.Time
+}
+
 // Server is the main HTTP server for the Pryx runtime.
 // It manages routing, middleware, and integration with various subsystems like MCP, skills, and agents.
 type Server struct {
 	cfg          *config.Config
+	cfgMu        sync.RWMutex
 	db           *sql.DB
 	keychain     *keychain.Keychain
 	router       *chi.Mux
@@ -55,8 +61,8 @@ type Server struct {
 	spawnTool    SpawnTool
 	ragMemory    *memory.RAGManager
 	store        *store.Store
-	pkceParams   map[string]*auth.PKCEParams // Temporary storage for PKCE during OAuth flow
-	mu           sync.Mutex                  // Protects pkceParams
+	pkceParams   map[string]pkceEntry // Temporary storage for PKCE during OAuth flow
+	mu           sync.Mutex           // Protects pkceParams
 
 	httpMu     sync.Mutex
 	httpServer *http.Server
@@ -183,6 +189,8 @@ func (s *Server) routes() {
 	s.router.Get("/api/v1/cloud/status", s.handleCloudStatus)
 	s.router.Post("/api/v1/cloud/login/start", s.handleCloudLoginStart)
 	s.router.Post("/api/v1/cloud/login/poll", s.handleCloudLoginPoll)
+	s.router.Get("/api/v1/config", s.handleConfigGet)
+	s.router.Patch("/api/v1/config", s.handleConfigPatch)
 	s.router.Get("/api/v1/models", s.handleModelsList)
 	s.router.Get("/api/v1/agents", s.handleAgentsList)
 	s.router.Get("/api/v1/agents/{id}", s.handleAgentGet)
@@ -197,6 +205,13 @@ func (s *Server) routes() {
 	s.router.Get("/api/v1/memory", s.handleMemoryList)
 	s.router.Post("/api/v1/memory", s.handleMemoryWrite)
 	s.router.Post("/api/v1/memory/search", s.handleMemorySearch)
+
+	// Mesh pairing endpoints (pryx-jot)
+	s.router.Post("/api/mesh/pair", s.handleMeshPair)
+	s.router.Post("/api/mesh/qrcode", s.handleMeshQRCode)
+	s.router.Get("/api/mesh/devices", s.handleMeshDevicesList)
+	s.router.Post("/api/mesh/devices/{id}/unpair", s.handleMeshDevicesUnpair)
+	s.router.Get("/api/mesh/events", s.handleMeshEventsList)
 }
 
 // Bus returns the event bus instance.

@@ -441,6 +441,18 @@ API keys are not stored in config.yaml (stored via keychain / runtime API).
 
 **Integration Tests (pryx-cb9):** ✅ 18/18 PASSED
 
+**pryx-jot (QR Pairing for Mesh):** 🚧 IN PROGRESS
+- ✅ Created mesh pairing handlers (`apps/runtime/internal/server/mesh_handlers.go`)
+- ✅ Added pairing code generation (6-digit)
+- ✅ Added QR code generation endpoint (`/api/mesh/qrcode`)
+- ✅ Added pairing validation endpoint (`/api/mesh/pair`)
+- ✅ Added device listing endpoint (`/api/mesh/devices`)
+- ✅ Added device unpair endpoint (`/api/mesh/devices/{id}/unpair`)
+- ✅ Added events listing endpoint (`/api/mesh/events`)
+- ⏳ Pending: Store integration (D1 database)
+- ⏳ Pending: Actual QR code generation (with library)
+- ⏳ Pending: Cryptographic key exchange
+
 ---
 
 ## What's Left to Reach 100%
@@ -611,10 +623,15 @@ API keys are not stored in config.yaml (stored via keychain / runtime API).
 5. **Increase Production Readiness Score to 62.25%** - ✅ ACHIEVED
 6. Continue Phase 5 testing (Channels Setup) - ✅ DONE (75%)
 7. **Complete pryx-cb9 Integration Tests** - ✅ DONE (18/18 PASSED)
-8. Test Chat Functionality (Phase 6) - requires running runtime
-9. Test OAuth provider flow (requires browser auth)
-10. Test CLI Login flow (requires network access to pryx.dev)
-11. **Target: 100% Production Readiness**
+8. **Start pryx-jot QR Pairing for Mesh** - 🚧 IN PROGRESS
+   - ✅ Created mesh pairing handlers
+   - ✅ Added pairing code generation
+   - ✅ Added QR code and pairing endpoints
+   - ⏳ Store integration and QR code library
+9. Test Chat Functionality (Phase 6) - requires running runtime
+10. Test OAuth provider flow (requires browser auth)
+11. Test CLI Login flow (requires network access to pryx.dev)
+12. **Target: 100% Production Readiness**
 
 ---
 
