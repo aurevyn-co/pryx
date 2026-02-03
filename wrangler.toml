@@ -12,3 +12,16 @@ ENVIRONMENT = "production"
 [[routes]]
 pattern = "pryx.dev"
 custom_domain = true
+
+# KV Namespaces for auth and session storage
+[[kv_namespaces]]
+binding = "DEVICE_CODES"
+id = "1e85f99a90fc487ea99e10753f7abd72"
+
+[[kv_namespaces]]
+binding = "TOKENS"
+id = "d7c2e95e549842ce83ab6d9a4848fa95"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "580c90f74ca941ea91a460afc63d9474"
