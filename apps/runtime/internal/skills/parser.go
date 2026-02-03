@@ -1,10 +1,8 @@
 package skills
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
-	"io"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -14,43 +12,6 @@ var (
 	ErrMissingFrontmatter = errors.New("missing yaml frontmatter")
 	ErrInvalidFrontmatter = errors.New("invalid yaml frontmatter")
 )
-
-func parseFrontmatterOnly(r io.Reader) (Frontmatter, error) {
-	br := bufio.NewReader(r)
-	firstLine, err := br.ReadString('\n')
-	if err != nil && !errors.Is(err, io.EOF) {
-		return Frontmatter{}, err
-	}
-	if strings.TrimSpace(firstLine) != "---" {
-		return Frontmatter{}, ErrMissingFrontmatter
-	}
-
-	var yamlBuf bytes.Buffer
-	for {
-		line, readErr := br.ReadString('\n')
-		if readErr != nil && !errors.Is(readErr, io.EOF) {
-			return Frontmatter{}, readErr
-		}
-		if strings.TrimSpace(line) == "---" {
-			break
-		}
-		yamlBuf.WriteString(line)
-		if errors.Is(readErr, io.EOF) {
-			return Frontmatter{}, ErrInvalidFrontmatter
-		}
-	}
-
-	fm := Frontmatter{}
-	if err := yaml.Unmarshal(yamlBuf.Bytes(), &fm); err != nil {
-		return Frontmatter{}, err
-	}
-	fm.Name = strings.TrimSpace(fm.Name)
-	fm.Description = strings.TrimSpace(fm.Description)
-	if fm.Name == "" {
-		return Frontmatter{}, ErrInvalidFrontmatter
-	}
-	return fm, nil
-}
 
 func parseSkillFile(data []byte) (Frontmatter, string, error) {
 	data = bytes.TrimPrefix(data, []byte("\ufeff"))

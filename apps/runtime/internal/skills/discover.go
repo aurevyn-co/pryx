@@ -262,33 +262,25 @@ func loadSkillsFromPaths(ctx context.Context, source Source, paths []string, max
 }
 
 func loadSkillFromFile(source Source, path string) (Skill, error) {
-	f, err := os.Open(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return Skill{}, err
 	}
-	defer f.Close()
-
-	fm, err := parseFrontmatterOnly(f)
+	fm, body, err := parseSkillFile(data)
 	if err != nil {
 		return Skill{}, err
 	}
 	id := fm.Name
+	cachedBody := strings.TrimRight(body, "\r\n")
 
 	return Skill{
-		ID:          id,
-		Source:      source,
-		Path:        path,
-		Frontmatter: fm,
+		ID:           id,
+		Source:       source,
+		Path:         path,
+		Frontmatter:  fm,
+		SystemPrompt: strings.TrimSpace(cachedBody),
 		bodyLoader: func() (string, error) {
-			b, err := os.ReadFile(path)
-			if err != nil {
-				return "", err
-			}
-			_, body, err := parseSkillFile(b)
-			if err != nil {
-				return "", err
-			}
-			return body, nil
+			return cachedBody, nil
 		},
 	}, nil
 }
