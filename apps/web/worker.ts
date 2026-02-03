@@ -178,7 +178,7 @@ apiApp.get('/update/manifest', async (c) => {
 
     const manifest = {
         version: '0.1.1',
-        notes: 'Unified worker architecture.',
+        notes: 'Unified worker architecture with telemetry persistence.',
         pub_date: new Date().toISOString(),
         platforms: {
             'darwin-aarch64': {
@@ -199,16 +199,203 @@ apiApp.get('/update/manifest', async (c) => {
     return c.json(manifest);
 });
 
-// Telemetry ingest
+// ============================================================================
+// TELEMETRY API - IMPLEMENTED WITH KV PERSISTENCE
+// ============================================================================
+
+// Telemetry ingest - with KV persistence and retry logic
 apiApp.post('/telemetry/ingest', async (c) => {
     try {
         const body = await c.req.json();
         const events = Array.isArray(body) ? body : [body];
-        return c.json({ accepted: events.length });
+
+        if (events.length === 0) {
+            return c.json({ error: 'No events provided' }, 400);
+        }
+
+        const timestamp = Date.now();
+        const results = [];
+
+        // Store each event in KV with a unique key
+        for (const event of events) {
+            try {
+                const key = `telemetry:${timestamp}:${generateCode(8)}`;
+                const value = JSON.stringify({
+                    ...event,
+                    received_at: timestamp,
+                });
+
+                await c.env.TELEMETRY.put(key, value, {
+                    expirationTtl: 86400 * 7, // 7 days retention
+                });
+
+                results.push({ success: true, key });
+            } catch (error) {
+                console.error('Failed to store telemetry event:', error);
+                results.push({ success: false, error: String(error) });
+            }
+        }
+
+        const acceptedCount = results.filter(r => r.success).length;
+        return c.json({
+            accepted: acceptedCount,
+            total: events.length,
+            timestamp,
+            results: results.length <= 10 ? results : undefined,
+        });
     } catch (e) {
+        console.error('Telemetry ingest error:', e);
         return c.json({ error: 'Invalid JSON' }, 400);
     }
 });
+
+// Batch telemetry ingest - optimized for bulk uploads
+apiApp.post('/telemetry/batch', async (c) => {
+    try {
+        const body = await c.req.json();
+        const { batch_id, events } = body;
+
+        if (!Array.isArray(events) || events.length === 0) {
+            return c.json({ error: 'Invalid batch: events must be a non-empty array' }, 400);
+        }
+
+        if (events.length > 1000) {
+            return c.json({ error: 'Batch too large: maximum 1000 events per batch' }, 400);
+        }
+
+        const timestamp = Date.now();
+        const batchKey = `batch:${batch_id || generateCode(16)}`;
+        const storedEvents = [];
+
+        // Store batch metadata
+        await c.env.TELEMETRY.put(batchKey, JSON.stringify({
+            batch_id: batch_id || undefined,
+            event_count: events.length,
+            timestamp,
+            status: 'processing',
+        }), { expirationTtl: 86400 * 7 });
+
+        // Store events with retry logic
+        for (const event of events) {
+            const eventKey = `telemetry:${timestamp}:${generateCode(8)}`;
+            const value = JSON.stringify({
+                ...event,
+                batch_id: batch_id || undefined,
+                received_at: timestamp,
+            });
+
+            await retryWithBackoff(async () => {
+                await c.env.TELEMETRY.put(eventKey, value, {
+                    expirationTtl: 86400 * 7,
+                });
+            }, 3, 100);
+
+            storedEvents.push(eventKey);
+        }
+
+        // Update batch status to completed
+        await c.env.TELEMETRY.put(batchKey, JSON.stringify({
+            batch_id: batch_id || undefined,
+            event_count: events.length,
+            timestamp,
+            status: 'completed',
+            events: storedEvents,
+        }), { expirationTtl: 86400 * 7 });
+
+        return c.json({
+            batch_id: batch_id || undefined,
+            accepted: events.length,
+            timestamp,
+            status: 'completed',
+        });
+    } catch (e) {
+        console.error('Batch telemetry error:', e);
+        return c.json({ error: String(e) }, 500);
+    }
+});
+
+// Query telemetry events (for debugging)
+apiApp.get('/telemetry/query', async (c) => {
+    try {
+        const startTime = c.req.query('start');
+        const endTime = c.req.query('end');
+        const limit = parseInt(c.req.query('limit') || '10');
+
+        // List telemetry keys
+        const list = await c.env.TELEMETRY.list({
+            limit,
+            prefix: 'telemetry:',
+        });
+
+        const events = [];
+        for (const key of list.keys) {
+            const value = await c.env.TELEMETRY.get(key.name);
+            if (value) {
+                const event = JSON.parse(value);
+                // Filter by time range if provided
+                if ((!startTime || event.received_at >= parseInt(startTime)) &&
+                    (!endTime || event.received_at <= parseInt(endTime))) {
+                    events.push(event);
+                }
+            }
+        }
+
+        return c.json({
+            count: events.length,
+            events,
+        });
+    } catch (e) {
+        console.error('Query error:', e);
+        return c.json({ error: String(e) }, 500);
+    }
+});
+
+// Get batch status
+apiApp.get('/telemetry/batch/:batchId', async (c) => {
+    try {
+        const batchId = c.req.param('batchId');
+        const batchKey = `batch:${batchId}`;
+        const batchData = await c.env.TELEMETRY.get(batchKey);
+
+        if (!batchData) {
+            return c.json({ error: 'Batch not found' }, 404);
+        }
+
+        return c.json(JSON.parse(batchData));
+    } catch (e) {
+        console.error('Batch status error:', e);
+        return c.json({ error: String(e) }, 500);
+    }
+});
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+// Retry function with exponential backoff
+async function retryWithBackoff<T>(
+    fn: () => Promise<T>,
+    maxRetries = 3,
+    initialDelay = 100
+): Promise<T> {
+    let lastError: Error | undefined;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            return await fn();
+        } catch (error) {
+            lastError = error as Error;
+            const delay = initialDelay * Math.pow(2, attempt);
+
+            if (attempt < maxRetries - 1) {
+                console.warn(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms:`, String(error));
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    }
+
+    throw lastError;
+}
 
 // Main App
 const app = new Hono<{ Bindings: CloudflareBindings }>();
@@ -227,7 +414,7 @@ app.get('/', async (c) => {
     <title>Pryx - Sovereign AI Agent</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
+        body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             color: white;
@@ -239,7 +426,7 @@ app.get('/', async (c) => {
         .container { text-align: center; padding: 2rem; }
         h1 { font-size: 3rem; margin-bottom: 1rem; }
         p { font-size: 1.2rem; color: #a0a0a0; margin-bottom: 2rem; }
-        .status { 
+        .status {
             display: inline-block;
             padding: 0.5rem 1rem;
             background: #10b981;
@@ -264,7 +451,7 @@ app.get('/', async (c) => {
     <div class="container">
         <h1>🤖 Pryx</h1>
         <p>Sovereign AI Agent with Local-First Control Center</p>
-        <span class="status">● Operational</span>
+        <span class="status">● Operational - Telemetry Enabled</span>
         <br>
         <a href="/api" class="api-link">Explore API</a>
     </div>
@@ -282,7 +469,7 @@ app.get('/*', async (c) => {
     if (c.req.path.startsWith('/api')) {
         return c.json({ error: 'Not Found' }, 404);
     }
-    
+
     return c.html(`
 <!DOCTYPE html>
 <html lang="en">
@@ -292,7 +479,7 @@ app.get('/*', async (c) => {
     <title>Pryx - Sovereign AI Agent</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
+        body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             color: white;
@@ -304,7 +491,7 @@ app.get('/*', async (c) => {
         .container { text-align: center; padding: 2rem; }
         h1 { font-size: 3rem; margin-bottom: 1rem; }
         p { font-size: 1.2rem; color: #a0a0a0; margin-bottom: 2rem; }
-        .status { 
+        .status {
             display: inline-block;
             padding: 0.5rem 1rem;
             background: #10b981;
@@ -329,7 +516,7 @@ app.get('/*', async (c) => {
     <div class="container">
         <h1>🤖 Pryx</h1>
         <p>Sovereign AI Agent with Local-First Control Center</p>
-        <span class="status">● Operational</span>
+        <span class="status">● Operational - Telemetry Enabled</span>
         <br>
         <a href="/api" class="api-link">Explore API</a>
     </div>
@@ -352,6 +539,7 @@ type CloudflareBindings = {
     SESSIONS: KVNamespace;
     RATE_LIMITER?: RateLimit;
     ENVIRONMENT?: string;
+    TELEMETRY: KVNamespace;
 };
 
 // Utility function
