@@ -1,7 +1,7 @@
 name = "pryx-api"
 compatibility_date = "2025-08-15"
 compatibility_flags = ["nodejs_compat"]
-main = "./apps/web/dist/_worker.js"
+main = "./apps/web/worker.ts"
 
 [vars]
 ENVIRONMENT = "production"
