@@ -41,8 +41,7 @@ export default function Settings() {
       setIsEditing(true);
     }
   };
-
-  const handleSave = async (key: string, value: string) => {
+  const _handleSave = async (key: string, value: string) => {
     const newConfig = { ...config(), [key]: value };
     setConfig(newConfig);
     setIsEditing(false);

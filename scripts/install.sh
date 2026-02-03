@@ -14,9 +14,9 @@ YELLOW=$(tput setaf 3 2>/dev/null || printf '\033[0;33m')
 NC=$(tput sgr0 2>/dev/null || printf '\033[0m')
 
 # Configuration
-VERSION="0.1.0-dev"
+VERSION="${PRYX_VERSION:-0.1.0-dev}"
 DOWNLOAD_BASE="https://github.com/pryx-core/releases"
-INSTALL_DIR="${HOME}/.pryx/bin"
+INSTALL_DIR="${PRYX_INSTALL_DIR:-${HOME}/.pryx/bin}"
 
 # Platform detection
 OS_TYPE="$(uname -s)"
@@ -25,6 +25,60 @@ ARCH_TYPE="$(uname -m)"
 echo -e "${GREEN}Pryx One-Liner Installer${NC}"
 echo -e "${GREEN}Platform: ${OS_TYPE} (${ARCH_TYPE})${NC}"
 echo ""
+
+usage() {
+    echo "Usage: curl -fsSL https://get.pryx.ai/install.sh | bash -s -- [options]"
+    echo ""
+    echo "Options:"
+    echo "  --install-dir <path>     Custom installation directory"
+    echo "  --version <version>      Specific version to install"
+    echo "  --no-path                Skip PATH modification"
+    echo "  --no-onboard             Skip onboarding message"
+    echo "  --dry-run                Print actions without making changes"
+    echo "  --help                   Show this help"
+    echo ""
+    echo "Environment variables:"
+    echo "  PRYX_INSTALL_DIR"
+    echo "  PRYX_VERSION"
+    echo "  PRYX_NO_MODIFY_PATH=1"
+    echo "  PRYX_NO_ONBOARD=1"
+    echo "  PRYX_DRY_RUN=1"
+}
+
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --install-dir)
+                INSTALL_DIR="$2"
+                shift 2
+                ;;
+            --version)
+                VERSION="$2"
+                shift 2
+                ;;
+            --no-path)
+                PRYX_NO_MODIFY_PATH=1
+                shift
+                ;;
+            --no-onboard)
+                PRYX_NO_ONBOARD=1
+                shift
+                ;;
+            --dry-run)
+                PRYX_DRY_RUN=1
+                shift
+                ;;
+            --help|-h)
+                usage
+                exit 0
+                ;;
+            *)
+                echo -e "${RED}Error: Unknown option $1${NC}"
+                exit 1
+                ;;
+        esac
+    done
+}
 
 # Function to download pryx-core
 download_pryx_core() {
@@ -49,7 +103,12 @@ download_pryx_core() {
     
     echo -e "${YELLOW}Downloading ${binary_name}...${NC}"
     
-    # Create install directory
+    if [[ "$PRYX_DRY_RUN" == "1" ]]; then
+        echo "dry-run: mkdir -p \"$INSTALL_DIR\""
+        echo "dry-run: download ${download_url}"
+        return 0
+    fi
+
     mkdir -p "$INSTALL_DIR"
     
     # Download binary
@@ -72,14 +131,18 @@ download_pryx_core() {
 install_to_path() {
     local install_path="$1"
     
+    if [[ "${PRYX_NO_MODIFY_PATH:-}" == "1" ]]; then
+        return
+    fi
+
     echo -e "${YELLOW}Adding to PATH...${NC}"
     
     # Determine shell config file
     local shell_config=""
     if [ -n "$SHELL" ]; then
-        SHELL_CONFIG="$HOME/.bashrc"
+        shell_config="$HOME/.bashrc"
         if [ -f "$HOME/.zshrc" ]; then
-            SHELL_CONFIG="$HOME/.zshrc"
+            shell_config="$HOME/.zshrc"
         fi
     fi
     
@@ -141,6 +204,7 @@ verify_installation() {
 
 # Main installation flow
 main() {
+    parse_args "$@"
     echo -e "${GREEN}Pryx One-Liner Installer${NC}"
     echo -e "${GREEN}Version: $VERSION${NC}"
     echo ""
@@ -148,7 +212,11 @@ main() {
     # Download and install
     download_pryx_core
     
-    # Install to PATH
+    if [[ "$PRYX_DRY_RUN" == "1" ]]; then
+        echo "dry-run: update PATH for ${INSTALL_DIR}"
+        exit 0
+    fi
+
     install_to_path "$INSTALL_DIR"
     
     # Verify installation
@@ -156,11 +224,15 @@ main() {
         echo ""
         echo -e "${GREEN}Installation successful!${NC}"
         echo ""
-        echo -e "${YELLOW}To get started, run:${NC}"
-        echo -e "${GREEN}  pryx-core${NC}"
+        if [[ "${PRYX_NO_ONBOARD:-}" != "1" ]]; then
+            echo -e "${YELLOW}To get started, run:${NC}"
+            echo -e "${GREEN}  pryx-core${NC}"
+        fi
         echo ""
-        echo -e "${YELLOW}To verify installation, run:${NC}"
-        echo -e "${GREEN}  pryx doctor${NC}"
+        if [[ "${PRYX_NO_ONBOARD:-}" != "1" ]]; then
+            echo -e "${YELLOW}To verify installation, run:${NC}"
+            echo -e "${GREEN}  pryx doctor${NC}"
+        fi
         echo ""
         echo -e "${YELLOW}Configuration directory:${NC}"
         echo -e "${GREEN}  $HOME/.pryx${NC}"

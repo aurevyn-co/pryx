@@ -1,4 +1,4 @@
-import { createSignal, createEffect, For, Show, onMount } from "solid-js";
+import { createSignal, For, Show, onMount } from "solid-js";
 import { useKeyboard } from "@opentui/solid";
 import { palette } from "../theme";
 import type { Channel, ChannelActivity, HealthStatus } from "../types/channels";
@@ -71,7 +71,7 @@ export default function ChannelDetail(props: ChannelDetailProps) {
       });
       setHealth(healthData);
       setActivities(activityData);
-    } catch (e) {
+    } catch {
       setError("Failed to load channel data");
     } finally {
       setLoading(false);
@@ -87,7 +87,7 @@ export default function ChannelDetail(props: ChannelDetailProps) {
       );
       await loadChannelData();
       setTimeout(() => setSuccess(""), 2000);
-    } catch (e) {
+    } catch {
       setError("Failed to toggle channel");
     }
   };
@@ -103,7 +103,7 @@ export default function ChannelDetail(props: ChannelDetailProps) {
       });
       setViewMode("test_result");
       await loadChannelData();
-    } catch (e) {
+    } catch {
       setError("Failed to test connection");
     } finally {
       setLoading(false);
@@ -120,7 +120,7 @@ export default function ChannelDetail(props: ChannelDetailProps) {
       setViewMode("view");
       await loadChannelData();
       setTimeout(() => setSuccess(""), 2000);
-    } catch (e) {
+    } catch {
       setError("Failed to save changes");
     } finally {
       setLoading(false);
@@ -133,7 +133,7 @@ export default function ChannelDetail(props: ChannelDetailProps) {
     try {
       await deleteChannel(props.channelId);
       props.onDelete();
-    } catch (e) {
+    } catch {
       setError("Failed to delete channel");
       setLoading(false);
     }
@@ -439,7 +439,7 @@ export default function ChannelDetail(props: ChannelDetailProps) {
               <box
                 borderStyle={focusedTab() === index() ? "double" : "single"}
                 borderColor={focusedTab() === index() ? palette.accent : palette.border}
-                padding={{ left: 1, right: 1 }}
+                padding={1}
                 marginRight={1}
               >
                 <text fg={focusedTab() === index() ? palette.accent : palette.dim}>{tab}</text>

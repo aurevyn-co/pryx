@@ -41,7 +41,7 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
   const [newPolicyName, setNewPolicyName] = createSignal("");
   const [newActionType, setNewActionType] = createSignal<ActionType>("shell");
   const [newApprovalAction, setNewApprovalAction] = createSignal<ApprovalAction>("require_review");
-  const [newAutoApprove, setNewAutoApprove] = createSignal(false);
+  const [newAutoApprove] = createSignal(false);
   const [newMaxCost, setNewMaxCost] = createSignal("");
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal("");

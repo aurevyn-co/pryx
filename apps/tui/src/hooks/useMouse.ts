@@ -1,4 +1,4 @@
-import { createSignal, createEffect, onCleanup } from "solid-js";
+import { createSignal } from "solid-js";
 
 export interface MouseState {
   x: number;

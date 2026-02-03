@@ -54,12 +54,12 @@ export default function SessionExplorer() {
     );
   };
 
-  const handleSearch = (value: string) => {
+  const _handleSearch = (value: string) => {
     setSearchQuery(value);
     setSelectedIndex(0);
   };
 
-  const handleSelect = () => {
+  const _handleSelect = () => {
     const session = filteredSessions()[selectedIndex()];
     const service = ws();
     if (session && service) {

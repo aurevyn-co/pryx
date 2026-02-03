@@ -1,5 +1,5 @@
 import { Effect, Context, Layer } from "effect";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
@@ -20,6 +20,17 @@ export function getRuntimeHttpUrl(): string {
   } catch {
     return `http://${host}:${getDefaultRuntimePort()}`;
   }
+}
+
+export function describeRuntimeConnectionFailure(): string | null {
+  const url = getRuntimeHttpUrl();
+  const portFile = join(homedir(), ".pryx", "runtime.port");
+
+  if (!process.env.PRYX_API_URL && !existsSync(portFile)) {
+    return "Runtime not running. Start it with `pryx runtime` (or `make start-runtime`).";
+  }
+
+  return `Runtime not reachable at ${url}. Start it with \`pryx runtime\` (or \`make start-runtime\`).`;
 }
 
 export interface Skill {
@@ -56,7 +67,7 @@ export interface SkillsService {
 
 export const SkillsService = Context.GenericTag<SkillsService>("@pryx/tui/SkillsService");
 
-const makeSkillsService = Effect.gen(function* () {
+const makeSkillsService = Effect.sync(() => {
   const fetchSkills = Effect.gen(function* () {
     const result = yield* Effect.tryPromise({
       try: async () => {

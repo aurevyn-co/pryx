@@ -47,7 +47,7 @@ export interface ConfigService {
 
 export const ConfigService = Context.GenericTag<ConfigService>("@pryx/tui/ConfigService");
 
-const makeConfigService = Effect.gen(function* () {
+const makeConfigService = Effect.sync(() => {
   const load = Effect.gen(function* () {
     const result = yield* Effect.try({
       try: () => {

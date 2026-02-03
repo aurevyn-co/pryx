@@ -1,4 +1,4 @@
-import { createSignal, createEffect, For, Show, onMount, onCleanup } from "solid-js";
+import { createSignal, createEffect, For, Show, onMount } from "solid-js";
 import { useKeyboard } from "@opentui/solid";
 import { palette } from "../theme";
 import { McpServer, McpService } from "../services/mcp";
@@ -48,7 +48,7 @@ export default function McpServers(props: McpServersProps) {
     try {
       const data = await mcpService().getServers();
       setServers(data);
-    } catch (e) {
+    } catch {
       setError("Failed to load MCP servers");
     } finally {
       setLoading(false);
@@ -61,7 +61,7 @@ export default function McpServers(props: McpServersProps) {
       setSuccess(server.enabled ? `✓ ${server.name} disabled` : `✓ ${server.name} enabled`);
       await loadServers();
       setTimeout(() => setSuccess(""), 2000);
-    } catch (e) {
+    } catch {
       setError("Failed to toggle server");
     }
   };
@@ -73,7 +73,7 @@ export default function McpServers(props: McpServersProps) {
       setViewMode("list");
       await loadServers();
       setTimeout(() => setSuccess(""), 2000);
-    } catch (e) {
+    } catch {
       setError("Failed to delete server");
     }
   };
@@ -324,12 +324,7 @@ export default function McpServers(props: McpServersProps) {
       </Show>
 
       <Show when={viewMode() === "curated"}>
-        <McpCurated
-          onSelect={server => {
-            handleServerAdded();
-          }}
-          onClose={() => setViewMode("list")}
-        />
+        <McpCurated onSelect={() => handleServerAdded()} onClose={() => setViewMode("list")} />
       </Show>
 
       <Show when={viewMode() === "add"}>

@@ -76,4 +76,48 @@ CREATE INDEX IF NOT EXISTS idx_memory_type ON memory_entries(type);
 CREATE INDEX IF NOT EXISTS idx_memory_date ON memory_entries(date);
 CREATE INDEX IF NOT EXISTS idx_memory_created_at ON memory_entries(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_memory_sources_entry_id ON memory_sources(entry_id);
+
+-- Mesh pairing sessions (for QR code pairing)
+CREATE TABLE IF NOT EXISTS mesh_pairing_sessions (
+    id TEXT PRIMARY KEY,
+    code TEXT NOT NULL UNIQUE,
+    device_id TEXT NOT NULL,
+    device_name TEXT NOT NULL,
+    server_url TEXT NOT NULL,
+    nonce TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_mesh_pairing_code ON mesh_pairing_sessions(code);
+CREATE INDEX IF NOT EXISTS idx_mesh_pairing_expires ON mesh_pairing_sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_mesh_pairing_status ON mesh_pairing_sessions(status);
+
+-- Mesh devices (paired devices)
+CREATE TABLE IF NOT EXISTS mesh_devices (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    public_key TEXT NOT NULL,
+    paired_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_seen DATETIME,
+    is_active BOOLEAN NOT NULL DEFAULT 1,
+    metadata TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_mesh_devices_active ON mesh_devices(is_active);
+CREATE INDEX IF NOT EXISTS idx_mesh_devices_paired ON mesh_devices(paired_at DESC);
+
+-- Mesh sync events
+CREATE TABLE IF NOT EXISTS mesh_sync_events (
+    id TEXT PRIMARY KEY,
+    event_type TEXT NOT NULL,
+    source_device_id TEXT NOT NULL,
+    target_device_id TEXT,
+    payload TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_mesh_events_source ON mesh_sync_events(source_device_id);
+CREATE INDEX IF NOT EXISTS idx_mesh_events_created ON mesh_sync_events(created_at DESC);
 `

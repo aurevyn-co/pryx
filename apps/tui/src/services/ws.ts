@@ -1,4 +1,4 @@
-import { Effect, Context, Layer, Stream, PubSub, Ref, Console, Schedule } from "effect";
+import { Effect, Context, Layer, Stream, PubSub, Ref, Console } from "effect";
 import WebSocket from "ws";
 import { getRuntimeHttpUrl } from "./skills-api";
 

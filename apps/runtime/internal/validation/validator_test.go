@@ -460,3 +460,189 @@ func TestValidateRequired(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateURL(t *testing.T) {
+	v := NewValidator()
+
+	tests := []struct {
+		name    string
+		field   string
+		value   string
+		wantErr bool
+	}{
+		{
+			name:    "valid HTTPS URL",
+			field:   "url",
+			value:   "https://api.openai.com/v1/chat/completions",
+			wantErr: false,
+		},
+		{
+			name:    "HTTP URL with private IP localhost",
+			field:   "url",
+			value:   "http://localhost:3000/api",
+			wantErr: true,
+		},
+		{
+			name:    "empty URL",
+			field:   "url",
+			value:   "",
+			wantErr: true,
+		},
+		{
+			name:    "URL with private IP localhost",
+			field:   "url",
+			value:   "http://localhost:3000/api",
+			wantErr: true,
+		},
+		{
+			name:    "URL with private IP 127.0.0.1",
+			field:   "url",
+			value:   "http://127.0.0.1:8080/api",
+			wantErr: true,
+		},
+		{
+			name:    "URL with private IP 10.x.x.x",
+			field:   "url",
+			value:   "http://10.0.0.1/api",
+			wantErr: true,
+		},
+		{
+			name:    "URL with private IP 192.168.x.x",
+			field:   "url",
+			value:   "http://192.168.1.1/api",
+			wantErr: true,
+		},
+		{
+			name:    "URL with private IP 172.16-31.x.x",
+			field:   "url",
+			value:   "http://172.16.0.1/api",
+			wantErr: true,
+		},
+		{
+			name:    "invalid URL format",
+			field:   "url",
+			value:   "not-a-url",
+			wantErr: true,
+		},
+		{
+			name:    "URL with wrong scheme",
+			field:   "url",
+			value:   "ftp://example.com",
+			wantErr: true,
+		},
+		{
+			name:    "URL with FTP scheme",
+			field:   "url",
+			value:   "ftp://files.example.com",
+			wantErr: true,
+		},
+		{
+			name:    "valid URL with port",
+			field:   "url",
+			value:   "https://api.anthropic.com:443/v1/messages",
+			wantErr: false,
+		},
+		{
+			name:    "valid URL with query params",
+			field:   "url",
+			value:   "https://api.example.com/v1?model=gpt-4&api_version=2024-01-01",
+			wantErr: false,
+		},
+		{
+			name:    "URL with IPv6 localhost",
+			field:   "url",
+			value:   "http://[::1]:3000/api",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := v.ValidateURL(tt.field, tt.value)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateURL() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateMap(t *testing.T) {
+	v := NewValidator()
+
+	tests := []struct {
+		name    string
+		field   string
+		m       map[string]interface{}
+		wantErr bool
+	}{
+		{
+			name:    "valid map with string values",
+			field:   "metadata",
+			m:       map[string]interface{}{"key1": "value1", "key2": "value2"},
+			wantErr: false,
+		},
+		{
+			name:    "nil map",
+			field:   "metadata",
+			m:       nil,
+			wantErr: false,
+		},
+		{
+			name:    "empty map",
+			field:   "metadata",
+			m:       map[string]interface{}{},
+			wantErr: false,
+		},
+		{
+			name:    "map with invalid key (contains space)",
+			field:   "metadata",
+			m:       map[string]interface{}{"invalid key": "value"},
+			wantErr: true,
+		},
+		{
+			name:    "map with invalid key (contains special chars)",
+			field:   "metadata",
+			m:       map[string]interface{}{"key@invalid": "value"},
+			wantErr: true,
+		},
+		{
+			name:    "map with valid nested structure",
+			field:   "metadata",
+			m:       map[string]interface{}{"model": "gpt-4", "temperature": 0.7},
+			wantErr: false,
+		},
+		{
+			name:    "map with long key",
+			field:   "metadata",
+			m:       map[string]interface{}{"a": strings.Repeat("b", 1000)},
+			wantErr: false,
+		},
+		{
+			name:    "map with key containing dots",
+			field:   "metadata",
+			m:       map[string]interface{}{"key.with.dots": "value"},
+			wantErr: true,
+		},
+		{
+			name:    "map with key containing hyphens",
+			field:   "metadata",
+			m:       map[string]interface{}{"key-with-hyphens": "value"},
+			wantErr: false,
+		},
+		{
+			name:    "map with key containing underscores",
+			field:   "metadata",
+			m:       map[string]interface{}{"key_with_underscores": "value"},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := v.ValidateMap(tt.field, tt.m)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateMap() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

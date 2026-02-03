@@ -1,7 +1,7 @@
-import { createSignal, createEffect, For, Show, onMount } from "solid-js";
+import { createSignal, createEffect, For, Show } from "solid-js";
 import { useKeyboard } from "@opentui/solid";
 import { palette } from "../theme";
-import type { ChannelType, ChannelConfig, ChannelFormData } from "../types/channels";
+import type { ChannelType, ChannelFormData } from "../types/channels";
 import { CHANNEL_TYPE_LABELS, DEFAULT_CHANNEL_CONFIGS } from "../types/channels";
 import { createChannel, testConnection } from "../services/channels";
 
@@ -290,28 +290,6 @@ export default function ChannelAddWizard(props: ChannelAddWizardProps) {
 
   const getNestedValue = (obj: any, path: string) => {
     return path.split(".").reduce((o, p) => (o || {})[p], obj);
-  };
-
-  const setNestedValue = (obj: any, path: string, value: any) => {
-    const parts = path.split(".");
-    const last = parts.pop()!;
-    const target = parts.reduce((o, p) => {
-      if (!o[p]) o[p] = {};
-      return o[p];
-    }, obj);
-    target[last] = value;
-  };
-
-  const handleFieldChange = (key: string, value: any) => {
-    setFormData(prev => {
-      const newConfig = { ...prev.config };
-      setNestedValue(newConfig, key, value);
-      return { ...prev, config: newConfig };
-    });
-  };
-
-  const handleNameChange = (value: string) => {
-    setFormData(prev => ({ ...prev, name: value }));
   };
 
   const handleTest = async () => {

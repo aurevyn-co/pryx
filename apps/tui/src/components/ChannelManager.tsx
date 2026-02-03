@@ -1,13 +1,9 @@
-import { createSignal, createEffect, For, Show, onMount, onCleanup } from "solid-js";
+import { createSignal, createEffect, For, Show, onMount } from "solid-js";
 import { useKeyboard } from "@opentui/solid";
 import { palette } from "../theme";
 import type { Channel, ChannelType, ChannelStatus } from "../types/channels";
 import { getChannels, deleteChannel, toggleChannel, testConnection } from "../services/channels";
-import {
-  CHANNEL_TYPE_LABELS,
-  CHANNEL_STATUS_LABELS,
-  CHANNEL_STATUS_COLORS,
-} from "../types/channels";
+import { CHANNEL_TYPE_LABELS, CHANNEL_STATUS_LABELS } from "../types/channels";
 
 type ViewMode = "list" | "add" | "details" | "delete_confirm" | "test_result";
 
@@ -55,7 +51,7 @@ export default function ChannelManager(props: ChannelManagerProps) {
     try {
       const data = await getChannels();
       setChannels(data);
-    } catch (e) {
+    } catch {
       setError("Failed to load channels");
     } finally {
       setLoading(false);
@@ -68,7 +64,7 @@ export default function ChannelManager(props: ChannelManagerProps) {
       setSuccess(channel.enabled ? `✓ ${channel.name} disabled` : `✓ ${channel.name} enabled`);
       await loadChannels();
       setTimeout(() => setSuccess(""), 2000);
-    } catch (e) {
+    } catch {
       setError("Failed to toggle channel");
     }
   };
@@ -80,7 +76,7 @@ export default function ChannelManager(props: ChannelManagerProps) {
       setViewMode("list");
       await loadChannels();
       setTimeout(() => setSuccess(""), 2000);
-    } catch (e) {
+    } catch {
       setError("Failed to delete channel");
     }
   };
@@ -95,7 +91,7 @@ export default function ChannelManager(props: ChannelManagerProps) {
         message: result.message,
       });
       setViewMode("test_result");
-    } catch (e) {
+    } catch {
       setError("Failed to test connection");
     } finally {
       setLoading(false);

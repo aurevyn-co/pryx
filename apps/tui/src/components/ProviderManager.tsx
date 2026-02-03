@@ -56,8 +56,9 @@ export default function ProviderManager(props: ProviderManagerProps) {
             loadConfiguredProviders();
           })
         ),
-        Effect.catchAll(() =>
+        Effect.catchAll(err =>
           Effect.sync(() => {
+            setError(err.message || "Failed to fetch providers");
             setProviders([
               { id: "openai", name: "OpenAI", requires_api_key: true },
               { id: "anthropic", name: "Anthropic", requires_api_key: true },
@@ -216,7 +217,7 @@ export default function ProviderManager(props: ProviderManagerProps) {
       loadConfiguredProviders();
       setSuccess(`✓ ${providerId} is now active`);
       setTimeout(() => setSuccess(""), 2000);
-    } catch (e) {
+    } catch {
       setError("Failed to update active provider");
     }
   };
@@ -256,7 +257,7 @@ export default function ProviderManager(props: ProviderManagerProps) {
           )
         )
       );
-    } catch (e) {
+    } catch {
       setError("Failed to remove provider");
     }
   };

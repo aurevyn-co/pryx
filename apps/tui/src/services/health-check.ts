@@ -27,7 +27,7 @@ export const HealthCheckService = Context.GenericTag<HealthCheckService>(
   "@pryx/tui/HealthCheckService"
 );
 
-const makeHealthCheckService = Effect.gen(function* () {
+const makeHealthCheckService = Effect.sync(() => {
   const checkHealth = Effect.gen(function* () {
     const result = yield* Effect.tryPromise({
       try: async () => {

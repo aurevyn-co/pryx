@@ -34,7 +34,7 @@ export default function CostDashboard(props: CostDashboardProps) {
   const [totalCost, setTotalCost] = createSignal(0);
   const [totalTokens, setTotalTokens] = createSignal(0);
   const [budget, setBudget] = createSignal<Budget | null>(null);
-  const [selectedIndex, setSelectedIndex] = createSignal(0);
+  const [selectedIndex, _setSelectedIndex] = createSignal(0);
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal("");
 

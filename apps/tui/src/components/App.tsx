@@ -1,15 +1,13 @@
-import { createSignal, createEffect, onMount, onCleanup, Switch, Match, Show } from "solid-js";
+import { createSignal, createEffect, onMount, Switch, Match, Show } from "solid-js";
 import { useRenderer, useKeyboard } from "@opentui/solid";
 import { useEffectService, AppRuntime } from "../lib/hooks";
 import { Effect } from "effect";
-import { WebSocketService } from "../services/ws";
 import { HealthCheckService } from "../services/health-check";
 import { loadConfig } from "../services/config";
 import AppHeader from "./AppHeader";
 import Chat from "./Chat";
 import SessionExplorer from "./SessionExplorer";
 import Settings from "./Settings";
-import Channels from "./Channels";
 import ChannelManager from "./ChannelManager";
 import Skills from "./Skills";
 import SearchableCommandPalette, { Command } from "./SearchableCommandPalette";
@@ -39,7 +37,6 @@ export default function App() {
   const renderer = useRenderer();
   renderer.disableStdoutInterception();
 
-  const ws = useEffectService(WebSocketService);
   const healthCheck = useEffectService(HealthCheckService);
   const [view, setView] = createSignal<View>("chat");
   const [showCommands, setShowCommands] = createSignal(false);

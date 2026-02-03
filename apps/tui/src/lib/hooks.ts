@@ -23,7 +23,7 @@ export function useEffectSignal<A, E = never>(
   effect: Effect.Effect<A, E>
 ): Accessor<A | undefined> {
   const [value, setValue] = createSignal<A | undefined>();
-  const [error, setError] = createSignal<E | undefined>();
+  const [, setError] = createSignal<E | undefined>();
 
   onMount(() => {
     // Run with our managed runtime

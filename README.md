@@ -10,7 +10,7 @@
 
 > **Sovereign AI agent with local-first control center**
 
-Pryx is a second-generation autonomous agent platform: local-first, sovereign, and secure. It’s a unified control center (TUI + CLI + Channels) that can bridge to other agents, any systems, use any MCP & skills, with explicit approvals for sensitive actions and clear observability—without sacrificing data sovereignty & privacy.
+Pryx is a second-generation autonomous agent platform: local-first, sovereign, and secure. It is a unified control center available via TUI, CLI, local web, channels, and Pryx Cloud, with explicit approvals for sensitive actions and clear observability without sacrificing data sovereignty or privacy.
 
 ---
 

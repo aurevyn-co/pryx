@@ -163,7 +163,7 @@ export default function MeshStatus(props: MeshStatusProps) {
         throw new Error("Failed to pair device");
       }
 
-      const data = await response.json();
+      await response.json();
       setPairingStatus("success");
 
       setTimeout(() => {
@@ -510,6 +510,7 @@ const TextInput: any = (props: any) => (
 );
 const Button: any = (props: any) => (
   <button
+    type="button"
     onClick={props.onClick}
     style={{
       padding: "0.5 1",

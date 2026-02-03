@@ -1,5 +1,5 @@
 import { Effect, Context, Layer } from "effect";
-import { getRuntimeHttpUrl } from "./skills-api";
+import { getRuntimeHttpUrl, describeRuntimeConnectionFailure } from "./skills-api";
 
 export interface Provider {
   id: string;
@@ -54,7 +54,15 @@ export interface ProviderService {
 
 export const ProviderService = Context.GenericTag<ProviderService>("@pryx/tui/ProviderService");
 
-const makeProviderService = Effect.gen(function* () {
+const makeProviderService = Effect.sync(() => {
+  const withRuntimeHint = (base: string, error: unknown): string => {
+    if (error instanceof Error && error.message.startsWith("HTTP ")) {
+      return `${base} (${error.message})`;
+    }
+    const hint = describeRuntimeConnectionFailure();
+    return hint ? `${base}. ${hint}` : base;
+  };
+
   const fetchProviders = Effect.gen(function* () {
     const result = yield* Effect.tryPromise({
       try: async () => {
@@ -65,7 +73,8 @@ const makeProviderService = Effect.gen(function* () {
         const data = (await res.json()) as ProvidersResponse;
         return data.providers || [];
       },
-      catch: error => new ProviderFetchError("Failed to fetch providers", error),
+      catch: error =>
+        new ProviderFetchError(withRuntimeHint("Failed to fetch providers", error), error),
     });
     return result;
   });
@@ -81,7 +90,8 @@ const makeProviderService = Effect.gen(function* () {
           const data = (await res.json()) as ModelsResponse;
           return data.models || [];
         },
-        catch: error => new ProviderFetchError("Failed to fetch models", error),
+        catch: error =>
+          new ProviderFetchError(withRuntimeHint("Failed to fetch models", error), error),
       });
       return result;
     });
@@ -97,7 +107,11 @@ const makeProviderService = Effect.gen(function* () {
           const data = (await res.json()) as ProviderKeyStatusResponse;
           return !!data.configured;
         },
-        catch: error => new ProviderFetchError("Failed to fetch provider key status", error),
+        catch: error =>
+          new ProviderFetchError(
+            withRuntimeHint("Failed to fetch provider key status", error),
+            error
+          ),
       });
       return result;
     });
@@ -115,7 +129,8 @@ const makeProviderService = Effect.gen(function* () {
             throw new Error(`HTTP ${res.status}`);
           }
         },
-        catch: error => new ProviderFetchError("Failed to store provider key", error),
+        catch: error =>
+          new ProviderFetchError(withRuntimeHint("Failed to store provider key", error), error),
       });
     });
 
@@ -130,7 +145,8 @@ const makeProviderService = Effect.gen(function* () {
             throw new Error(`HTTP ${res.status}`);
           }
         },
-        catch: error => new ProviderFetchError("Failed to delete provider key", error),
+        catch: error =>
+          new ProviderFetchError(withRuntimeHint("Failed to delete provider key", error), error),
       });
     });
 

@@ -36,7 +36,7 @@ export default function AgentSpawning(props: AgentSpawningProps) {
   const [newAgentName, setNewAgentName] = createSignal("");
   const [newAgentType, setNewAgentType] = createSignal<AgentType>("chat");
   const [newAgentPrompt, setNewAgentPrompt] = createSignal("");
-  const [newAgentSession, setNewAgentSession] = createSignal<string | null>(null);
+  const [newAgentSession] = createSignal<string | null>(null);
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal("");
 

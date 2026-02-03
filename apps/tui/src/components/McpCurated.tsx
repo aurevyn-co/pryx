@@ -78,7 +78,7 @@ export default function McpCurated(props: McpCuratedProps) {
       const data = await mcpService().getCuratedServers();
       setServers(data);
       setFilteredServers(data);
-    } catch (_e) {
+    } catch {
       setError("Failed to load curated servers");
     } finally {
       setLoading(false);
