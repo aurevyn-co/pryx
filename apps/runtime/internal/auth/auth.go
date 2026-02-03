@@ -184,6 +184,14 @@ func PollForTokenWithPKCE(ctx context.Context, apiUrl string, deviceCode string,
 		interval = 5
 	}
 
+	token, err := requestToken(apiUrl, deviceCode, pkceVerifier)
+	if err == nil {
+		return token, nil
+	}
+	if err.Error() != "cloud error: authorization_pending" {
+		return nil, err
+	}
+
 	ticker := time.NewTicker(time.Duration(interval) * time.Second)
 	defer ticker.Stop()
 

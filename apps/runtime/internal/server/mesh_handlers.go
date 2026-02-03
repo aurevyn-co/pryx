@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -9,6 +10,9 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"github.com/skip2/go-qrcode"
+	"pryx-core/internal/store"
 )
 
 // handleMeshPairRequest represents a pairing request from TUI
@@ -30,18 +34,6 @@ type handleMeshQRCodeResponse struct {
 	Code      string `json:"code"`       // 6-digit pairing code
 	ExpiresAt string `json:"expires_at"` // Expiration time
 }
-
-// PairingSession represents an active pairing session
-type PairingSession struct {
-	Code       string    `json:"code"`
-	DeviceID   string    `json:"device_id"`
-	DeviceName string    `json:"device_name"`
-	ExpiresAt  time.Time `json:"expires_at"`
-	Status     string    `json:"status"` // pending, approved, rejected, expired
-}
-
-// In-memory pairing session storage (in production, use Redis or D1)
-var pairingSessions = make(map[string]*PairingSession)
 
 // generatePairingCode generates a random 6-digit code
 func generatePairingCode() string {
@@ -88,9 +80,14 @@ func (s *Server) handleMeshPair(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate pairing code
-	session, exists := pairingSessions[code]
-	if !exists {
+	// Validate pairing code from database
+	session, err := s.store.GetPairingSessionByCode(code)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "database error"})
+		return
+	}
+	if session == nil {
 		w.WriteHeader(http.StatusNotFound)
 		_ = json.NewEncoder(w).Encode(handleMeshPairResponse{
 			Success: false,
@@ -101,7 +98,6 @@ func (s *Server) handleMeshPair(w http.ResponseWriter, r *http.Request) {
 
 	// Check expiration
 	if time.Now().After(session.ExpiresAt) {
-		delete(pairingSessions, code)
 		w.WriteHeader(http.StatusGone)
 		_ = json.NewEncoder(w).Encode(handleMeshPairResponse{
 			Success: false,
@@ -121,7 +117,11 @@ func (s *Server) handleMeshPair(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Approve pairing
-	session.Status = "approved"
+	if err := s.store.UpdatePairingSessionStatus(code, "approved"); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "failed to update pairing status"})
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(handleMeshPairResponse{
@@ -155,31 +155,66 @@ func (s *Server) handleMeshQRCode(w http.ResponseWriter, r *http.Request) {
 		deviceName = name
 	}
 
-	// Create pairing session (expires in 5 minutes)
-	session := &PairingSession{
+	// Generate cryptographic nonce for secure key exchange
+	nonce := generatePairingCode() // In production, use crypto rand
+
+	// Create pairing session in database (expires in 5 minutes)
+	session := &store.MeshPairingSession{
+		ID:         uuid.New().String(),
 		Code:       code,
 		DeviceID:   deviceID,
 		DeviceName: deviceName,
-		ExpiresAt:  time.Now().Add(5 * time.Minute),
+		ServerURL:  s.cfg.CloudAPIUrl,
+		Nonce:      nonce,
 		Status:     "pending",
+		ExpiresAt:  time.Now().Add(5 * time.Minute),
+		CreatedAt:  time.Now(),
 	}
-	pairingSessions[code] = session
+	if err := s.store.CreatePairingSession(session); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "failed to create pairing session"})
+		return
+	}
 
-	// In production, generate actual QR code containing:
-	// - Device ID
-	// - Pairing code
-	// - Server URL
-	// - Cryptographic nonce for secure key exchange
-	//
-	// For now, return a placeholder that includes the pairing data
+	// Create QR code data with pairing information
 	qrData := map[string]string{
 		"device_id":  deviceID,
 		"code":       code,
 		"server_url": s.cfg.CloudAPIUrl,
-		"nonce":      generatePairingCode(), // Placeholder for cryptographic nonce
+		"nonce":      nonce,
 	}
 	qrJSON, _ := json.Marshal(qrData)
-	qrBase64 := fmt.Sprintf("data:application/json;base64,%s", qrJSON)
+
+	// Generate QR code image with pairing data
+	qrImage, err := qrcode.New(string(qrJSON), qrcode.Medium)
+	if err != nil {
+		// Fallback to JSON data if QR code generation fails
+		qrBase64 := fmt.Sprintf("data:application/json;base64,%s", qrJSON)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(handleMeshQRCodeResponse{
+			QRCode:    qrBase64,
+			Code:      code,
+			ExpiresAt: session.ExpiresAt.Format(time.RFC3339),
+		})
+		return
+	}
+
+	// Convert QR image to PNG bytes
+	qrPngBytes, err := qrImage.PNG(256)
+	if err != nil {
+		// Fallback to JSON data if PNG conversion fails
+		qrBase64 := fmt.Sprintf("data:application/json;base64,%s", qrJSON)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(handleMeshQRCodeResponse{
+			QRCode:    qrBase64,
+			Code:      code,
+			ExpiresAt: session.ExpiresAt.Format(time.RFC3339),
+		})
+		return
+	}
+
+	// Encode as base64 data URL for display
+	qrBase64 := fmt.Sprintf("data:image/png;base64,%s", base64.StdEncoding.EncodeToString(qrPngBytes))
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(handleMeshQRCodeResponse{
@@ -191,21 +226,31 @@ func (s *Server) handleMeshQRCode(w http.ResponseWriter, r *http.Request) {
 
 // handleMeshDevicesList lists paired devices
 func (s *Server) handleMeshDevicesList(w http.ResponseWriter, r *http.Request) {
-	// In production, query from store or D1 database
-	// For now, return empty list
+	devices, err := s.store.ListMeshDevices()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "failed to list devices"})
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"devices": []interface{}{},
+		"devices": devices,
 	})
 }
 
 // handleMeshEventsList lists mesh sync events
 func (s *Server) handleMeshEventsList(w http.ResponseWriter, r *http.Request) {
-	// In production, query from store or D1 database
-	// For now, return empty list
+	events, err := s.store.ListMeshSyncEvents(100)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "failed to list events"})
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"events": []interface{}{},
+		"events": events,
 	})
 }
 
@@ -218,7 +263,12 @@ func (s *Server) handleMeshDevicesUnpair(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// In production, delete from store or D1 database
+	if err := s.store.DeactivateMeshDevice(deviceID); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "failed to unpair device"})
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"success": true,

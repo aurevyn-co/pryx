@@ -217,9 +217,12 @@ func runCheckSkills(args []string, cfg *config.Config) int {
 
 		// Check prompts
 		if len(skill.SystemPrompt) == 0 {
-			fmt.Printf("⚠ %s: Empty system prompt\n", skill.ID)
-			issuesInSkill++
-			issues++
+			body, _ := skill.Body()
+			if strings.TrimSpace(body) == "" {
+				fmt.Printf("⚠ %s: Empty system prompt\n", skill.ID)
+				issuesInSkill++
+				issues++
+			}
 		}
 
 		if issuesInSkill == 0 {

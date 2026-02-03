@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
 	"pryx-core/internal/auth"
+	"pryx-core/internal/config"
 	"pryx-core/internal/memory"
 	"pryx-core/internal/skills"
 	"pryx-core/internal/validation"
@@ -20,7 +22,11 @@ import (
 
 // handleHealth returns a simple health check response.
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	s.cfgMu.RLock()
 	activeProvider := strings.TrimSpace(s.cfg.ModelProvider)
+	ollamaEndpoint := strings.TrimSpace(s.cfg.OllamaEndpoint)
+	s.cfgMu.RUnlock()
+
 	configuredProviders := []string{}
 	configuredProvidersSet := map[string]struct{}{}
 	appendConfiguredProvider := func(providerID string) {
@@ -43,7 +49,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	switch activeProvider {
 	case "":
 	case "ollama":
-		if strings.TrimSpace(s.cfg.OllamaEndpoint) != "" {
+		if ollamaEndpoint != "" {
 			appendConfiguredProvider("ollama")
 		}
 	default:
@@ -86,7 +92,9 @@ func (s *Server) handleCloudStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCloudLoginStart(w http.ResponseWriter, r *http.Request) {
+	s.cfgMu.RLock()
 	apiUrl := strings.TrimSpace(s.cfg.CloudAPIUrl)
+	s.cfgMu.RUnlock()
 	if apiUrl == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]any{"error": "missing cloud api url"})
@@ -105,9 +113,16 @@ func (s *Server) handleCloudLoginStart(w http.ResponseWriter, r *http.Request) {
 	// In production, store in session or encrypted cookie
 	s.mu.Lock()
 	if s.pkceParams == nil {
-		s.pkceParams = make(map[string]*auth.PKCEParams)
+		s.pkceParams = make(map[string]pkceEntry)
 	}
-	s.pkceParams[res.DeviceCode] = pkce
+	expiresInSeconds := res.ExpiresIn
+	if expiresInSeconds <= 0 || expiresInSeconds > 1800 {
+		expiresInSeconds = 600
+	}
+	s.pkceParams[res.DeviceCode] = pkceEntry{
+		params:    pkce,
+		expiresAt: time.Now().Add(time.Duration(expiresInSeconds) * time.Second),
+	}
 	s.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
@@ -127,7 +142,9 @@ func (s *Server) handleCloudLoginPoll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.cfgMu.RLock()
 	apiUrl := strings.TrimSpace(s.cfg.CloudAPIUrl)
+	s.cfgMu.RUnlock()
 	if apiUrl == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]any{"error": "missing cloud api url"})
@@ -152,22 +169,44 @@ func (s *Server) handleCloudLoginPoll(w http.ResponseWriter, r *http.Request) {
 		timeoutSeconds = 600
 	}
 
+	var entry pkceEntry
+	var hasEntry bool
+	now := time.Now()
+	s.mu.Lock()
+	if s.pkceParams != nil {
+		if e, ok := s.pkceParams[deviceCode]; ok {
+			if !e.expiresAt.IsZero() && now.After(e.expiresAt) {
+				delete(s.pkceParams, deviceCode)
+			} else {
+				entry = e
+				hasEntry = e.params != nil
+			}
+		}
+	}
+	s.mu.Unlock()
+
+	if hasEntry && !entry.expiresAt.IsZero() {
+		until := time.Until(entry.expiresAt)
+		if until <= 0 {
+			w.WriteHeader(http.StatusRequestTimeout)
+			_ = json.NewEncoder(w).Encode(map[string]any{"error": "login timed out"})
+			return
+		}
+		untilSeconds := int(until.Seconds())
+		if untilSeconds > 0 && untilSeconds < timeoutSeconds {
+			timeoutSeconds = untilSeconds
+		}
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()
-
-	// Retrieve PKCE parameters for this device code
-	s.mu.Lock()
-	pkce := s.pkceParams[deviceCode]
-	// Clean up PKCE params after use
-	delete(s.pkceParams, deviceCode)
-	s.mu.Unlock()
 
 	var token *auth.TokenResponse
 	var err error
 
-	if pkce != nil {
+	if hasEntry {
 		// Use PKCE-enabled polling
-		token, err = auth.PollForTokenWithPKCE(ctx, apiUrl, deviceCode, req.Interval, pkce.CodeVerifier)
+		token, err = auth.PollForTokenWithPKCE(ctx, apiUrl, deviceCode, req.Interval, entry.params.CodeVerifier)
 	} else {
 		// Fallback to legacy polling (for backwards compatibility)
 		token, err = auth.PollForTokenWithContext(ctx, apiUrl, deviceCode, req.Interval)
@@ -190,8 +229,121 @@ func (s *Server) handleCloudLoginPoll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if hasEntry {
+		s.mu.Lock()
+		if s.pkceParams != nil {
+			delete(s.pkceParams, deviceCode)
+		}
+		s.mu.Unlock()
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
+}
+
+func (s *Server) handleConfigGet(w http.ResponseWriter, r *http.Request) {
+	s.cfgMu.RLock()
+	modelProvider := strings.TrimSpace(s.cfg.ModelProvider)
+	modelName := strings.TrimSpace(s.cfg.ModelName)
+	ollamaEndpoint := strings.TrimSpace(s.cfg.OllamaEndpoint)
+	s.cfgMu.RUnlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"model_provider":  modelProvider,
+		"model_name":      modelName,
+		"ollama_endpoint": ollamaEndpoint,
+	})
+}
+
+type configPatchRequest struct {
+	ModelProvider  *string `json:"model_provider"`
+	ModelName      *string `json:"model_name"`
+	OllamaEndpoint *string `json:"ollama_endpoint"`
+}
+
+func (s *Server) handleConfigPatch(w http.ResponseWriter, r *http.Request) {
+	req := configPatchRequest{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "invalid json body"})
+		return
+	}
+
+	validator := validation.NewValidator()
+
+	var nextProvider *string
+	if req.ModelProvider != nil {
+		p := strings.TrimSpace(*req.ModelProvider)
+		if err := validator.ValidateID("model_provider", p); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+			return
+		}
+		if !s.providerExists(p) {
+			w.WriteHeader(http.StatusNotFound)
+			_ = json.NewEncoder(w).Encode(map[string]any{"error": "provider not found"})
+			return
+		}
+		nextProvider = &p
+	}
+
+	var nextModelName *string
+	if req.ModelName != nil {
+		m := strings.TrimSpace(*req.ModelName)
+		if m != "" {
+			if err := validator.ValidateString("model_name", m, validation.MaxLength(256), validation.AllowEmpty(false)); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+				return
+			}
+		}
+		nextModelName = &m
+	}
+
+	var nextOllama *string
+	if req.OllamaEndpoint != nil {
+		raw := strings.TrimSpace(*req.OllamaEndpoint)
+		if raw != "" {
+			u, err := url.Parse(raw)
+			if err != nil || u.Scheme == "" || u.Host == "" {
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(map[string]any{"error": "ollama_endpoint: invalid URL"})
+				return
+			}
+			if u.Scheme != "http" && u.Scheme != "https" {
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(map[string]any{"error": "ollama_endpoint: only http and https allowed"})
+				return
+			}
+		}
+		nextOllama = &raw
+	}
+
+	s.cfgMu.Lock()
+	if nextProvider != nil {
+		s.cfg.ModelProvider = *nextProvider
+	}
+	if nextModelName != nil {
+		s.cfg.ModelName = *nextModelName
+	}
+	if nextOllama != nil {
+		s.cfg.OllamaEndpoint = *nextOllama
+	}
+
+	nextCfg := *s.cfg
+	s.cfgMu.Unlock()
+
+	if err := nextCfg.Save(config.DefaultPath()); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "failed to save config"})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"ok": true,
+	})
 }
 
 // handleMCPTools returns the list of available MCP tools.

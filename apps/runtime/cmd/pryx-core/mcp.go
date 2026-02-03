@@ -107,6 +107,7 @@ func runMCPAdd(args []string) int {
 	var command []string
 	var authType string
 	var authTokenRef string
+	transport := ""
 
 	// Parse flags
 	i := 1
@@ -119,13 +120,15 @@ func runMCPAdd(args []string) int {
 				return 2
 			}
 			serverURL = args[i+1]
+			transport = "http"
 			i += 2
 		case "--cmd", "-c":
 			if i+1 >= len(args) {
 				fmt.Fprintf(os.Stderr, "Error: --cmd requires a value\n")
 				return 2
 			}
-			command = []string{args[i+1]}
+			command = strings.Fields(args[i+1])
+			transport = "stdio"
 			i += 2
 		case "--auth":
 			if i+1 >= len(args) {
@@ -152,6 +155,10 @@ func runMCPAdd(args []string) int {
 		fmt.Fprintf(os.Stderr, "Error: either --url or --cmd required\n")
 		return 2
 	}
+	if serverURL != "" && len(command) > 0 {
+		fmt.Fprintf(os.Stderr, "Error: choose either --url or --cmd (not both)\n")
+		return 2
+	}
 
 	// Load existing config
 	cfg, _, err := mcp.LoadServersConfigFromFirstExisting(mcp.DefaultServersConfigPaths())
@@ -167,7 +174,7 @@ func runMCPAdd(args []string) int {
 
 	// Create server config
 	serverCfg := mcp.ServerConfig{
-		Transport: "stdio",
+		Transport: transport,
 		URL:       serverURL,
 		Command:   command,
 	}

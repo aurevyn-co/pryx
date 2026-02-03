@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -33,6 +34,8 @@ func runChannel(args []string) int {
 		return runChannelList(args[1:])
 	case "add":
 		return runChannelAdd(args[1:])
+	case "update":
+		return runChannelUpdate(args[1:])
 	case "remove", "rm", "delete":
 		return runChannelRemove(args[1:])
 	case "enable":
@@ -205,6 +208,11 @@ func runChannelAdd(args []string) int {
 	fmt.Printf("     pryx-core channel enable %s\n", name)
 	fmt.Println("  2. Test the connection:")
 	fmt.Printf("     pryx-core channel test %s\n", name)
+	if missing := validateChannelConfig(newChannel); len(missing) > 0 {
+		fmt.Println()
+		fmt.Printf("⚠ Missing required config: %s\n", strings.Join(missing, ", "))
+		printChannelConfigHelp(channelType, name)
+	}
 
 	return 0
 }
@@ -248,6 +256,89 @@ func runChannelRemove(args []string) int {
 	return 0
 }
 
+func runChannelUpdate(args []string) int {
+	if len(args) < 2 {
+		fmt.Fprintf(os.Stderr, "Error: channel name or ID and at least one config value required\n")
+		fmt.Fprintf(os.Stderr, "Usage: pryx-core channel update <name> [--<key> <value>...] [--unset <key>...]\n")
+		return 2
+	}
+
+	name := args[0]
+	configValues := make(map[string]string)
+	unsetKeys := make(map[string]bool)
+
+	i := 1
+	for i < len(args) {
+		arg := args[i]
+		switch {
+		case arg == "--unset":
+			if i+1 >= len(args) || strings.HasPrefix(args[i+1], "--") {
+				fmt.Fprintf(os.Stderr, "Error: --unset requires a key\n")
+				return 2
+			}
+			unsetKeys[args[i+1]] = true
+			i += 2
+		case strings.HasPrefix(arg, "--"):
+			key := strings.TrimPrefix(arg, "--")
+			if key == "" {
+				fmt.Fprintf(os.Stderr, "Error: invalid key\n")
+				return 2
+			}
+			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") {
+				configValues[key] = args[i+1]
+				i += 2
+			} else {
+				configValues[key] = ""
+				i += 1
+			}
+		default:
+			i++
+		}
+	}
+
+	if len(configValues) == 0 && len(unsetKeys) == 0 {
+		fmt.Fprintf(os.Stderr, "Error: no updates provided\n")
+		return 2
+	}
+
+	channels, err := loadChannels()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: failed to load channels: %v\n", err)
+		return 1
+	}
+
+	updated := false
+	for i, ch := range channels {
+		if ch.Name == name || ch.ID == name {
+			if ch.Config == nil {
+				ch.Config = map[string]string{}
+			}
+			for k, v := range configValues {
+				ch.Config[k] = v
+			}
+			for k := range unsetKeys {
+				delete(ch.Config, k)
+			}
+			channels[i].Config = ch.Config
+			channels[i].UpdatedAt = getTimestamp()
+			updated = true
+			fmt.Printf("✓ Updated channel: %s\n", ch.Name)
+		}
+	}
+
+	if !updated {
+		fmt.Fprintf(os.Stderr, "Error: channel not found: %s\n", name)
+		return 1
+	}
+
+	if err := saveChannels(channels); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: failed to save channels: %v\n", err)
+		return 1
+	}
+
+	return 0
+}
+
 func runChannelEnable(args []string) int {
 	if len(args) < 1 {
 		fmt.Fprintf(os.Stderr, "Error: channel name or ID required\n")
@@ -266,6 +357,12 @@ func runChannelEnable(args []string) int {
 	for i, ch := range channels {
 		if ch.Name == name || ch.ID == name {
 			found = true
+			if missing := validateChannelConfig(ch); len(missing) > 0 {
+				fmt.Fprintf(os.Stderr, "Error: channel configuration incomplete for %s (%s)\n", ch.Name, ch.Type)
+				fmt.Fprintf(os.Stderr, "Missing: %s\n", strings.Join(missing, ", "))
+				printChannelConfigHelp(ch.Type, ch.Name)
+				return 1
+			}
 			channels[i].Enabled = true
 			channels[i].UpdatedAt = getTimestamp()
 			fmt.Printf("✓ Enabled channel: %s\n", ch.Name)
@@ -352,41 +449,13 @@ func runChannelTest(args []string) int {
 	fmt.Printf("Testing channel: %s (%s)\n", target.Name, target.Type)
 	fmt.Println(strings.Repeat("=", 40))
 
-	// Validate required config based on type
-	switch target.Type {
-	case "telegram":
-		if token, ok := target.Config["token"]; ok && token != "" {
-			fmt.Printf("✓ Token configured\n")
-		} else {
-			fmt.Printf("✗ Token not configured\n")
-			fmt.Println("  Set token: pryx-core provider set-key telegram")
-		}
-	case "discord":
-		if token, ok := target.Config["token"]; ok && token != "" {
-			fmt.Printf("✓ Token configured\n")
-		} else {
-			fmt.Printf("✗ Token not configured\n")
-			fmt.Println("  Set token: pryx-core provider set-key discord")
-		}
-	case "slack":
-		if token, ok := target.Config["bot_token"]; ok && token != "" {
-			fmt.Printf("✓ Bot token configured\n")
-		} else {
-			fmt.Printf("✗ Bot token not configured\n")
-			fmt.Println("  Set token: pryx-core provider set-key slack")
-		}
-		if token, ok := target.Config["app_token"]; ok && token != "" {
-			fmt.Printf("✓ App token configured\n")
-		} else {
-			fmt.Printf("✗ App token not configured\n")
-		}
-	case "webhook":
-		if url, ok := target.Config["url"]; ok && url != "" {
-			fmt.Printf("✓ Webhook URL configured: %s\n", url)
-		} else {
-			fmt.Printf("✗ Webhook URL not configured\n")
-		}
+	missing := validateChannelConfig(*target)
+	if len(missing) > 0 {
+		fmt.Printf("✗ Missing required config: %s\n", strings.Join(missing, ", "))
+		printChannelConfigHelp(target.Type, target.Name)
+		return 1
 	}
+	fmt.Printf("✓ Required configuration present\n")
 
 	fmt.Println()
 	fmt.Println("Note: Full connection testing requires runtime to be running")
@@ -518,6 +587,7 @@ func channelUsage() {
 	fmt.Println("Commands:")
 	fmt.Println("  list [--json] [--verbose]        List all channels")
 	fmt.Println("  add <type> <name> [--key val]    Add a new channel")
+	fmt.Println("  update <name> [--key val]       Update channel configuration")
 	fmt.Println("  remove <name>                    Remove a channel")
 	fmt.Println("  enable <name>                   Enable a channel")
 	fmt.Println("  disable <name>                  Disable a channel")
@@ -533,8 +603,67 @@ func channelUsage() {
 	fmt.Println("")
 	fmt.Println("Examples:")
 	fmt.Println("  pryx-core channel add telegram my-bot --token YOUR_TOKEN")
+	fmt.Println("  pryx-core channel add discord my-bot --token YOUR_TOKEN")
+	fmt.Println("  pryx-core channel add slack my-bot --bot-token xoxb-... --app-token xapp-...")
+	fmt.Println("  pryx-core channel add webhook my-hook --url https://example.com/webhook")
+	fmt.Println("  pryx-core channel add webhook my-local --port 8080 --path /webhooks/pryx")
+	fmt.Println("  pryx-core channel update my-bot --token NEW_TOKEN")
+	fmt.Println("  pryx-core channel update my-hook --url https://example.com/webhook")
+	fmt.Println("  pryx-core channel update my-bot --unset token")
 	fmt.Println("  pryx-core channel enable my-bot")
 	fmt.Println("  pryx-core channel test my-bot")
+}
+
+func validateChannelConfig(ch ChannelConfig) []string {
+	var missing []string
+	switch ch.Type {
+	case "telegram", "discord":
+		if ch.Config["token"] == "" && ch.Config["token_ref"] == "" {
+			missing = append(missing, "token")
+		}
+	case "slack":
+		if ch.Config["bot_token"] == "" {
+			missing = append(missing, "bot_token")
+		}
+		if ch.Config["app_token"] == "" {
+			missing = append(missing, "app_token")
+		}
+	case "webhook":
+		if ch.Config["url"] == "" {
+			if portStr := strings.TrimSpace(ch.Config["port"]); portStr != "" {
+				if port, err := strconv.Atoi(portStr); err != nil || port <= 0 {
+					missing = append(missing, "port")
+				}
+			} else {
+				missing = append(missing, "url or port")
+			}
+		}
+	default:
+		missing = append(missing, "valid channel type")
+	}
+	return missing
+}
+
+func printChannelConfigHelp(channelType, name string) {
+	fmt.Println("How to fix:")
+	switch channelType {
+	case "telegram":
+		fmt.Printf("  pryx-core channel remove %s\n", name)
+		fmt.Printf("  pryx-core channel add telegram %s --token YOUR_TOKEN\n", name)
+	case "discord":
+		fmt.Printf("  pryx-core channel remove %s\n", name)
+		fmt.Printf("  pryx-core channel add discord %s --token YOUR_TOKEN\n", name)
+	case "slack":
+		fmt.Printf("  pryx-core channel remove %s\n", name)
+		fmt.Printf("  pryx-core channel add slack %s --bot-token xoxb-... --app-token xapp-...\n", name)
+	case "webhook":
+		fmt.Printf("  pryx-core channel remove %s\n", name)
+		fmt.Printf("  pryx-core channel add webhook %s --url https://example.com/webhook\n", name)
+		fmt.Printf("  pryx-core channel add webhook %s --port 8080 --path /webhooks/pryx\n", name)
+	default:
+		fmt.Println("  Check channel configuration in ~/.pryx/channels.json")
+	}
+	fmt.Println("  Or edit ~/.pryx/channels.json directly if you prefer.")
 }
 
 func loadChannels() ([]ChannelConfig, error) {
