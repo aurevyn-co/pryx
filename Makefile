@@ -12,7 +12,7 @@
 #   make check       - Run comprehensive checks
 
 SHELL := /bin/bash
-.PHONY: help build test lint clean install format check
+.PHONY: help build test lint clean install format check clean-uninstall
 .SILENT: help
 
 # Project directories
@@ -85,6 +85,7 @@ help: ## Show this help message
 	@echo "  $(GREEN)logs-tui$(NC)         # View TUI logs only"
 	@echo "  $(GREEN)logs-runtime$(NC)     # View Runtime logs only"
 	@echo "  $(GREEN)logs-host$(NC)        # View Host logs only"
+	@echo "  $(GREEN)clean-uninstall$(NC)  # Remove all Pryx binaries, services, and data"
 	@echo "  $(GREEN)install$(NC)           # Install development tools"
 	@echo "  $(GREEN)check$(NC)             # Run comprehensive checks (lint + test)"
 	@echo "  $(GREEN)info$(NC)              # Show project information"
@@ -463,6 +464,10 @@ install-deps: ## Install all dependencies
 	else \
 		echo "$(YELLOW)Warning: tui directory not found, skipping$(NC)"; \
 	fi
+
+clean-uninstall: ## Remove all Pryx binaries, services, and data
+	@echo "$(RED)Warning: This will delete all Pryx data!$(NC)"
+	@bash scripts/uninstall.sh
 
 ## Check targets
 check: lint test ## Run comprehensive checks (lint + test)

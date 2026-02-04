@@ -60,6 +60,10 @@ func main() {
 			os.Exit(runSession(os.Args[2:]))
 		case "login":
 			os.Exit(runLogin())
+		case "install-service":
+			os.Exit(runInstallService())
+		case "uninstall-service":
+			os.Exit(runUninstallService())
 		case "help", "-h", "--help":
 			usage()
 			return
@@ -278,6 +282,9 @@ func main() {
 			serverErrCh <- fmt.Errorf("server error: %w", err)
 		}
 	}()
+
+	// Start JSON-RPC bridge for host communication
+	startRPCServer(context.Background(), srv)
 	// Give server a moment to start, then mark phase complete
 	go func() {
 		time.Sleep(100 * time.Millisecond)
@@ -377,6 +384,8 @@ func usage() {
 	log.Println("")
 	log.Println("  doctor                               Run diagnostics")
 	log.Println("  login                                Log in to Pryx Cloud")
+	log.Println("  install-service                      Install as system service")
+	log.Println("  uninstall-service                    Remove system service")
 	log.Println("  help, -h, --help                    Show this help message")
 }
 
