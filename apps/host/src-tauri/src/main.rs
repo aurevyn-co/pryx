@@ -113,10 +113,10 @@ async fn main() {
             });
 
             // Manage sidecar state
-            app.manage(sidecar_state);
+            app.manage(sidecar_state.clone());
 
             // Start HTTP server on port 42424
-            let sidecar_rpc_clone = sidecar_state.clone();
+            let sidecar_rpc_clone = sidecar_state;
             let server_config = ServerConfig {
                 host: "127.0.0.1".to_string(),
                 port: 42424,
@@ -124,7 +124,7 @@ async fn main() {
                 sidecar: Some(sidecar_rpc_clone),
             };
 
-            let server_handle = app.handle().clone();
+            let _server_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = start_server(server_config).await {
                     log::error!("Failed to start HTTP server: {}", e);
