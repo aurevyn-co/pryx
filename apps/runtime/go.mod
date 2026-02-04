@@ -7,6 +7,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/playwright-community/playwright-go v0.5200.1
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.11.1
 	github.com/zalando/go-keyring v0.2.4
 	go.opentelemetry.io/otel v1.40.0

@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	"pryx-core/internal/memory"
 	"pryx-core/internal/models"
 	"pryx-core/internal/policy"
+	"pryx-core/internal/scheduler"
 	"pryx-core/internal/skills"
 	"pryx-core/internal/store"
 
@@ -67,6 +69,7 @@ type Server struct {
 	auditRepo    *audit.AuditRepository
 	costService  *cost.CostService
 	channels     *channels.ChannelManager
+	scheduler    *scheduler.Scheduler
 	pkceParams   map[string]pkceEntry // Temporary storage for PKCE during OAuth flow
 	mu           sync.Mutex           // Protects pkceParams
 
@@ -94,7 +97,7 @@ func New(cfg *config.Config, db *sql.DB, kc *keychain.Keychain) *Server {
 	}
 	s.store = store.NewFromDB(db)
 	s.auditRepo = audit.NewAuditRepository(db)
-	
+
 	pricingMgr := cost.NewPricingManager()
 	costTracker := cost.NewCostTracker(s.auditRepo, pricingMgr)
 	costCalc := cost.NewCostCalculator(pricingMgr)
@@ -120,6 +123,9 @@ func New(cfg *config.Config, db *sql.DB, kc *keychain.Keychain) *Server {
 
 	s.mcp = mcp.NewManager(s.bus, p, kc)
 
+	dataDir := filepath.Dir(cfg.DatabasePath)
+	mcp.InitTruncator(dataDir)
+
 	// Initialize agentbus (agent connectivity hub)
 	s.agentbus = agentbus.NewService(s.bus, agentbus.HubConfig{
 		Name:               "pryx-agentbus",
@@ -134,6 +140,7 @@ func New(cfg *config.Config, db *sql.DB, kc *keychain.Keychain) *Server {
 	})
 
 	s.channels = channels.NewManager(s.bus)
+	s.scheduler = scheduler.New(db)
 
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -240,6 +247,16 @@ func (s *Server) routes() {
 	s.router.Post("/api/v1/channels/{id}/disconnect", s.handleChannelDisconnect)
 	s.router.Get("/api/v1/channels/{id}/activity", s.handleChannelActivity)
 	s.router.Get("/api/v1/channels/types", s.handleChannelTypes)
+
+	s.router.Get("/api/v1/tasks", s.handleTasksList)
+	s.router.Post("/api/v1/tasks", s.handleTaskCreate)
+	s.router.Get("/api/v1/tasks/{id}", s.handleTaskGet)
+	s.router.Put("/api/v1/tasks/{id}", s.handleTaskUpdate)
+	s.router.Delete("/api/v1/tasks/{id}", s.handleTaskDelete)
+	s.router.Post("/api/v1/tasks/{id}/enable", s.handleTaskEnable)
+	s.router.Post("/api/v1/tasks/{id}/disable", s.handleTaskDisable)
+	s.router.Get("/api/v1/tasks/{id}/runs", s.handleTaskRuns)
+	s.router.Post("/api/v1/tasks/validate", s.handleTaskValidate)
 }
 
 // Bus returns the event bus instance.
@@ -270,6 +287,11 @@ func (s *Server) Memory() *memory.RAGManager {
 // Channels returns the channel manager instance.
 func (s *Server) Channels() *channels.ChannelManager {
 	return s.channels
+}
+
+// Scheduler returns the scheduler instance.
+func (s *Server) Scheduler() *scheduler.Scheduler {
+	return s.scheduler
 }
 
 // AuditRepo returns the audit repository instance.

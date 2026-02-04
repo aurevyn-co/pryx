@@ -120,4 +120,43 @@ CREATE TABLE IF NOT EXISTS mesh_sync_events (
 
 CREATE INDEX IF NOT EXISTS idx_mesh_events_source ON mesh_sync_events(source_device_id);
 CREATE INDEX IF NOT EXISTS idx_mesh_events_created ON mesh_sync_events(created_at DESC);
+
+-- Scheduled tasks (cron jobs)
+CREATE TABLE IF NOT EXISTS scheduled_tasks (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    cron_expression TEXT NOT NULL,
+    task_type TEXT NOT NULL,
+    payload TEXT,
+    timezone TEXT DEFAULT 'UTC',
+    enabled BOOLEAN NOT NULL DEFAULT 1,
+    last_run_at DATETIME,
+    last_run_status TEXT,
+    last_run_error TEXT,
+    next_run_at DATETIME,
+    run_count INTEGER DEFAULT 0,
+    user_id TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_enabled ON scheduled_tasks(enabled);
+CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_next_run ON scheduled_tasks(next_run_at);
+CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_user ON scheduled_tasks(user_id);
+
+-- Scheduled task execution history
+CREATE TABLE IF NOT EXISTS scheduled_task_runs (
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    started_at DATETIME NOT NULL,
+    completed_at DATETIME,
+    status TEXT NOT NULL,
+    error TEXT,
+    output TEXT,
+    FOREIGN KEY (task_id) REFERENCES scheduled_tasks(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_runs_task ON scheduled_task_runs(task_id);
+CREATE INDEX IF NOT EXISTS idx_task_runs_started ON scheduled_task_runs(started_at DESC);
 `
