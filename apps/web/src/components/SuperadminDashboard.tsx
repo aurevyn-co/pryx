@@ -2,8 +2,6 @@
 // This component provides maintainers with visibility into all users and devices
 
 import { useState, useEffect } from 'react';
-import { createSignal, For, Show } from "solid-js";
-import type { JSX } from 'astro/jsx-runtime';
 
 // Types for global telemetry
 type GlobalStats = {
@@ -67,12 +65,6 @@ export default function SuperadminDashboard(props: SuperadminDashboardProps) {
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | '90d'>('7d');
 
-  useEffect(() => {
-    loadDashboardData();
-    const interval = setInterval(loadDashboardData, 30000); // Refresh every 30s
-    return () => clearInterval(interval);
-  }, [timeRange]);
-
   const loadDashboardData = async () => {
     setLoading(true);
     setError(null);
@@ -104,6 +96,15 @@ export default function SuperadminDashboard(props: SuperadminDashboardProps) {
     }
   };
 
+  // Intentionally not adding loadDashboardData to deps - it's recreated on each render
+  // and timeRange dependency ensures data is refetched when it changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    loadDashboardData();
+    const interval = setInterval(loadDashboardData, 30000); // Refresh every 30s
+    return () => clearInterval(interval);
+  }, [timeRange]);
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -134,7 +135,7 @@ export default function SuperadminDashboard(props: SuperadminDashboardProps) {
             <option value="30d">Last 30 Days</option>
             <option value="90d">Last 90 Days</option>
           </select>
-          <button onClick={props.onLogout} className="logout-btn">
+          <button type="button" onClick={props.onLogout} className="logout-btn">
             Logout
           </button>
         </div>
@@ -142,31 +143,31 @@ export default function SuperadminDashboard(props: SuperadminDashboardProps) {
 
       {/* Navigation */}
       <nav className="dashboard-nav">
-        <button
+        <button type="button"
           className={activeTab === 'overview' ? 'active' : ''}
           onClick={() => setActiveTab('overview')}
         >
           Overview
         </button>
-        <button
+        <button type="button"
           className={activeTab === 'users' ? 'active' : ''}
           onClick={() => setActiveTab('users')}
         >
           Users ({users.length})
         </button>
-        <button
+        <button type="button"
           className={activeTab === 'devices' ? 'active' : ''}
           onClick={() => setActiveTab('devices')}
         >
           Devices ({devices.length})
         </button>
-        <button
+        <button type="button"
           className={activeTab === 'costs' ? 'active' : ''}
           onClick={() => setActiveTab('costs')}
         >
           Costs
         </button>
-        <button
+        <button type="button"
           className={activeTab === 'health' ? 'active' : ''}
           onClick={() => setActiveTab('health')}
         >
@@ -179,7 +180,7 @@ export default function SuperadminDashboard(props: SuperadminDashboardProps) {
         <div className="error-banner">
           <span className="error-icon">⚠️</span>
           {error}
-          <button onClick={loadDashboardData} className="retry-btn">
+          <button type="button" onClick={loadDashboardData} className="retry-btn">
             Retry
           </button>
         </div>
@@ -231,23 +232,23 @@ export default function SuperadminDashboard(props: SuperadminDashboardProps) {
             </div>
           </div>
 
-          <div className="quick-links">
-            <h3>Quick Actions</h3>
-            <div className="action-buttons">
-              <button onClick={() => setActiveTab('users')}>
-                View All Users
-              </button>
-              <button onClick={() => setActiveTab('devices')}>
-                View Device Fleet
-              </button>
-              <button onClick={() => setActiveTab('health')}>
-                System Health
-              </button>
-              <button onClick={loadDashboardData}>
-                Refresh Data
-              </button>
+            <div className="quick-links">
+              <h3>Quick Actions</h3>
+              <div className="action-buttons">
+                <button type="button" onClick={() => setActiveTab('users')}>
+                  View All Users
+                </button>
+                <button type="button" onClick={() => setActiveTab('devices')}>
+                  View Device Fleet
+                </button>
+                <button type="button" onClick={() => setActiveTab('health')}>
+                  System Health
+                </button>
+                <button type="button" onClick={loadDashboardData}>
+                  Refresh Data
+                </button>
+              </div>
             </div>
-          </div>
         </div>
       )}
 
@@ -298,10 +299,10 @@ export default function SuperadminDashboard(props: SuperadminDashboardProps) {
                       {user.status}
                     </span>
                   </td>
-                  <td>
-                    <button className="action-btn">View</button>
-                    <button className="action-btn">Edit</button>
-                  </td>
+                   <td>
+                     <button type="button" className="action-btn">View</button>
+                     <button type="button" className="action-btn">Edit</button>
+                   </td>
                 </tr>
               ))}
             </tbody>
@@ -354,11 +355,11 @@ export default function SuperadminDashboard(props: SuperadminDashboardProps) {
                   </td>
                   <td>{new Date(device.lastSeen).toLocaleString()}</td>
                   <td>{device.ipAddress || 'N/A'}</td>
-                  <td>
-                    <button className="action-btn">View</button>
-                    <button className="action-btn">Sync</button>
-                    <button className="action-btn danger">Unpair</button>
-                  </td>
+                   <td>
+                     <button type="button" className="action-btn">View</button>
+                     <button type="button" className="action-btn">Sync</button>
+                     <button type="button" className="action-btn danger">Unpair</button>
+                   </td>
                 </tr>
               ))}
             </tbody>
@@ -410,7 +411,7 @@ export default function SuperadminDashboard(props: SuperadminDashboardProps) {
 
           <div className="health-metrics">
             <div className="metric">
-              <label>API Latency</label>
+              <span className="metric-label">API Latency</span>
               <div className="metric-value">{health.apiLatency}ms</div>
               <div className="metric-bar">
                 <div
@@ -421,7 +422,7 @@ export default function SuperadminDashboard(props: SuperadminDashboardProps) {
             </div>
 
             <div className="metric">
-              <label>Error Rate</label>
+              <span className="metric-label">Error Rate</span>
               <div className="metric-value">{(health.errorRate * 100).toFixed(2)}%</div>
               <div className="metric-bar">
                 <div
@@ -432,19 +433,19 @@ export default function SuperadminDashboard(props: SuperadminDashboardProps) {
             </div>
 
             <div className="metric">
-              <label>Database</label>
+              <span className="metric-label">Database</span>
               <div className={`metric-value ${health.dbStatus}`}>
                 {health.dbStatus}
               </div>
             </div>
 
             <div className="metric">
-              <label>Queue Depth</label>
+              <span className="metric-label">Queue Depth</span>
               <div className="metric-value">{health.queueDepth}</div>
             </div>
 
             <div className="metric">
-              <label>Active Connections</label>
+              <span className="metric-label">Active Connections</span>
               <div className="metric-value">{health.activeConnections}</div>
             </div>
           </div>
