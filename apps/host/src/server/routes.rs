@@ -70,24 +70,24 @@ async fn static_files_handler(
                 match tokio::fs::read(&target_path).await {
                     Ok(content) => {
                         let mime_type = mime_guess::from_path(&target_path).first_or_octet_stream();
-                        return ([("Content-Type", mime_type.as_ref())], content).into_response();
+                        ([("Content-Type", mime_type.as_ref())], content).into_response()
                     }
                     Err(e) => {
                         log::error!("Failed to read static file: {}", e);
-                        return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to read file")
-                            .into_response();
+                        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to read file")
+                            .into_response()
                     }
                 }
             } else {
-                return (StatusCode::NOT_FOUND, "File not found").into_response();
+                (StatusCode::NOT_FOUND, "File not found").into_response()
             }
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            return (StatusCode::NOT_FOUND, "File not found").into_response();
+            (StatusCode::NOT_FOUND, "File not found").into_response()
         }
         Err(e) => {
             log::error!("Error checking static file: {}", e);
-            return (StatusCode::INTERNAL_SERVER_ERROR, "Server error").into_response();
+            (StatusCode::INTERNAL_SERVER_ERROR, "Server error").into_response()
         }
     }
 }
