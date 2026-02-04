@@ -6,11 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"time"
-
-	"pryx-core/internal/cost"
-	"pryx-core/internal/telemetry"
-
-	"github.com/google/uuid"
 )
 
 // AdminStats represents aggregated statistics for the admin dashboard
@@ -572,8 +567,6 @@ func (s *Server) handleAdminTelemetryConfigUpdate(w http.ResponseWriter, r *http
 		return
 	}
 
-	// Update config (would need to persist this to config file/database)
-	// For now, just return success
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
