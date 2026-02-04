@@ -58,8 +58,9 @@
     "workers/*"
   ],
   "devDependencies": {
-    "oxlint": "latest",
     "@commitlint/cli": "^19.7.1",
-    "husky": "^9.1.7"
+    "@testing-library/jest-dom": "^6.9.1",
+    "husky": "^9.1.7",
+    "oxlint": "latest"
   }
 }
