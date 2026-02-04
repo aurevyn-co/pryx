@@ -29,7 +29,7 @@ interface LayerContext {
  * Extended context with layer information attached
  */
 interface AdminContext extends LayerContext {
-  // Additional admin-specific context if needed
+  env: any;
 }
 
 // ============================================================================
@@ -132,7 +132,7 @@ function getLayerFilters(layerContext: LayerContext): { userId?: string; global?
 }
 
 // Admin API router
-const adminApi = new Hono();
+const adminApi = new Hono<{ Bindings: any }>();
 
 // Enable CORS for admin API
 adminApi.use('/*', cors({
@@ -164,42 +164,77 @@ adminApi.use('/*', async (c, next) => {
   await next();
 });
 
-// GET /api/admin/stats - Statistics (layer-aware)
 adminApi.get('/stats', requireLayer('superadmin', 'localhost'), async (c) => {
-  // Access layer context stored by middleware
   const layerContext = (c as any).req.layerContext as LayerContext;
   const filters = getLayerFilters(layerContext);
 
-  // Layer-aware statistics based on access level
   let stats: Record<string, any>;
 
-  if (filters.global) {
-    // Superadmin or localhost: return global statistics
-    stats = {
-      totalUsers: 1247,
-      activeUsers: 892,
-      newUsersToday: 23,
-      totalDevices: 3421,
-      onlineDevices: 2187,
-      offlineDevices: 1234,
-      totalSessions: 15432,
-      totalCost: 2847.50,
-      avgCostPerUser: 2.28,
-      timestamp: new Date().toISOString(),
-    };
-  } else {
-    // Regular user: return user-specific statistics
-    stats = {
-      deviceCount: 3,
-      sessionCount: 156,
-      totalCost: 45.20,
-      avgCostPerSession: 0.29,
-      lastActive: new Date().toISOString(),
-      timestamp: new Date().toISOString(),
-    };
-  }
+  try {
+    if (filters.global) {
+      const list = await c.env.TELEMETRY.list({ limit: 1000, prefix: 'telemetry:' });
 
-  return c.json(stats);
+      let totalEvents = list.keys.length;
+      let totalCost = 0;
+      let errorCount = 0;
+      const uniqueDevices = new Set<string>();
+      const uniqueSessions = new Set<string>();
+
+      for (const key of list.keys) {
+        try {
+          const value = await c.env.TELEMETRY.get(key.name);
+          if (value) {
+            const event = JSON.parse(value);
+
+            if (event.device_id) uniqueDevices.add(event.device_id);
+            if (event.session_id) uniqueSessions.add(event.session_id);
+            if (event.cost) totalCost += event.cost;
+            if (event.level === 'error' || event.level === 'critical') errorCount++;
+          }
+        } catch (e) {
+        }
+      }
+
+      const now = Date.now();
+      const oneDayAgo = now - 86400000;
+      const recentEvents = await c.env.TELEMETRY.list({ limit: 100, prefix: 'telemetry:' });
+
+      let newEventsToday = 0;
+      for (const key of recentEvents.keys) {
+        try {
+          const value = await c.env.TELEMETRY.get(key.name);
+          if (value) {
+            const event = JSON.parse(value);
+            if (event.received_at && event.received_at >= oneDayAgo) {
+              newEventsToday++;
+            }
+          }
+        } catch (e) {
+        }
+      }
+
+      stats = {
+        totalEvents,
+        uniqueDevices: uniqueDevices.size,
+        uniqueSessions: uniqueSessions.size,
+        totalCost,
+        errorCount,
+        errorRate: totalEvents > 0 ? errorCount / totalEvents : 0,
+        newEventsToday,
+        timestamp: new Date().toISOString(),
+      };
+    } else {
+      stats = {
+        message: 'User-specific stats require user registry implementation',
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    return c.json(stats);
+  } catch (e) {
+    console.error('Stats error:', e);
+    return c.json({ error: String(e) }, 500);
+  }
 });
 
 // GET /api/admin/users - List users (layer-aware)
@@ -422,40 +457,109 @@ adminApi.get('/costs', requireLayer('superadmin', 'localhost', 'user'), async (c
   return c.json(costs);
 });
 
-// GET /api/admin/health - System health status
 adminApi.get('/health', async (c) => {
-  // TODO: Check actual system health
-  const health = {
-    runtimeStatus: 'healthy',
-    apiLatency: 45,
-    errorRate: 0.001,
-    dbStatus: 'connected',
-    queueDepth: 12,
-    activeConnections: 456,
-    timestamp: new Date().toISOString(),
-  };
+  const startTime = Date.now();
+  let dbStatus = 'connected';
+  let errorRate = 0;
+  let telemetryCount = 0;
 
-  return c.json(health);
+  try {
+    const list = await c.env.TELEMETRY.list({ limit: 1 });
+    const listTime = Date.now() - startTime;
+
+    const recentTelemetry = await c.env.TELEMETRY.list({
+      limit: 100,
+      prefix: 'telemetry:',
+    });
+
+    telemetryCount = recentTelemetry.keys.length;
+
+    let errorCount = 0;
+    for (const key of recentTelemetry.keys.slice(0, 20)) {
+      try {
+        const value = await c.env.TELEMETRY.get(key.name);
+        if (value) {
+          const event = JSON.parse(value);
+          if (event.level === 'error' || event.level === 'critical') {
+            errorCount++;
+          }
+        }
+      } catch (e) {
+      }
+    }
+    errorRate = errorCount / Math.min(20, telemetryCount) || 0;
+
+    const health = {
+      runtimeStatus: errorRate > 0.1 ? 'degraded' : 'healthy',
+      apiLatency: listTime,
+      errorRate,
+      dbStatus,
+      queueDepth: 0,
+      activeConnections: telemetryCount,
+      timestamp: new Date().toISOString(),
+    };
+
+    return c.json(health);
+  } catch (e) {
+    console.error('Health check error:', e);
+    const health = {
+      runtimeStatus: 'critical',
+      apiLatency: 9999,
+      errorRate: 1.0,
+      dbStatus: 'disconnected',
+      queueDepth: 0,
+      activeConnections: 0,
+      timestamp: new Date().toISOString(),
+    };
+
+    return c.json(health);
+  }
 });
 
-// GET /api/admin/telemetry - Real-time telemetry stream (SSE)
 adminApi.get('/telemetry', async (c) => {
-  // TODO: Implement Server-Sent Events for real-time telemetry
-  return c.json({
-    message: 'SSE endpoint for real-time telemetry - To be implemented',
-  });
+  const limit = parseInt(c.req.query('limit') || '50');
+  const level = c.req.query('level');
+
+  try {
+    const list = await c.env.TELEMETRY.list({
+      limit,
+      prefix: 'telemetry:',
+    });
+
+    const events = [];
+    for (const key of list.keys) {
+      try {
+        const value = await c.env.TELEMETRY.get(key.name);
+        if (value) {
+          const event = JSON.parse(value);
+          if (!level || event.level === level) {
+            events.push(event);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to parse telemetry event:', e);
+      }
+    }
+
+    return c.json({
+      count: events.length,
+      events: events.slice(0, limit),
+    });
+  } catch (e) {
+    console.error('Telemetry query error:', e);
+    return c.json({ error: String(e) }, 500);
+  }
 });
 
 // GET /api/admin/telemetry/config - Get telemetry configuration (superadmin only)
 adminApi.get('/telemetry/config', requireLayer('superadmin', 'localhost'), async (c) => {
-  // Return telemetry configuration settings
   const config = {
     enabled: true,
     retentionDays: 7,
     exportBackend: 'https://api.pryx.dev',
     samplingRate: 0.1,
     logLevel: 'info',
-   敏感数据过滤: true,
+    sensitiveDataFiltering: true,
     batchSize: 100,
     flushInterval: 5000,
   };
@@ -467,14 +571,13 @@ adminApi.get('/telemetry/config', requireLayer('superadmin', 'localhost'), async
 adminApi.put('/telemetry/config', requireLayer('superadmin', 'localhost'), async (c) => {
   const body = await c.req.json();
 
-  // Validate and update telemetry configuration
   const config = {
     enabled: body.enabled ?? true,
     retentionDays: body.retentionDays ?? 7,
     exportBackend: body.exportBackend ?? 'https://api.pryx.dev',
     samplingRate: body.samplingRate ?? 0.1,
     logLevel: body.logLevel ?? 'info',
-    敏感数据过滤: body.敏感数据过滤 ?? true,
+    sensitiveDataFiltering: body.sensitiveDataFiltering ?? true,
     batchSize: body.batchSize ?? 100,
     flushInterval: body.flushInterval ?? 5000,
     updatedAt: new Date().toISOString(),
@@ -484,29 +587,43 @@ adminApi.put('/telemetry/config', requireLayer('superadmin', 'localhost'), async
   return c.json(config);
 });
 
-// GET /api/admin/logs - System logs
 adminApi.get('/logs', async (c) => {
   const level = c.req.query('level') || 'info';
   const limit = parseInt(c.req.query('limit') || '100');
 
-  // TODO: Fetch logs from Cloudflare Workers analytics
-  const logs = [
-    {
-      timestamp: '2026-02-03T14:22:00Z',
-      level: 'info',
-      message: 'User login successful',
-      userId: 'user-001',
-    },
-    {
-      timestamp: '2026-02-03T14:20:00Z',
-      level: 'error',
-      message: 'Device sync failed',
-      deviceId: 'dev-002',
-      error: 'Connection timeout',
-    },
-  ];
+  try {
+    const list = await c.env.TELEMETRY.list({
+      limit,
+      prefix: 'telemetry:',
+    });
 
-  return c.json({ logs, total: logs.length });
+    const logs = [];
+    for (const key of list.keys) {
+      try {
+        const value = await c.env.TELEMETRY.get(key.name);
+        if (value) {
+          const event = JSON.parse(value);
+          if (!level || event.level === level) {
+            logs.push({
+              timestamp: event.received_at ? new Date(event.received_at).toISOString() : new Date().toISOString(),
+              level: event.level || 'info',
+              message: event.message || event.type || 'Telemetry event',
+              userId: event.user_id,
+              deviceId: event.device_id,
+              error: event.error,
+            });
+          }
+        }
+      } catch (e) {
+        console.error('Failed to parse log entry:', e);
+      }
+    }
+
+    return c.json({ logs: logs.slice(0, limit), total: logs.length });
+  } catch (e) {
+    console.error('Logs query error:', e);
+    return c.json({ error: String(e) }, 500);
+  }
 });
 
 export default adminApi;
