@@ -196,15 +196,28 @@ func runSessionDelete(args []string, cfg *config.Config) int {
 		return 1
 	}
 
-	_, err = s.DB.Exec("DELETE FROM messages WHERE session_id = ?", sessionID)
+	tx, err := s.DB.Begin()
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: failed to start transaction: %v\n", err)
+		return 1
+	}
+
+	_, err = tx.Exec("DELETE FROM messages WHERE session_id = ?", sessionID)
+	if err != nil {
+		_ = tx.Rollback()
 		fmt.Fprintf(os.Stderr, "Error: failed to delete messages: %v\n", err)
 		return 1
 	}
 
-	_, err = s.DB.Exec("DELETE FROM sessions WHERE id = ?", sessionID)
+	_, err = tx.Exec("DELETE FROM sessions WHERE id = ?", sessionID)
 	if err != nil {
+		_ = tx.Rollback()
 		fmt.Fprintf(os.Stderr, "Error: failed to delete session: %v\n", err)
+		return 1
+	}
+
+	if err := tx.Commit(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: failed to commit transaction: %v\n", err)
 		return 1
 	}
 
@@ -316,7 +329,10 @@ func runSessionExport(args []string, cfg *config.Config) int {
 		output += fmt.Sprintf("Exported: %s\n\n", time.Now().Format("2006-01-02 15:04:05"))
 		output += "---\n\n"
 		for _, msg := range messages {
-			role := strings.ToUpper(string(msg.Role[0])) + msg.Role[1:]
+			role := "Unknown"
+			if msg.Role != "" {
+				role = strings.ToUpper(string(msg.Role[0])) + msg.Role[1:]
+			}
 			output += fmt.Sprintf("## %s\n", role)
 			output += fmt.Sprintf("%s\n\n", msg.Content)
 		}

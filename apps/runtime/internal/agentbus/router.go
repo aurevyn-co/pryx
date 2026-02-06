@@ -47,6 +47,7 @@ func (mr *MessageRouter) Start(ctx context.Context) error {
 		mr.mu.Unlock()
 		return nil
 	}
+	mr.stopCh = make(chan struct{})
 	mr.running = true
 	mr.mu.Unlock()
 
@@ -77,11 +78,11 @@ func (mr *MessageRouter) Stop(ctx context.Context) error {
 // Route routes a message to its destination
 func (mr *MessageRouter) Route(ctx context.Context, msg *UniversalMessage) (bool, error) {
 	mr.mu.RLock()
-	defer mr.mu.RUnlock()
 
 	// Direct routing by agent ID
 	routeKey := mr.getRouteKey(msg.From.ID, msg.To.ID)
 	if route, exists := mr.routes[routeKey]; exists {
+		mr.mu.RUnlock()
 		if route.Handler != nil {
 			if err := route.Handler(msg); err != nil {
 				return false, err
@@ -93,6 +94,7 @@ func (mr *MessageRouter) Route(ctx context.Context, msg *UniversalMessage) (bool
 	// Check for wildcard routes
 	wildcardKey := mr.getRouteKey(msg.From.ID, "*")
 	if route, exists := mr.routes[wildcardKey]; exists {
+		mr.mu.RUnlock()
 		if route.Handler != nil {
 			if err := route.Handler(msg); err != nil {
 				return false, err
@@ -100,9 +102,17 @@ func (mr *MessageRouter) Route(ctx context.Context, msg *UniversalMessage) (bool
 		}
 		return true, nil
 	}
+	mr.mu.RUnlock()
 
 	// Broadcast routing
-	mr.broadcast <- msg
+	select {
+	case mr.broadcast <- msg:
+	default:
+		mr.logger.Warn("broadcast channel full, dropping message", map[string]interface{}{
+			"from": msg.From.ID,
+			"to":   msg.To.ID,
+		})
+	}
 
 	// Notify subscribers
 	mr.notifySubscribers(msg)
@@ -180,16 +190,22 @@ func (mr *MessageRouter) GetRoutes() []*Route {
 
 // Broadcast sends a message to all subscribers
 func (mr *MessageRouter) Broadcast(msg *UniversalMessage) {
-	mr.mu.RLock()
-	defer mr.mu.RUnlock()
-
-	mr.broadcast <- msg
+	select {
+	case mr.broadcast <- msg:
+	default:
+		mr.logger.Warn("broadcast channel full, dropping message", map[string]interface{}{
+			"from": msg.From.ID,
+			"to":   msg.To.ID,
+		})
+	}
 	mr.notifySubscribers(msg)
 }
 
-// notifySubscribers notifies all subscribers matching the message
-// Assumes caller holds mr.mu.RLock() or mr.mu.Lock()
+// notifySubscribers notifies all subscribers matching the message.
 func (mr *MessageRouter) notifySubscribers(msg *UniversalMessage) {
+	mr.mu.RLock()
+	defer mr.mu.RUnlock()
+
 	for pattern, subscribers := range mr.subscribers {
 		if mr.matchesPattern(msg, pattern) {
 			for _, ch := range subscribers {

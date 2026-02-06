@@ -259,24 +259,12 @@ func (s *Service) PerformHealthCheck(ctx context.Context, req *HealthCheckReques
 
 	s.mu.RLock()
 	_, exists := s.agents[req.AgentID]
-	var agentComponents []*HealthComponent
+	componentsSnapshot := make([]HealthComponent, 0)
 	if exists {
-		// Create a copy of the pointers to avoid race on the map access
-		// The component objects themselves might be modified under lock in other methods,
-		// but HealthComponent here seems to be efficiently copyable struct?
-		// Wait, s.components is map[string]map[string]*HealthComponent
-		// We need to copy the *HealthComponent pointers.
-		// Note: The content of *HealthComponent might be modified.
-		// Ideally we should copy the VALUES aka dereference them if we want a snapshot.
-		// HealthComponent field 'Status' etc are modified in UpdateComponentHealth under Lock.
-		// So we should copy.
 		if comps, ok := s.components[req.AgentID]; ok {
-			agentComponents = make([]*HealthComponent, 0, len(comps))
+			componentsSnapshot = make([]HealthComponent, 0, len(comps))
 			for _, c := range comps {
-				// We append the pointer for now, but strictly we should probably dereference if we want snapshot.
-				// But Service.PerformHealthCheck returns *pointers* in HealthCheckResponse? No, structure `HealthComponent` (value).
-				// So we should read the values under lock.
-				agentComponents = append(agentComponents, c)
+				componentsSnapshot = append(componentsSnapshot, *c)
 			}
 		}
 	}
@@ -286,12 +274,10 @@ func (s *Service) PerformHealthCheck(ctx context.Context, req *HealthCheckReques
 		return nil, fmt.Errorf("agent not found: %s", req.AgentID)
 	}
 
-	components := make([]HealthComponent, 0)
+	components := make([]HealthComponent, 0, len(componentsSnapshot))
 
 	// Perform checks based on request
-	for _, compPointer := range agentComponents {
-		// dereference safely? We already have the pointer.
-		comp := *compPointer // Snapshot the value
+	for _, comp := range componentsSnapshot {
 		if len(req.CheckTypes) == 0 || containsComponentType(req.CheckTypes, comp.Type) {
 			components = append(components, comp)
 		}
@@ -365,8 +351,7 @@ func (s *Service) GetAgentHealth(agentID string) (*AgentHealth, error) {
 		return nil, fmt.Errorf("agent not found: %s", agentID)
 	}
 
-	agent.Components = s.getComponentsList(agentID)
-	return agent, nil
+	return s.cloneAgentHealth(agent), nil
 }
 
 // GetAllAgentHealth retrieves health status of all registered agents
@@ -376,11 +361,22 @@ func (s *Service) GetAllAgentHealth() []*AgentHealth {
 
 	agents := make([]*AgentHealth, 0, len(s.agents))
 	for _, agent := range s.agents {
-		agent.Components = s.getComponentsList(agent.AgentID)
-		agents = append(agents, agent)
+		agents = append(agents, s.cloneAgentHealth(agent))
 	}
 
 	return agents
+}
+
+func (s *Service) cloneAgentHealth(agent *AgentHealth) *AgentHealth {
+	clone := *agent
+	clone.Components = s.getComponentsList(agent.AgentID)
+	if agent.Metadata != nil {
+		clone.Metadata = make(map[string]interface{}, len(agent.Metadata))
+		for k, v := range agent.Metadata {
+			clone.Metadata[k] = v
+		}
+	}
+	return &clone
 }
 
 // GetAlerts retrieves alerts for an agent

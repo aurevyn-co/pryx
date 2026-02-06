@@ -1,0 +1,3 @@
+version: 2
+paths-ignore:
+  - apps/runtime/internal/auth/oauth_mock_test.go

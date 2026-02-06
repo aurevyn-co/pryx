@@ -268,6 +268,9 @@ jobs:
   build-windows:
     name: Build Windows
     runs-on: windows-latest
+    env:
+      WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
     strategy:
       matrix:
         package: [msi, exe]
@@ -316,7 +319,7 @@ jobs:
       - name: Check for Windows certificate
         id: check_windows_cert
         run: |
-          if [ -n "${{ secrets.WINDOWS_CERTIFICATE }}" ]; then
+          if [ -n "$WINDOWS_CERTIFICATE" ]; then
             echo "has_certificate=true" >> $GITHUB_OUTPUT
           else
             echo "has_certificate=false" >> $GITHUB_OUTPUT

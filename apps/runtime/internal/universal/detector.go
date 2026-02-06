@@ -13,6 +13,7 @@ import (
 
 // Detector manages auto-detection of running agents
 type Detector struct {
+	mu      sync.Mutex
 	ports   []int
 	running bool
 	stopCh  chan struct{}
@@ -37,11 +38,22 @@ func NewDetector(scanPorts []int) *Detector {
 
 // Start initializes the detector
 func (d *Detector) Start(ctx context.Context) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.running {
+		return
+	}
+	d.stopCh = make(chan struct{})
 	d.running = true
 }
 
 // Stop gracefully shuts down the detector
 func (d *Detector) Stop(ctx context.Context) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if !d.running {
+		return
+	}
 	d.running = false
 	close(d.stopCh)
 }

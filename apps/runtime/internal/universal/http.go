@@ -70,6 +70,10 @@ func (a *HTTPAdapter) Connect(ctx context.Context, info AgentInfo, config AgentC
 		return nil, fmt.Errorf("agent returned status: %d", resp.StatusCode)
 	}
 
+	a.mu.Lock()
+	a.running = true
+	a.mu.Unlock()
+
 	now := time.Now()
 	return &AgentConnection{
 		ID: fmt.Sprintf("http-%d", time.Now().UnixNano()),
@@ -166,8 +170,11 @@ func (a *HTTPAdapter) Receive(ctx context.Context, conn *AgentConnection) (*Univ
 // Disconnect closes the HTTP connection
 func (a *HTTPAdapter) Disconnect(ctx context.Context, conn *AgentConnection) error {
 	a.mu.Lock()
+	defer a.mu.Unlock()
+	if !a.running {
+		return nil
+	}
 	a.running = false
-	a.mu.Unlock()
 
 	close(a.stopCh)
 	a.stopCh = make(chan struct{})

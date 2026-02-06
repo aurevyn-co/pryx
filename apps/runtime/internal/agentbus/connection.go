@@ -42,6 +42,7 @@ func (cm *ConnectionManager) Start(ctx context.Context) error {
 		cm.mu.Unlock()
 		return nil
 	}
+	cm.stopCh = make(chan struct{})
 	cm.running = true
 	cm.mu.Unlock()
 
@@ -84,6 +85,13 @@ func (cm *ConnectionManager) Stop(ctx context.Context) error {
 func (cm *ConnectionManager) Add(ctx context.Context, conn *AgentConnection) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
+
+	if !cm.running {
+		cm.logger.Warn("connection manager is not running", map[string]interface{}{
+			"connection_id": conn.ID,
+		})
+		return
+	}
 
 	// Check if already exists
 	if _, exists := cm.connections[conn.ID]; exists {
