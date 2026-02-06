@@ -3,7 +3,7 @@ name: Deploy Web App to Cloudflare Workers
 on:
   push:
     branches:
-      - develop/v1-production-ready
+      - main
     paths:
       - 'apps/web/**'
       - '.github/workflows/deploy-web.yml'
