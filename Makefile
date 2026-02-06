@@ -428,19 +428,33 @@ install-tools: ## Install development tools
 		echo "    $(GREEN)✓$(NC) golangci-lint already installed"; \
 	fi
 	@echo "  Checking for Tauri CLI..."
-	@if ! command -v tauri >/dev/null 2>&1; then \
+	@if ! command -v tauri >/dev/null 2>&1 && [ ! -x "$$HOME/.bun/bin/tauri" ]; then \
 		echo "    Installing Tauri CLI v2..."; \
 		if command -v cargo >/dev/null 2>&1; then \
 			if cargo install tauri-cli --version "^2.0.0"; then \
 				echo "    $(GREEN)✓$(NC) Tauri CLI installed"; \
 			elif command -v bun >/dev/null 2>&1 && bun add -g @tauri-apps/cli@latest; then \
-				echo "    $(GREEN)✓$(NC) Tauri CLI installed"; \
+				if command -v tauri >/dev/null 2>&1; then \
+					echo "    $(GREEN)✓$(NC) Tauri CLI installed"; \
+				elif [ -x "$$HOME/.bun/bin/tauri" ]; then \
+					echo "    $(YELLOW)Warning:$(NC) Tauri CLI installed at $$HOME/.bun/bin/tauri but not on PATH"; \
+					echo "    $(YELLOW)Warning:$(NC) add $$HOME/.bun/bin to PATH to avoid reinstall loops"; \
+				else \
+					echo "    $(YELLOW)Warning:$(NC) Tauri CLI install completed but binary not found"; \
+				fi; \
 			else \
 				echo "    $(YELLOW)Warning:$(NC) failed to install Tauri CLI"; \
 			fi; \
 		elif command -v bun >/dev/null 2>&1; then \
 			if bun add -g @tauri-apps/cli@latest; then \
-				echo "    $(GREEN)✓$(NC) Tauri CLI installed"; \
+				if command -v tauri >/dev/null 2>&1; then \
+					echo "    $(GREEN)✓$(NC) Tauri CLI installed"; \
+				elif [ -x "$$HOME/.bun/bin/tauri" ]; then \
+					echo "    $(YELLOW)Warning:$(NC) Tauri CLI installed at $$HOME/.bun/bin/tauri but not on PATH"; \
+					echo "    $(YELLOW)Warning:$(NC) add $$HOME/.bun/bin to PATH to avoid reinstall loops"; \
+				else \
+					echo "    $(YELLOW)Warning:$(NC) Tauri CLI install completed but binary not found"; \
+				fi; \
 			else \
 				echo "    $(YELLOW)Warning:$(NC) bun add failed for Tauri CLI; restart your shell or install manually"; \
 			fi; \
