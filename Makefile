@@ -426,7 +426,11 @@ install-tools: ## Install development tools
 	@echo "  Checking for Tauri CLI..."
 	@if ! command -v tauri >/dev/null 2>&1; then \
 		echo "    Installing Tauri CLI v2..."; \
-		cargo install tauri-cli --version "^2.0.0" || bun add -g @tauri-apps/cli@latest; \
+		if command -v cargo >/dev/null 2>&1; then \
+			cargo install tauri-cli --version "^2.0.0" || bun add -g @tauri-apps/cli@latest; \
+		else \
+			bun add -g @tauri-apps/cli@latest; \
+		fi; \
 		echo "    $(GREEN)✓$(NC) Tauri CLI installed"; \
 	else \
 		echo "    $(GREEN)✓$(NC) Tauri CLI already installed"; \
@@ -441,8 +445,15 @@ install-tools: ## Install development tools
 	fi
 	@echo "  Setting up pre-commit hooks..."
 	@if [ -f .pre-commit-config.yaml ]; then \
-		pre-commit install; \
-		echo "    $(GREEN)✓$(NC) pre-commit hooks installed"; \
+		if pre-commit --version >/dev/null 2>&1; then \
+			if pre-commit install; then \
+				echo "    $(GREEN)✓$(NC) pre-commit hooks installed"; \
+			else \
+				echo "    $(YELLOW)Warning:$(NC) failed to install pre-commit hooks, continuing"; \
+			fi; \
+		else \
+			echo "    $(YELLOW)Warning:$(NC) pre-commit is not usable in this environment, skipping hooks setup"; \
+		fi; \
 	else \
 		echo "    $(YELLOW)Warning: .pre-commit-config.yaml not found$(NC)"; \
 	fi
@@ -450,17 +461,29 @@ install-tools: ## Install development tools
 install-deps: ## Install all dependencies
 	@echo "$(BLUE)Installing dependencies...$(NC)"
 	@if [ -d "$(HOST_DIR)" ]; then \
-		echo "  Installing host dependencies..." && cd $(HOST_DIR) && cargo build; \
+		if command -v cargo >/dev/null 2>&1; then \
+			echo "  Installing host dependencies..." && cd $(HOST_DIR) && cargo build; \
+		else \
+			echo "  $(YELLOW)Warning:$(NC) cargo not found, skipping host dependencies"; \
+		fi; \
 	else \
 		echo "$(YELLOW)Warning: host directory not found, skipping$(NC)"; \
 	fi
 	@if [ -d "$(RUNTIME_DIR)" ]; then \
-		echo "  Installing runtime dependencies..." && cd $(RUNTIME_DIR) && go mod download && go mod tidy; \
+		if command -v go >/dev/null 2>&1; then \
+			echo "  Installing runtime dependencies..." && cd $(RUNTIME_DIR) && go mod download && go mod tidy; \
+		else \
+			echo "  $(YELLOW)Warning:$(NC) go not found, skipping runtime dependencies"; \
+		fi; \
 	else \
 		echo "$(YELLOW)Warning: runtime directory not found, skipping$(NC)"; \
 	fi
 	@if [ -d "$(TUI_DIR)" ]; then \
-		echo "  Installing TUI dependencies..." && cd $(TUI_DIR) && bun install --frozen-lockfile; \
+		if command -v bun >/dev/null 2>&1; then \
+			echo "  Installing TUI dependencies..." && cd $(TUI_DIR) && bun install --frozen-lockfile; \
+		else \
+			echo "  $(YELLOW)Warning:$(NC) bun not found, skipping TUI dependencies"; \
+		fi; \
 	else \
 		echo "$(YELLOW)Warning: tui directory not found, skipping$(NC)"; \
 	fi
