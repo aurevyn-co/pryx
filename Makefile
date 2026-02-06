@@ -398,8 +398,13 @@ install-tools: ## Install development tools
 	@echo "  Checking for pre-commit..."
 	@if ! command -v pre-commit >/dev/null 2>&1; then \
 		echo "    Installing pre-commit..."; \
-		pip install pre-commit || pip3 install pre-commit; \
-		echo "    $(GREEN)✓$(NC) pre-commit installed"; \
+		if command -v pip >/dev/null 2>&1 && pip install pre-commit; then \
+			echo "    $(GREEN)✓$(NC) pre-commit installed"; \
+		elif command -v pip3 >/dev/null 2>&1 && pip3 install pre-commit; then \
+			echo "    $(GREEN)✓$(NC) pre-commit installed"; \
+		else \
+			echo "    $(YELLOW)Warning:$(NC) failed to install pre-commit (pip/pip3 missing or install failed)"; \
+		fi; \
 	else \
 		echo "    $(GREEN)✓$(NC) pre-commit already installed"; \
 	fi
