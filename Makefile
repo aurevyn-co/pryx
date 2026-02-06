@@ -417,9 +417,13 @@ install-tools: ## Install development tools
 	fi
 	@echo "  Checking for golangci-lint..."
 	@if ! command -v golangci-lint >/dev/null 2>&1; then \
-		echo "    Installing golangci-lint..."; \
-		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin; \
-		echo "    $(GREEN)✓$(NC) golangci-lint installed"; \
+		if command -v go >/dev/null 2>&1; then \
+			echo "    Installing golangci-lint..."; \
+			curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin; \
+			echo "    $(GREEN)✓$(NC) golangci-lint installed"; \
+		else \
+			echo "    $(YELLOW)Warning:$(NC) go not found, skipping golangci-lint install"; \
+		fi; \
 	else \
 		echo "    $(GREEN)✓$(NC) golangci-lint already installed"; \
 	fi
@@ -427,19 +431,44 @@ install-tools: ## Install development tools
 	@if ! command -v tauri >/dev/null 2>&1; then \
 		echo "    Installing Tauri CLI v2..."; \
 		if command -v cargo >/dev/null 2>&1; then \
-			cargo install tauri-cli --version "^2.0.0" || bun add -g @tauri-apps/cli@latest; \
+			if cargo install tauri-cli --version "^2.0.0"; then \
+				echo "    $(GREEN)✓$(NC) Tauri CLI installed"; \
+			elif command -v bun >/dev/null 2>&1 && bun add -g @tauri-apps/cli@latest; then \
+				echo "    $(GREEN)✓$(NC) Tauri CLI installed"; \
+			else \
+				echo "    $(YELLOW)Warning:$(NC) failed to install Tauri CLI"; \
+			fi; \
+		elif command -v bun >/dev/null 2>&1; then \
+			if bun add -g @tauri-apps/cli@latest; then \
+				echo "    $(GREEN)✓$(NC) Tauri CLI installed"; \
+			else \
+				echo "    $(YELLOW)Warning:$(NC) bun add failed for Tauri CLI; restart your shell or install manually"; \
+			fi; \
 		else \
-			bun add -g @tauri-apps/cli@latest; \
+			echo "    $(YELLOW)Warning:$(NC) neither cargo nor bun found, skipping Tauri CLI install"; \
 		fi; \
-		echo "    $(GREEN)✓$(NC) Tauri CLI installed"; \
 	else \
 		echo "    $(GREEN)✓$(NC) Tauri CLI already installed"; \
 	fi
 	@echo "  Checking for Wrangler..."
-	@if ! command -v wrangler >/dev/null 2>&1; then \
+	@if ! command -v wrangler >/dev/null 2>&1 && [ ! -x "$$HOME/.bun/bin/wrangler" ]; then \
 		echo "    Installing Wrangler..."; \
-		bun add -g wrangler@latest; \
-		echo "    $(GREEN)✓$(NC) Wrangler installed"; \
+		if command -v bun >/dev/null 2>&1; then \
+			if bun add -g wrangler@latest; then \
+				if command -v wrangler >/dev/null 2>&1; then \
+					echo "    $(GREEN)✓$(NC) Wrangler installed"; \
+				elif [ -x "$$HOME/.bun/bin/wrangler" ]; then \
+					echo "    $(YELLOW)Warning:$(NC) Wrangler installed at $$HOME/.bun/bin/wrangler but not on PATH"; \
+					echo "    $(YELLOW)Warning:$(NC) add $$HOME/.bun/bin to PATH to avoid reinstall loops"; \
+				else \
+					echo "    $(YELLOW)Warning:$(NC) Wrangler install completed but binary not found"; \
+				fi; \
+			else \
+				echo "    $(YELLOW)Warning:$(NC) failed to install Wrangler with bun"; \
+			fi; \
+		else \
+			echo "    $(YELLOW)Warning:$(NC) bun not found, skipping Wrangler install"; \
+		fi; \
 	else \
 		echo "    $(GREEN)✓$(NC) Wrangler already installed"; \
 	fi
