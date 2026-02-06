@@ -97,7 +97,19 @@ func TestCostService_GetBudgetStatus_OverBudget(t *testing.T) {
 		TotalCost:    5.0, // Exceeds daily budget
 		Model:        "gpt-4",
 	}
-	tracker.RecordCost("test-session", "cli", "gpt-4", costInfo)
+	err := tracker.RecordCost("test-session", "cli", "gpt-4", costInfo)
+	if err != nil {
+		t.Fatalf("Failed to record cost: %v", err)
+	}
+
+	// Verify cost was recorded
+	costs, err := tracker.GetSessionCosts("test-session")
+	if err != nil {
+		t.Fatalf("Failed to get session costs: %v", err)
+	}
+	if len(costs) != 1 {
+		t.Fatalf("Expected 1 cost to be recorded, got %d", len(costs))
+	}
 
 	status := service.GetBudgetStatus("user1")
 
@@ -145,7 +157,6 @@ func TestCostService_GetOptimizationSuggestions(t *testing.T) {
 
 	service := NewCostService(tracker, calculator, pricingMgr, store)
 
-	// Add high cost events to trigger suggestions
 	for i := 0; i < 60; i++ {
 		costInfo := audit.CostInfo{
 			InputTokens:  10000,
@@ -156,14 +167,24 @@ func TestCostService_GetOptimizationSuggestions(t *testing.T) {
 			TotalCost:    1.0,
 			Model:        "gpt-4",
 		}
-		tracker.RecordCost("test-session", "cli", "gpt-4", costInfo)
+		err := tracker.RecordCost("test-session", "cli", "gpt-4", costInfo)
+		if err != nil {
+			t.Fatalf("Failed to record cost: %v", err)
+		}
+	}
+
+	sessionCosts, err := tracker.GetSessionCosts("test-session")
+	if err != nil {
+		t.Fatalf("Failed to get session costs: %v", err)
+	}
+	if len(sessionCosts) != 60 {
+		t.Fatalf("Expected 60 costs, got %d", len(sessionCosts))
 	}
 
 	suggestions := service.GetOptimizationSuggestions()
 
-	// Should have suggestions for high usage
 	if len(suggestions) == 0 {
-		t.Log("No suggestions generated (may depend on actual cost data)")
+		t.Error("Expected optimization suggestions for high costs")
 	}
 }
 

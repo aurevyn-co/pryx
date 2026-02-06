@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -80,15 +81,18 @@ func TestSkillsCLI_EnableDisable(t *testing.T) {
 
 // TestSkillsCLI_Info tests info for valid skill
 func TestSkillsCLI_Info(t *testing.T) {
-	skipIfBinaryMissing(t)
-	// Test info for a bundled skill (git-tool is a bundled skill)
-	cmd := exec.Command(pryxCorePath, "skills", "info", "git-tool")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("skills info failed: %v", err)
-	}
+	home := t.TempDir()
+	bundled := filepath.Join(home, "bundled-skills")
+	writeSkill(t, bundled, "git-tool", true)
 
-	outputStr := string(output)
+	outputStr, code := runPryxCoreWithEnv(t, home, map[string]string{
+		"PRYX_BUNDLED_SKILLS_DIR": bundled,
+		"PRYX_MANAGED_SKILLS_DIR": filepath.Join(home, "managed-skills"),
+		"PRYX_WORKSPACE_ROOT":     filepath.Join(home, "workspace"),
+	}, "skills", "info", "git-tool")
+	if code != 0 {
+		t.Fatalf("skills info failed (code %d):\n%s", code, outputStr)
+	}
 	if !strings.Contains(outputStr, "git-tool") {
 		t.Errorf("Expected 'git-tool' in output, got: %s", outputStr)
 	}

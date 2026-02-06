@@ -81,6 +81,26 @@ func TestRegistry_Get(t *testing.T) {
 	assert.Equal(t, "exists", found.ID)
 }
 
+func TestRegistry_EnableDisable(t *testing.T) {
+	reg := NewRegistry()
+	reg.Upsert(Skill{ID: "skill", Enabled: false})
+
+	ok := reg.Enable("skill")
+	require.True(t, ok)
+	s, ok := reg.Get("skill")
+	require.True(t, ok)
+	assert.True(t, s.Enabled)
+
+	ok = reg.Disable("skill")
+	require.True(t, ok)
+	s, ok = reg.Get("skill")
+	require.True(t, ok)
+	assert.False(t, s.Enabled)
+
+	assert.False(t, reg.Enable("missing"))
+	assert.False(t, reg.Disable("missing"))
+}
+
 func TestRegistry_Get_Concurrent(t *testing.T) {
 	reg := NewRegistry()
 

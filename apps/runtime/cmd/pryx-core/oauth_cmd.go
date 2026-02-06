@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"os/exec"
-	"runtime"
 	"time"
 
 	"pryx-core/internal/auth"
@@ -69,51 +67,8 @@ func runProviderOAuth(args []string) int {
 	return 0
 }
 
-// openBrowser opens the default browser with the given URL
-func openBrowser(url string) error {
-	var cmd string
-	var args []string
-
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = "open"
-	case "windows":
-		cmd = "rundll32"
-		args = []string{"url.dll,FileProtocolHandler"}
-	default:
-		cmd = "xdg-open"
-	}
-
-	args = append(args, url)
-	return exec.Command(cmd, args...).Start()
-}
-
 // isOAuthConfigured checks if OAuth tokens exist for a provider
 func isOAuthConfigured(providerID string, kc *keychain.Keychain) bool {
 	_, err := kc.Get("oauth_" + providerID + "_access")
 	return err == nil
-}
-
-// getOAuthToken retrieves OAuth access token for API calls
-func getOAuthToken(providerID string, kc *keychain.Keychain) (string, error) {
-	oauth := auth.NewProviderOAuth(kc)
-
-	// Check if token needs refresh
-	needsRefresh, err := oauth.IsTokenExpired(providerID)
-	if err != nil {
-		return "", fmt.Errorf("failed to check token expiry: %w", err)
-	}
-
-	if needsRefresh {
-		fmt.Println("Token expired, refreshing...")
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		if err := oauth.RefreshToken(ctx, providerID); err != nil {
-			return "", fmt.Errorf("failed to refresh token: %w", err)
-		}
-		fmt.Println("✓ Token refreshed")
-	}
-
-	return oauth.GetToken(providerID)
 }

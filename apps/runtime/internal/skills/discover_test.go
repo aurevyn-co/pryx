@@ -179,3 +179,96 @@ description: Test skill
 		t.Logf("Loaded 50 skills in %v (within 1s requirement)", elapsed)
 	}
 }
+
+func TestDiscoverAppliesEnabledConfig(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	workspaceRoot := t.TempDir()
+	managedRoot := t.TempDir()
+	configPath := filepath.Join(t.TempDir(), "skills.yaml")
+
+	t.Setenv("PRYX_SKILLS_CONFIG_PATH", configPath)
+
+	skillDir := filepath.Join(managedRoot, "linter")
+	if err := os.MkdirAll(skillDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	skill := []byte(`---
+name: linter
+description: managed
+---
+# Linter`)
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), skill, 0o644); err != nil {
+		t.Fatalf("write skill: %v", err)
+	}
+
+	if err := os.WriteFile(configPath, []byte("enabled_skills:\n  linter: true\n"), 0o644); err != nil {
+		t.Fatalf("write enabled config: %v", err)
+	}
+
+	reg, err := Discover(context.Background(), Options{
+		WorkspaceRoot: workspaceRoot,
+		ManagedRoot:   managedRoot,
+		BundledRoot:   "",
+		MaxConcurrent: 4,
+	})
+	if err != nil {
+		t.Fatalf("discover failed: %v", err)
+	}
+
+	got, ok := reg.Get("linter")
+	if !ok {
+		t.Fatalf("expected skill linter")
+	}
+	if !got.Enabled {
+		t.Fatalf("expected enabled skill")
+	}
+}
+
+func TestDiscoverComputesEligibilityFromRequirements(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	workspaceRoot := t.TempDir()
+	managedRoot := t.TempDir()
+	configPath := filepath.Join(t.TempDir(), "skills.yaml")
+
+	t.Setenv("PRYX_SKILLS_CONFIG_PATH", configPath)
+	if err := os.WriteFile(configPath, []byte("enabled_skills:\n  tool: true\n"), 0o644); err != nil {
+		t.Fatalf("write enabled config: %v", err)
+	}
+
+	skillDir := filepath.Join(managedRoot, "tool")
+	if err := os.MkdirAll(skillDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	skill := []byte(`---
+name: tool
+description: requires missing bin
+metadata:
+  pryx:
+    requires:
+      bins: ["definitely-missing-bin-xyz"]
+---
+# Tool`)
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), skill, 0o644); err != nil {
+		t.Fatalf("write skill: %v", err)
+	}
+
+	reg, err := Discover(context.Background(), Options{
+		WorkspaceRoot: workspaceRoot,
+		ManagedRoot:   managedRoot,
+		BundledRoot:   "",
+		MaxConcurrent: 4,
+	})
+	if err != nil {
+		t.Fatalf("discover failed: %v", err)
+	}
+
+	got, ok := reg.Get("tool")
+	if !ok {
+		t.Fatalf("expected skill tool")
+	}
+	if got.Eligible {
+		t.Fatalf("expected ineligible skill")
+	}
+}

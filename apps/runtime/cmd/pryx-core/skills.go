@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -216,9 +217,12 @@ func runCheckSkills(args []string, cfg *config.Config) int {
 
 		// Check prompts
 		if len(skill.SystemPrompt) == 0 {
-			fmt.Printf("⚠ %s: Empty system prompt\n", skill.ID)
-			issuesInSkill++
-			issues++
+			body, _ := skill.Body()
+			if strings.TrimSpace(body) == "" {
+				fmt.Printf("⚠ %s: Empty system prompt\n", skill.ID)
+				issuesInSkill++
+				issues++
+			}
 		}
 
 		if issuesInSkill == 0 {
@@ -268,24 +272,18 @@ func runEnableSkill(args []string, cfg *config.Config) int {
 		return 1
 	}
 
-	// Update skill enabled status in config
-	home, _ := os.UserHomeDir()
-	configPath := filepath.Join(home, ".pryx", "skills.yaml")
-	skillsConfig, err := loadSkillsConfig(configPath)
+	configPath := skills.EnabledConfigPath()
+	enabledCfg, err := skills.LoadEnabledConfig(configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to load skills config: %v\n", err)
 		return 1
 	}
 
-	if skillsConfig.EnabledSkills == nil {
-		skillsConfig.EnabledSkills = make(map[string]bool)
-	}
-
-	if skillsConfig.EnabledSkills[name] {
+	if enabledCfg.EnabledSkills[name] {
 		fmt.Printf("ℹ Skill %s is already enabled\n", name)
 	} else {
-		skillsConfig.EnabledSkills[name] = true
-		if err := saveSkillsConfig(configPath, skillsConfig); err != nil {
+		enabledCfg.EnabledSkills[name] = true
+		if err := skills.SaveEnabledConfig(configPath, enabledCfg); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to save skills config: %v\n", err)
 			return 1
 		}
@@ -316,24 +314,18 @@ func runDisableSkill(args []string, cfg *config.Config) int {
 		return 1
 	}
 
-	// Update skill enabled status in config
-	home, _ := os.UserHomeDir()
-	configPath := filepath.Join(home, ".pryx", "skills.yaml")
-	skillsConfig, err := loadSkillsConfig(configPath)
+	configPath := skills.EnabledConfigPath()
+	enabledCfg, err := skills.LoadEnabledConfig(configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to load skills config: %v\n", err)
 		return 1
 	}
 
-	if skillsConfig.EnabledSkills == nil {
-		skillsConfig.EnabledSkills = make(map[string]bool)
-	}
-
-	if !skillsConfig.EnabledSkills[name] {
+	if !enabledCfg.EnabledSkills[name] {
 		fmt.Printf("ℹ Skill %s is already disabled\n", name)
 	} else {
-		delete(skillsConfig.EnabledSkills, name)
-		if err := saveSkillsConfig(configPath, skillsConfig); err != nil {
+		delete(enabledCfg.EnabledSkills, name)
+		if err := skills.SaveEnabledConfig(configPath, enabledCfg); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to save skills config: %v\n", err)
 			return 1
 		}
@@ -346,28 +338,190 @@ func runDisableSkill(args []string, cfg *config.Config) int {
 func runInstallSkill(args []string, cfg *config.Config) int {
 	if len(args) < 1 {
 		fmt.Fprintf(os.Stderr, "Error: skill name required\n")
+		fmt.Fprintf(os.Stderr, "Usage: pryx-core skills install <name> [--from <path|url>]\n")
 		return 2
 	}
 	name := args[0]
 
-	fmt.Printf("Installing skill: %s\n", name)
-	fmt.Println("(Installation logic to be implemented)")
-	fmt.Printf("✓ Skill installation prepared: %s\n", name)
+	opts := skills.DefaultOptions()
 
+	skill, err := installSkillFromSource(name, args[1:], opts)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: failed to install skill: %v\n", err)
+		return 1
+	}
+
+	fmt.Printf("✓ Skill installed successfully: %s\n", skill.ID)
+	fmt.Printf("  Name: %s\n", skill.Frontmatter.Name)
+	fmt.Printf("  Path: %s\n", skill.Path)
+	fmt.Printf("  Source: %s\n", skill.Source)
+
+	if len(skill.Frontmatter.Metadata.Pryx.Install) > 0 {
+		fmt.Printf("\n  Running %d installer(s)...\n", len(skill.Frontmatter.Metadata.Pryx.Install))
+		if err := runSkillInstallers(skill); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: installation steps failed: %v\n", err)
+			fmt.Println("  Skill files installed but dependencies may need manual setup.")
+		} else {
+			fmt.Println("  ✓ All installation steps completed")
+		}
+	}
+
+	fmt.Printf("\nEnable the skill with: pryx-core skills enable %s\n", skill.ID)
 	return 0
+}
+
+func installSkillFromSource(name string, args []string, opts skills.Options) (*skills.Skill, error) {
+	from := ""
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--from" && i+1 < len(args) {
+			from = args[i+1]
+			i++
+		}
+	}
+
+	skillPath := filepath.Join(opts.ManagedRoot, name)
+
+	if from == "" {
+		return nil, fmt.Errorf("no source specified. Use --from <path|url|bundled/skill-name>")
+	}
+
+	if strings.HasPrefix(from, "bundled/") {
+		bundledName := strings.TrimPrefix(from, "bundled/")
+		bundledPath := filepath.Join(opts.BundledRoot, bundledName)
+		if _, err := os.Stat(bundledPath); err != nil {
+			return nil, fmt.Errorf("bundled skill not found: %s", bundledName)
+		}
+		from = bundledPath
+	}
+
+	if strings.HasPrefix(from, "http://") || strings.HasPrefix(from, "https://") {
+		return installSkillFromURL(name, from, skillPath)
+	}
+
+	if _, err := os.Stat(from); err != nil {
+		return nil, fmt.Errorf("source path not found: %s", from)
+	}
+
+	return installSkillFromPath(name, from, skillPath)
+}
+
+func installSkillFromPath(name, sourcePath, targetPath string) (*skills.Skill, error) {
+	sourceSkillPath := filepath.Join(sourcePath, "SKILL.md")
+	if _, err := os.Stat(sourceSkillPath); err != nil {
+		sourceSkillPath = sourcePath
+		if !strings.HasSuffix(sourceSkillPath, ".md") {
+			return nil, fmt.Errorf("source does not contain SKILL.md: %s", sourcePath)
+		}
+	}
+
+	if err := os.MkdirAll(targetPath, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create skill directory: %w", err)
+	}
+
+	targetSkillPath := filepath.Join(targetPath, "SKILL.md")
+
+	data, err := os.ReadFile(sourceSkillPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read source skill: %w", err)
+	}
+
+	if err := os.WriteFile(targetSkillPath, data, 0644); err != nil {
+		return nil, fmt.Errorf("failed to write skill file: %w", err)
+	}
+
+	skill := skills.Skill{
+		ID:     name,
+		Source: skills.SourceManaged,
+		Path:   targetPath,
+	}
+
+	return &skill, nil
+}
+
+func installSkillFromURL(name, url, targetPath string) (*skills.Skill, error) {
+	return nil, fmt.Errorf("URL-based installation not yet implemented")
+}
+
+func runSkillInstallers(skill *skills.Skill) error {
+	if len(skill.Frontmatter.Metadata.Pryx.Install) == 0 {
+		return nil
+	}
+
+	for i, installer := range skill.Frontmatter.Metadata.Pryx.Install {
+		fmt.Printf("  [%d/%d] Running: %s %s\n", i+1, len(skill.Frontmatter.Metadata.Pryx.Install), installer.Command, strings.Join(installer.Args, " "))
+
+		cmd := exec.Command(installer.Command, installer.Args...)
+		cmd.Dir = skill.Path
+		if len(installer.Env) > 0 {
+			cmd.Env = append(os.Environ(), installer.Env...)
+		}
+
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("installer %d failed: %w\nOutput: %s", i+1, err, string(output))
+		}
+
+		if len(output) > 0 {
+			fmt.Printf("    %s\n", string(output))
+		}
+	}
+
+	return nil
 }
 
 func runUninstallSkill(args []string, cfg *config.Config) int {
 	if len(args) < 1 {
 		fmt.Fprintf(os.Stderr, "Error: skill name required\n")
+		fmt.Fprintf(os.Stderr, "Usage: pryx-core skills uninstall <name> [--force]\n")
 		return 2
 	}
 	name := args[0]
 
-	fmt.Printf("Uninstalling skill: %s\n", name)
-	fmt.Println("(Uninstallation logic to be implemented)")
-	fmt.Printf("✓ Skill uninstallation prepared: %s\n", name)
+	force := false
+	for _, arg := range args[1:] {
+		if arg == "--force" || arg == "-f" {
+			force = true
+		}
+	}
 
+	opts := skills.DefaultOptions()
+	skillPath := filepath.Join(opts.ManagedRoot, name)
+
+	opts = skills.DefaultOptions()
+	skillsRepo, err := skills.Discover(context.Background(), opts)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to discover skills: %v\n", err)
+	}
+
+	if skill, found := skillsRepo.Get(name); found {
+		if skill.Source != skills.SourceManaged {
+			if !force {
+				fmt.Fprintf(os.Stderr, "Error: skill '%s' is %s (not managed). Use --force to remove.\n", name, skill.Source)
+				return 1
+			}
+			fmt.Printf("Warning: removing %s skill '%s' (forced)\n", skill.Source, name)
+		}
+
+		if skill.Enabled {
+			fmt.Printf("Disabling skill '%s'...\n", name)
+			enabledCfg, _ := skills.LoadEnabledConfig(skills.EnabledConfigPath())
+			delete(enabledCfg.EnabledSkills, name)
+			skills.SaveEnabledConfig(skills.EnabledConfigPath(), enabledCfg)
+		}
+	}
+
+	if _, err := os.Stat(skillPath); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: skill not found at %s\n", skillPath)
+		return 1
+	}
+
+	fmt.Printf("Removing skill directory: %s\n", skillPath)
+	if err := os.RemoveAll(skillPath); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: failed to remove skill: %v\n", err)
+		return 1
+	}
+
+	fmt.Printf("✓ Skill uninstalled: %s\n", name)
 	return 0
 }
 
@@ -386,34 +540,4 @@ func skillsUsage() {
 	fmt.Println("Options:")
 	fmt.Println("  --eligible, -e                    Show only eligible skills")
 	fmt.Println("  --json, -j                        Output in JSON format")
-}
-
-type skillsConfig struct {
-	EnabledSkills map[string]bool `json:"enabled_skills"`
-}
-
-func loadSkillsConfig(path string) (*skillsConfig, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return &skillsConfig{EnabledSkills: make(map[string]bool)}, nil
-		}
-		return nil, err
-	}
-
-	var config skillsConfig
-	if err := json.Unmarshal(data, &config); err != nil {
-		return nil, err
-	}
-
-	return &config, nil
-}
-
-func saveSkillsConfig(path string, config *skillsConfig) error {
-	data, err := json.MarshalIndent(config, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(path, data, 0644)
 }

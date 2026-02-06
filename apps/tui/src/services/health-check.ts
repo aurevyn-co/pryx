@@ -1,4 +1,5 @@
-import { Effect, Context, Layer, Schedule, Console } from "effect";
+import { Effect, Context, Layer, Schedule } from "effect";
+import { getRuntimeHttpUrl } from "./skills-api";
 
 export interface HealthCheckResponse {
   status: "ok" | "error";
@@ -16,21 +17,21 @@ export class HealthCheckError {
 
 export interface HealthCheckService {
   readonly checkHealth: Effect.Effect<HealthCheckResponse, HealthCheckError>;
-  readonly pollHealth: (intervalMs: number, callback: (result: HealthCheckResponse) => void) => Effect.Effect<void, never>;
+  readonly pollHealth: (
+    intervalMs: number,
+    callback: (result: HealthCheckResponse) => void
+  ) => Effect.Effect<void, never>;
 }
 
-export const HealthCheckService = Context.GenericTag<HealthCheckService>("@pryx/tui/HealthCheckService");
+export const HealthCheckService = Context.GenericTag<HealthCheckService>(
+  "@pryx/tui/HealthCheckService"
+);
 
-const getApiUrl = (): string => {
-  return process.env.PRYX_API_URL || "http://localhost:3000";
-};
-
-const makeHealthCheckService = Effect.gen(function* () {
+const makeHealthCheckService = Effect.sync(() => {
   const checkHealth = Effect.gen(function* () {
     const result = yield* Effect.tryPromise({
       try: async () => {
-        const apiUrl = getApiUrl();
-        const res = await fetch(`${apiUrl}/health`, { method: "GET" });
+        const res = await fetch(`${getRuntimeHttpUrl()}/health`, { method: "GET" });
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);
         }
@@ -47,14 +48,14 @@ const makeHealthCheckService = Effect.gen(function* () {
         const result = yield* checkHealth;
         yield* Effect.sync(() => callback(result));
       }).pipe(
-        Effect.catchAll(error => Effect.sync(() => {
-          callback({ status: "error", error: "Health check failed" });
-        }))
+        Effect.catchAll(_error =>
+          Effect.sync(() => {
+            callback({ status: "error", error: "Health check failed" });
+          })
+        )
       );
 
-      yield* check.pipe(
-        Effect.repeat(Schedule.spaced(intervalMs))
-      );
+      yield* check.pipe(Effect.repeat(Schedule.spaced(intervalMs)));
     });
 
   return {

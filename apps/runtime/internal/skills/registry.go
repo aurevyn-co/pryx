@@ -23,6 +23,36 @@ func (r *Registry) Upsert(skill Skill) {
 	r.skills[skill.ID] = skill
 }
 
+func (r *Registry) Delete(id string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.skills, id)
+}
+
+func (r *Registry) Enable(id string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	s, ok := r.skills[id]
+	if !ok {
+		return false
+	}
+	s.Enabled = true
+	r.skills[id] = s
+	return true
+}
+
+func (r *Registry) Disable(id string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	s, ok := r.skills[id]
+	if !ok {
+		return false
+	}
+	s.Enabled = false
+	r.skills[id] = s
+	return true
+}
+
 func (r *Registry) Get(id string) (Skill, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

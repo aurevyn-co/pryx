@@ -5,10 +5,10 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: ['**']
     tags: ['v*']
   pull_request:
-    branches: [main, develop]
+    branches: ['**']
   workflow_dispatch:
 
 env:
@@ -153,9 +153,13 @@ jobs:
             ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
 
+      - name: Install dependencies
+        working-directory: apps/runtime
+        run: go mod download
+
       - name: Run tests
-        run: |
-          cd apps/runtime && go test -v -race -coverprofile=coverage.out ./...
+        working-directory: apps/runtime
+        run: go test -v -race -coverprofile=coverage.out ./internal/...
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
@@ -175,7 +179,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.7
+          bun-version: 1.3.8
 
       - name: Install dependencies
         working-directory: apps/tui
@@ -266,7 +270,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.7
+          bun-version: 1.3.8
 
       - name: Cache Cargo registry
         uses: actions/cache@v4

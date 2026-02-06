@@ -1,4 +1,8 @@
 use serde_json::Value;
+use std::collections::HashMap;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -9,7 +13,7 @@ use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_updater::UpdaterExt;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, Command};
-use tokio::sync::Mutex as AsyncMutex;
+use tokio::sync::{oneshot, Mutex as AsyncMutex};
 
 use crate::sidecar::config::*;
 use crate::sidecar::types::*;
@@ -25,6 +29,9 @@ pub struct SidecarProcess {
     pub(crate) crash_count: Arc<Mutex<u32>>,
     pub(crate) stdin: Arc<AsyncMutex<Option<ChildStdin>>>,
     pub(crate) app_handle: Arc<Mutex<Option<AppHandle>>>,
+    pub(crate) admin_token: Arc<Mutex<String>>,
+    pub(crate) pending_requests: Arc<AsyncMutex<HashMap<u64, oneshot::Sender<Value>>>>,
+    pub(crate) next_rpc_id: Arc<AsyncMutex<u64>>,
 }
 
 impl SidecarProcess {
@@ -38,6 +45,9 @@ impl SidecarProcess {
             crash_count: Arc::new(Mutex::new(0)),
             stdin: Arc::new(AsyncMutex::new(None)),
             app_handle: Arc::new(Mutex::new(Some(app_handle))),
+            admin_token: Arc::new(Mutex::new(generate_random_token(32))),
+            pending_requests: Arc::new(AsyncMutex::new(HashMap::new())),
+            next_rpc_id: Arc::new(AsyncMutex::new(1)),
         }
     }
 
@@ -89,8 +99,43 @@ impl SidecarProcess {
         log::info!("Starting sidecar: {:?}", self.config.binary);
 
         {
-            *self.state.lock().expect("mutex poisoned") = SidecarState::Starting;
+            let mut state_guard = self.state.lock().expect("mutex poisoned");
+            *state_guard = SidecarState::Starting;
             *self.start_time.lock().expect("mutex poisoned") = Some(Instant::now());
+        }
+
+        // Save admin token to file with cross-platform support
+        let token = self.admin_token.lock().expect("mutex poisoned").clone();
+        let token_path = if let Some(home) = dirs::home_dir() {
+            home.join(".pryx/admin.token")
+        } else {
+            PathBuf::from(".pryx/admin.token")
+        };
+
+        // Create .pryx directory if it doesn't exist
+        if let Some(parent) = token_path.parent() {
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                log::error!("Failed to create .pryx directory: {}", e);
+            }
+        }
+
+        // Write token with secure permissions
+        if let Err(e) = std::fs::write(&token_path, &token) {
+            log::error!("Failed to write admin token to {:?}: {}", token_path, e);
+        } else {
+            // Set secure permissions on Unix (0o600)
+            #[cfg(unix)]
+            {
+                if let Err(e) =
+                    std::fs::set_permissions(&token_path, PermissionsExt::from_mode(0o600))
+                {
+                    log::error!(
+                        "Failed to set secure permissions on {:?}: {}",
+                        token_path,
+                        e
+                    );
+                }
+            }
         }
 
         match self.spawn_sidecar().await {
@@ -247,6 +292,81 @@ impl SidecarProcess {
         let _ = self.stop().await;
     }
 
+    pub async fn call_rpc(&self, method: &str, params: Value) -> anyhow::Result<Value> {
+        let id = {
+            let mut id_guard = self.next_rpc_id.lock().await;
+            let id = *id_guard;
+            *id_guard += 1;
+            id
+        };
+
+        let (tx, rx) = oneshot::channel();
+        {
+            let mut pending = self.pending_requests.lock().await;
+            pending.insert(id, tx);
+        }
+
+        let req = serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": method,
+            "params": params,
+            "id": id
+        });
+        let json = serde_json::to_string(&req)?;
+        let mut stdin_guard = self.stdin.lock().await;
+        if let Some(stdin) = stdin_guard.as_mut() {
+            if let Err(e) = stdin.write_all(json.as_bytes()).await {
+                let mut pending = self.pending_requests.lock().await;
+                pending.remove(&id);
+                return Err(anyhow::anyhow!("Failed to write to stdin: {}", e));
+            }
+            if let Err(e) = stdin.write_all(b"\n").await {
+                let mut pending = self.pending_requests.lock().await;
+                pending.remove(&id);
+                return Err(anyhow::anyhow!("Failed to write newline to stdin: {}", e));
+            }
+            if let Err(e) = stdin.flush().await {
+                let mut pending = self.pending_requests.lock().await;
+                pending.remove(&id);
+                return Err(anyhow::anyhow!("Failed to flush stdin: {}", e));
+            }
+        } else {
+            let mut pending = self.pending_requests.lock().await;
+            pending.remove(&id);
+            return Err(anyhow::anyhow!("Sidecar stdin not available"));
+        }
+
+        match tokio::time::timeout(Duration::from_secs(10), rx).await {
+            Ok(Ok(val)) => {
+                // Check if the response contains a JSON-RPC error
+                if let Some(error) = val.get("error") {
+                    let error_code = error.get("code").and_then(|v| v.as_i64()).unwrap_or(-1);
+                    let error_message = error
+                        .get("message")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("Unknown error");
+                    let _error_data = error.get("data");
+                    return Err(anyhow::anyhow!(
+                        "JSON-RPC error {}: {}",
+                        error_code,
+                        error_message
+                    ));
+                }
+                Ok(val)
+            }
+            Ok(Err(_)) => {
+                let mut pending = self.pending_requests.lock().await;
+                pending.remove(&id);
+                Err(anyhow::anyhow!("RPC response channel closed"))
+            }
+            Err(_) => {
+                let mut pending = self.pending_requests.lock().await;
+                pending.remove(&id);
+                Err(anyhow::anyhow!("RPC request timed out"))
+            }
+        }
+    }
+
     async fn spawn_sidecar(&self) -> Result<Child, SidecarError> {
         let binary_path = &self.config.binary;
 
@@ -317,9 +437,24 @@ impl SidecarProcess {
 
                     // 3. Check for RPC
                     if line.trim().starts_with('{') {
-                        if let Ok(req) = serde_json::from_str::<RpcRequest>(&line) {
-                            log::info!("Received RPC Request: {:?}", req);
-                            let _ = process_clone.handle_rpc(req).await;
+                        if let Ok(val) = serde_json::from_str::<Value>(&line) {
+                            if val.get("result").is_some() || val.get("error").is_some() {
+                                // This is a response
+                                if let Some(id) = val.get("id").and_then(|v| v.as_u64()) {
+                                    let mut pending = process_clone.pending_requests.lock().await;
+                                    if let Some(tx) = pending.remove(&id) {
+                                        let result =
+                                            val.get("result").cloned().unwrap_or(Value::Null);
+                                        let _ = tx.send(result);
+                                    }
+                                }
+                            } else if val.get("method").is_some() {
+                                // This is a request
+                                if let Ok(req) = serde_json::from_value::<RpcRequest>(val) {
+                                    log::info!("Received RPC Request: {:?}", req);
+                                    let _ = process_clone.handle_rpc(req).await;
+                                }
+                            }
                         }
                     }
                 }
@@ -689,4 +824,15 @@ fn calculate_backoff(attempt: u32, config: &SidecarConfig) -> u64 {
     let p = (attempt as i32 - 1).clamp(0, 10);
     let backoff = base * multiplier.powi(p);
     backoff as u64
+}
+
+fn generate_random_token(len: usize) -> String {
+    use rand::distributions::Alphanumeric;
+    use rand::{thread_rng, Rng};
+
+    thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(len)
+        .map(char::from)
+        .collect()
 }

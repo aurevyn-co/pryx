@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -49,18 +50,50 @@ func buildPryxCore(t *testing.T) string {
 	return pryxCorePath
 }
 
+func makeEnv(home string, extraEnv map[string]string) []string {
+	skip := map[string]struct{}{
+		"HOME":         {},
+		"PRYX_DB_PATH": {},
+	}
+	for k := range extraEnv {
+		skip[k] = struct{}{}
+	}
+
+	var env []string
+	for _, kv := range os.Environ() {
+		key := strings.SplitN(kv, "=", 2)[0]
+		if _, ok := skip[key]; ok {
+			continue
+		}
+		env = append(env, kv)
+	}
+
+	env = append(env,
+		"HOME="+home,
+		"PRYX_DB_PATH="+filepath.Join(home, "pryx.db"),
+	)
+
+	keys := make([]string, 0, len(extraEnv))
+	for k := range extraEnv {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		env = append(env, k+"="+extraEnv[k])
+	}
+
+	return env
+}
+
 func runPryxCoreWithEnv(t *testing.T, home string, extraEnv map[string]string, args ...string) (string, int) {
 	t.Helper()
 
 	bin := buildPryxCore(t)
 	cmd := exec.Command(bin, args...)
-	cmd.Env = append(os.Environ(),
-		"HOME="+home,
-		"PRYX_DB_PATH="+filepath.Join(home, "pryx.db"),
-	)
-	for k, v := range extraEnv {
-		cmd.Env = append(cmd.Env, k+"="+v)
+	if extraEnv == nil {
+		extraEnv = map[string]string{}
 	}
+	cmd.Env = makeEnv(home, extraEnv)
 
 	out, err := cmd.CombinedOutput()
 	if err == nil {
@@ -276,56 +309,3 @@ func TestMCPCLI_TestError(t *testing.T) {
 		t.Errorf("Expected 'not found' in error output, got: %s", out)
 	}
 }
-
-	// Test 3: Get GLM models
-	t.Run("get_glm_models", func(t *testing.T) {
-		resp, err := http.Get(baseURL + "/api/v1/providers/glm/models")
-		if err != nil {
-			t.Fatalf("Failed to get GLM models: %v", err)
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode == http.StatusNotFound {
-			t.Logf("GLM models endpoint not implemented yet - skipping")
-			t.Skip("GLM models endpoint not implemented")
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("Expected 200 for GLM models, got %d", resp.StatusCode)
-		}
-
-		var result map[string]interface{}
-		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-			t.Fatalf("Failed to decode response: %v", err)
-		}
-
-		models, ok := result["models"].([]interface{})
-		if !ok {
-			t.Skip("No models in response")
-		}
-
-		if len(models) > 0 {
-			t.Logf("✓ Found %d GLM models", len(models))
-		} else {
-			t.Logf("No GLM models available yet")
-		}
-	})
-
-	// Test 4: Check GLM API key configuration
-	t.Run("check_glm_api_key", func(t *testing.T) {
-		cmd := exec.Command(bin, "provider", "set-key", "glm")
-		cmd.Env = append(os.Environ(),
-			"HOME="+home,
-			"PRYX_KEYCHAIN_FILE="+keychainFile,
-			"PRYX_TELEMETRY_DISABLED=true",
-		)
-		out, err := cmd.CombinedOutput()
-		
-		t.Logf("Provider set-key output: %s", string(out))
-
-		if strings.Contains(string(out), "API key not configured for GLM") || strings.Contains(string(out), "Key set successfully") {
-			t.Logf("✓ GLM API key configuration handled")
-		} else {
-			t.Logf("Unexpected output: %s", string(out))
-		}
-	})

@@ -7,25 +7,35 @@ import (
 	"strings"
 	"time"
 
+	"pryx-core/internal/agentbus"
 	"pryx-core/internal/bus"
 	"pryx-core/internal/channels"
 	"pryx-core/internal/config"
 	"pryx-core/internal/keychain"
 	"pryx-core/internal/llm"
 	"pryx-core/internal/llm/factory"
+	"pryx-core/internal/mcp"
+	"pryx-core/internal/memory"
 	"pryx-core/internal/models"
 	"pryx-core/internal/prompt"
+	"pryx-core/internal/skills"
 )
 
+// Agent orchestrates the interaction between the user, LLM, and tools.
 type Agent struct {
 	cfg           *config.Config
 	bus           *bus.Bus
+	agentbus      *agentbus.Service
 	provider      llm.Provider
 	promptBuilder *prompt.Builder
 	version       string
+	skills        *skills.Registry
+	mcp           *mcp.Manager
+	ragMemory     *memory.RAGManager
 }
 
-func New(cfg *config.Config, eventBus *bus.Bus, kc *keychain.Keychain, catalog *models.Catalog) (*Agent, error) {
+// New creates a new Agent instance with the provided configuration and dependencies.
+func New(cfg *config.Config, eventBus *bus.Bus, kc *keychain.Keychain, catalog *models.Catalog, skillsRegistry *skills.Registry, mcpManager *mcp.Manager, agentbusService *agentbus.Service, ragMemory *memory.RAGManager) (*Agent, error) {
 	var apiKey string
 	var baseURL string
 
@@ -73,12 +83,17 @@ func New(cfg *config.Config, eventBus *bus.Bus, kc *keychain.Keychain, catalog *
 	return &Agent{
 		cfg:           cfg,
 		bus:           eventBus,
+		agentbus:      agentbusService,
 		provider:      provider,
 		promptBuilder: promptBuilder,
 		version:       "dev",
+		skills:        skillsRegistry,
+		mcp:           mcpManager,
+		ragMemory:     ragMemory,
 	}, nil
 }
 
+// Run starts the agent's main event loop, listening for chat requests and channel messages.
 func (a *Agent) Run(ctx context.Context) error {
 	// Subscribe to incoming messages
 	events, cancel := a.bus.Subscribe(bus.EventChatRequest, bus.EventChannelMessage)
@@ -94,7 +109,20 @@ func (a *Agent) Run(ctx context.Context) error {
 			if !ok {
 				return nil
 			}
-			go a.handleEvent(ctx, evt)
+			// Handle event in goroutine with panic recovery
+			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("Agent: Recovered from panic in event handler: %v", r)
+						a.bus.Publish(bus.NewEvent(bus.EventErrorOccurred, evt.SessionID, map[string]interface{}{
+							"kind":  "agent.handler.panic",
+							"error": fmt.Sprintf("%v", r),
+							"event": evt.Event,
+						}))
+					}
+				}()
+				a.handleEvent(ctx, evt)
+			}()
 		}
 	}
 }
@@ -109,6 +137,17 @@ func (a *Agent) handleEvent(ctx context.Context, evt bus.Event) {
 }
 
 func (a *Agent) handleChatRequest(ctx context.Context, evt bus.Event) {
+	// Panic recovery at handler level
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Agent: Recovered from panic in handleChatRequest: %v", r)
+			a.bus.Publish(bus.NewEvent(bus.EventErrorOccurred, evt.SessionID, map[string]interface{}{
+				"kind":  "agent.chat_request.panic",
+				"error": fmt.Sprintf("%v", r),
+			}))
+		}
+	}()
+
 	payload, ok := evt.Payload.(map[string]interface{})
 	if !ok {
 		log.Println("Agent: Invalid chat request payload")
@@ -143,6 +182,10 @@ func (a *Agent) handleChatRequest(ctx context.Context, evt bus.Event) {
 	stream, err := a.provider.Stream(ctx, req)
 	if err != nil {
 		log.Printf("Agent: LLM error: %v", err)
+		a.bus.Publish(bus.NewEvent(bus.EventErrorOccurred, sessionID, map[string]interface{}{
+			"kind":  "agent.llm_error",
+			"error": err.Error(),
+		}))
 		return
 	}
 
@@ -150,6 +193,10 @@ func (a *Agent) handleChatRequest(ctx context.Context, evt bus.Event) {
 	for chunk := range stream {
 		if chunk.Err != nil {
 			log.Printf("Agent: Stream error: %v", chunk.Err)
+			a.bus.Publish(bus.NewEvent(bus.EventErrorOccurred, sessionID, map[string]interface{}{
+				"kind":  "agent.stream_error",
+				"error": chunk.Err.Error(),
+			}))
 			break
 		}
 		fullResponse.WriteString(chunk.Content)
@@ -169,6 +216,17 @@ func (a *Agent) handleChatRequest(ctx context.Context, evt bus.Event) {
 }
 
 func (a *Agent) handleChannelMessage(ctx context.Context, evt bus.Event) {
+	// Panic recovery at handler level
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Agent: Recovered from panic in handleChannelMessage: %v", r)
+			a.bus.Publish(bus.NewEvent(bus.EventErrorOccurred, evt.SessionID, map[string]interface{}{
+				"kind":  "agent.channel_message.panic",
+				"error": fmt.Sprintf("%v", r),
+			}))
+		}
+	}()
+
 	msg, ok := evt.Payload.(channels.Message)
 	if !ok {
 		log.Println("Agent: Invalid channel message payload")
@@ -195,6 +253,10 @@ func (a *Agent) handleChannelMessage(ctx context.Context, evt bus.Event) {
 	resp, err := a.provider.Complete(ctx, req)
 	if err != nil {
 		log.Printf("Agent: LLM error: %v", err)
+		a.bus.Publish(bus.NewEvent(bus.EventErrorOccurred, "", map[string]interface{}{
+			"kind":  "agent.channel.llm_error",
+			"error": err.Error(),
+		}))
 		return
 	}
 
@@ -212,26 +274,60 @@ func (a *Agent) buildSystemPrompt(sessionID string) (string, error) {
 		return "You are Pryx, a helpful AI assistant.", nil
 	}
 
+	memoryContext := ""
+	if a.cfg.MemoryEnabled && a.ragMemory != nil && a.ragMemory.Enabled() {
+		if a.cfg.MemoryAutoFlush && a.ragMemory.AutoFlush() != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			memContext, _ := a.ragMemory.AutoFlush().GetMemoryContextForAgent("current context", 5)
+			if memContext != "" {
+				memoryContext = memContext
+			}
+			_ = ctx
+		}
+	}
+
 	metadata := prompt.Metadata{
 		CurrentTime:     time.Now(),
 		Version:         a.version,
 		SessionID:       sessionID,
 		AvailableTools:  a.getAvailableTools(),
 		AvailableSkills: a.getAvailableSkills(),
+		MemoryContext:   memoryContext,
 	}
 
 	return a.promptBuilder.Build(metadata)
 }
 
 func (a *Agent) getAvailableTools() []string {
-	return []string{
-		"filesystem",
-		"shell",
-		"browser",
-		"clipboard",
+	if a.mcp == nil {
+		return []string{}
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	tools, err := a.mcp.ListToolsFlat(ctx, false)
+	if err != nil {
+		log.Printf("Agent: Failed to list MCP tools: %v", err)
+		return []string{}
+	}
+
+	var result []string
+	for _, tool := range tools {
+		result = append(result, tool.Name)
+	}
+	return result
 }
 
 func (a *Agent) getAvailableSkills() []string {
-	return []string{}
+	if a.skills == nil {
+		return []string{}
+	}
+
+	var result []string
+	for _, skill := range a.skills.List() {
+		result = append(result, skill.ID)
+	}
+	return result
 }

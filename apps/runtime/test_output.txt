@@ -1,0 +1,2746 @@
+# pryx-core/internal/audit.test
+ld: warning: '/private/var/folders/_s/x4kzj7hj3611_2_wjj3nhn640000gn/T/go-link-1292132004/000023.o' has malformed LC_DYSYMTAB, expected 98 undefined symbols to start at index 1626, found 95 undefined symbols starting at index 1626
+# pryx-core/internal/agent/spawn.test
+ld: warning: '/private/var/folders/_s/x4kzj7hj3611_2_wjj3nhn640000gn/T/go-link-1175335774/000023.o' has malformed LC_DYSYMTAB, expected 98 undefined symbols to start at index 1626, found 95 undefined symbols starting at index 1626
+# pryx-core/internal/agent.test
+ld: warning: '/private/var/folders/_s/x4kzj7hj3611_2_wjj3nhn640000gn/T/go-link-1678240565/000023.o' has malformed LC_DYSYMTAB, expected 98 undefined symbols to start at index 1626, found 95 undefined symbols starting at index 1626
+# pryx-core/internal/cost.test
+ld: warning: '/private/var/folders/_s/x4kzj7hj3611_2_wjj3nhn640000gn/T/go-link-2009773469/000023.o' has malformed LC_DYSYMTAB, expected 98 undefined symbols to start at index 1626, found 95 undefined symbols starting at index 1626
+=== RUN   TestAgent_New
+=== RUN   TestAgent_New/valid_openai_provider
+2026/02/03 14:25:37 Warning: Failed to create provider from catalog: unknown provider: openai, using fallback
+=== RUN   TestAgent_New/valid_anthropic_provider
+2026/02/03 14:25:38 Warning: Failed to create provider from catalog: unknown provider: anthropic, using fallback
+=== RUN   TestAgent_New/valid_openrouter_provider
+2026/02/03 14:25:38 Warning: Failed to create provider from catalog: unknown provider: openrouter, using fallback
+=== RUN   TestAgent_New/valid_ollama_provider
+2026/02/03 14:25:38 Warning: Failed to create provider from catalog: unknown provider: ollama, using fallback
+=== RUN   TestAgent_New/valid_glm_provider
+2026/02/03 14:25:38 Warning: Failed to create provider from catalog: unknown provider: glm, using fallback
+=== RUN   TestAgent_New/unsupported_provider
+--- PASS: TestAgent_New (0.11s)
+    --- PASS: TestAgent_New/valid_openai_provider (0.04s)
+    --- PASS: TestAgent_New/valid_anthropic_provider (0.03s)
+    --- PASS: TestAgent_New/valid_openrouter_provider (0.02s)
+    --- PASS: TestAgent_New/valid_ollama_provider (0.00s)
+    --- PASS: TestAgent_New/valid_glm_provider (0.02s)
+    --- PASS: TestAgent_New/unsupported_provider (0.00s)
+=== RUN   TestAgent_Run_ContextCancellation
+2026/02/03 14:25:38 Warning: Failed to create provider from catalog: unknown provider: openai, using fallback
+2026/02/03 14:25:38 Agent: Started listening for messages...
+--- PASS: TestAgent_Run_ContextCancellation (0.12s)
+=== RUN   TestAgent_handleChatRequest
+=== RUN   TestAgent_handleChatRequest/valid_chat_request
+2026/02/03 14:25:38 Agent: Processing TUI message: Hello (session: test-session)
+2026/02/03 14:25:38 Agent: Completed TUI response (11 chars)
+=== RUN   TestAgent_handleChatRequest/invalid_payload_type
+2026/02/03 14:25:38 Agent: Invalid chat request payload
+=== RUN   TestAgent_handleChatRequest/empty_content
+=== RUN   TestAgent_handleChatRequest/provider_error
+2026/02/03 14:25:39 Agent: Processing TUI message: Hello (session: test-session)
+2026/02/03 14:25:39 Agent: LLM error: provider failed
+--- PASS: TestAgent_handleChatRequest (1.51s)
+    --- PASS: TestAgent_handleChatRequest/valid_chat_request (0.00s)
+    --- PASS: TestAgent_handleChatRequest/invalid_payload_type (0.50s)
+    --- PASS: TestAgent_handleChatRequest/empty_content (0.50s)
+    --- PASS: TestAgent_handleChatRequest/provider_error (0.50s)
+=== RUN   TestAgent_handleChannelMessage
+=== RUN   TestAgent_handleChannelMessage/valid_channel_message
+2026/02/03 14:25:39 Agent: Processing channel message from telegram (chat: 123456): Hello from channel
+2026/02/03 14:25:39 Agent: Sending channel response (16 chars)
+=== RUN   TestAgent_handleChannelMessage/invalid_payload_type
+2026/02/03 14:25:39 Agent: Invalid channel message payload
+=== RUN   TestAgent_handleChannelMessage/provider_error
+2026/02/03 14:25:39 Agent: Processing channel message from telegram (chat: 123456): Hello
+2026/02/03 14:25:39 Agent: LLM error: provider failed
+--- PASS: TestAgent_handleChannelMessage (0.20s)
+    --- PASS: TestAgent_handleChannelMessage/valid_channel_message (0.00s)
+    --- PASS: TestAgent_handleChannelMessage/invalid_payload_type (0.10s)
+    --- PASS: TestAgent_handleChannelMessage/provider_error (0.10s)
+=== RUN   TestAgent_handleEvent
+=== RUN   TestAgent_handleEvent/chat_request_event
+2026/02/03 14:25:39 Agent: Processing TUI message: test (session: test-session)
+2026/02/03 14:25:39 Agent: Completed TUI response (13 chars)
+=== RUN   TestAgent_handleEvent/channel_message_event
+2026/02/03 14:25:39 Agent: Invalid channel message payload
+=== RUN   TestAgent_handleEvent/unknown_event_type
+--- PASS: TestAgent_handleEvent (0.00s)
+    --- PASS: TestAgent_handleEvent/chat_request_event (0.00s)
+    --- PASS: TestAgent_handleEvent/channel_message_event (0.00s)
+    --- PASS: TestAgent_handleEvent/unknown_event_type (0.00s)
+PASS
+ok  	pryx-core/internal/agent	3.771s
+=== RUN   TestNewSpawner
+--- PASS: TestNewSpawner (0.00s)
+=== RUN   TestSpawner_Spawn
+=== RUN   TestSpawner_Spawn/successful_spawn
+2026/02/03 14:25:39 Spawned sub-agent agent-79090daa-1d01-4cf2-837d-1ba514cdf596 (parent: parent-1, session: session-1)
+=== RUN   TestSpawner_Spawn/max_agents_reached
+=== RUN   TestSpawner_Spawn/provider_creation_error
+--- PASS: TestSpawner_Spawn (0.03s)
+    --- PASS: TestSpawner_Spawn/successful_spawn (0.02s)
+    --- PASS: TestSpawner_Spawn/max_agents_reached (0.00s)
+    --- PASS: TestSpawner_Spawn/provider_creation_error (0.00s)
+=== RUN   TestSpawner_Get
+--- PASS: TestSpawner_Get (0.00s)
+=== RUN   TestSpawner_List
+--- PASS: TestSpawner_List (0.00s)
+=== RUN   TestSpawner_Cancel
+--- PASS: TestSpawner_Cancel (0.00s)
+=== RUN   TestSpawner_Cleanup
+2026/02/03 14:25:39 Cleaned up sub-agent completed-old
+2026/02/03 14:25:39 Cleaned up sub-agent failed-old
+2026/02/03 14:25:39 Cleaned up sub-agent cancelled-old
+--- PASS: TestSpawner_Cleanup (0.00s)
+=== RUN   TestSpawner_Fork
+2026/02/03 14:25:39 Forked session d087e966-ab38-4030-84c1-6229664cac92 to 87968eee-f069-47d8-b389-406e7194ab14
+--- PASS: TestSpawner_Fork (0.00s)
+=== RUN   TestSubAgent_run
+=== RUN   TestSubAgent_run/successful_execution
+=== RUN   TestSubAgent_run/provider_error
+--- PASS: TestSubAgent_run (1.41s)
+    --- PASS: TestSubAgent_run/successful_execution (0.70s)
+    --- PASS: TestSubAgent_run/provider_error (0.70s)
+=== RUN   TestSubAgent_buildPrompt
+--- PASS: TestSubAgent_buildPrompt (0.00s)
+=== RUN   TestGenerateAgentID
+--- PASS: TestGenerateAgentID (0.00s)
+=== RUN   TestGenerateSessionID
+--- PASS: TestGenerateSessionID (0.00s)
+PASS
+ok  	pryx-core/internal/agent/spawn	4.362s
+=== RUN   TestRegistryManager
+--- PASS: TestRegistryManager (0.00s)
+=== RUN   TestRegistryManagerRegister
+--- PASS: TestRegistryManagerRegister (0.00s)
+=== RUN   TestRegistryManagerFiltering
+--- PASS: TestRegistryManagerFiltering (0.00s)
+=== RUN   TestConnectionManager
+--- PASS: TestConnectionManager (0.00s)
+=== RUN   TestConnectionManagerAddRemove
+--- PASS: TestConnectionManagerAddRemove (0.00s)
+=== RUN   TestConnectionManagerMetrics
+--- PASS: TestConnectionManagerMetrics (0.00s)
+=== RUN   TestCircuitBreaker
+--- PASS: TestCircuitBreaker (2.00s)
+=== RUN   TestMessageRouter
+--- PASS: TestMessageRouter (0.00s)
+=== RUN   TestMessageRouterRoutes
+--- PASS: TestMessageRouterRoutes (0.00s)
+=== RUN   TestMessageRouterSubscribe
+--- PASS: TestMessageRouterSubscribe (0.00s)
+=== RUN   TestPackageManager
+--- PASS: TestPackageManager (0.00s)
+=== RUN   TestPackageManagerInstallUninstall
+--- PASS: TestPackageManagerInstallUninstall (0.00s)
+=== RUN   TestDetectionManager
+--- PASS: TestDetectionManager (0.00s)
+=== RUN   TestDetectionManagerDetectAll
+--- PASS: TestDetectionManagerDetectAll (0.00s)
+PASS
+ok  	pryx-core/internal/agentbus	4.340s
+=== RUN   TestNewService
+--- PASS: TestNewService (0.00s)
+=== RUN   TestConnectSession
+--- PASS: TestConnectSession (0.00s)
+=== RUN   TestConnectSession_StoresSession
+--- PASS: TestConnectSession_StoresSession (0.00s)
+=== RUN   TestDisconnectSession
+--- PASS: TestDisconnectSession (0.00s)
+=== RUN   TestDisconnectSession_NotFound
+--- PASS: TestDisconnectSession_NotFound (0.00s)
+=== RUN   TestSendMessage
+--- PASS: TestSendMessage (0.00s)
+=== RUN   TestSendMessage_SessionNotFound
+--- PASS: TestSendMessage_SessionNotFound (0.00s)
+=== RUN   TestSendMessage_SessionNotConnected
+--- PASS: TestSendMessage_SessionNotConnected (0.00s)
+=== RUN   TestSendDirectMessage
+--- PASS: TestSendDirectMessage (0.00s)
+=== RUN   TestReplyToMessage
+--- PASS: TestReplyToMessage (0.00s)
+=== RUN   TestStartConversation
+--- PASS: TestStartConversation (0.00s)
+=== RUN   TestStartConversation_StoresConversation
+--- PASS: TestStartConversation_StoresConversation (0.00s)
+=== RUN   TestGetConversationsByParticipant
+--- PASS: TestGetConversationsByParticipant (0.00s)
+=== RUN   TestAddMessageToConversation
+--- PASS: TestAddMessageToConversation (0.00s)
+=== RUN   TestAddMessageToConversation_NotFound
+--- PASS: TestAddMessageToConversation_NotFound (0.00s)
+=== RUN   TestArchiveConversation
+--- PASS: TestArchiveConversation (0.00s)
+=== RUN   TestGetMessageHistory
+--- PASS: TestGetMessageHistory (0.00s)
+=== RUN   TestGetActiveSessions
+--- PASS: TestGetActiveSessions (0.00s)
+=== RUN   TestGetSessionsByAgent
+--- PASS: TestGetSessionsByAgent (0.00s)
+=== RUN   TestMarkMessageRead
+--- PASS: TestMarkMessageRead (0.00s)
+=== RUN   TestMarkMessageRead_NotFound
+--- PASS: TestMarkMessageRead_NotFound (0.00s)
+=== RUN   TestPrettyPrint
+--- PASS: TestPrettyPrint (0.00s)
+=== RUN   TestGetActiveSessionCount
+--- PASS: TestGetActiveSessionCount (0.00s)
+=== RUN   TestGetConversationCount
+--- PASS: TestGetConversationCount (0.00s)
+=== RUN   TestGetConversation_NotFound
+--- PASS: TestGetConversation_NotFound (0.00s)
+=== RUN   TestGetSession_NotFound
+--- PASS: TestGetSession_NotFound (0.00s)
+=== RUN   TestMessageHistory_Tags
+--- PASS: TestMessageHistory_Tags (0.00s)
+=== RUN   TestSessionConcurrency
+--- PASS: TestSessionConcurrency (0.00s)
+=== RUN   TestConversationConcurrency
+--- PASS: TestConversationConcurrency (0.00s)
+PASS
+ok  	pryx-core/internal/agentmessaging	(cached)
+=== RUN   TestRepositoryCreate
+--- PASS: TestRepositoryCreate (0.02s)
+=== RUN   TestRepositoryQuery
+--- PASS: TestRepositoryQuery (0.01s)
+=== RUN   TestRepositoryCount
+--- PASS: TestRepositoryCount (0.01s)
+=== RUN   TestRepositoryDelete
+--- PASS: TestRepositoryDelete (0.01s)
+=== RUN   TestExportService
+--- PASS: TestExportService (0.01s)
+=== RUN   TestValidateExportOptions
+=== RUN   TestValidateExportOptions/valid_json_export
+=== RUN   TestValidateExportOptions/valid_csv_export
+=== RUN   TestValidateExportOptions/invalid_format_defaults_to_json
+=== RUN   TestValidateExportOptions/limit_exceeds_max
+--- PASS: TestValidateExportOptions (0.00s)
+    --- PASS: TestValidateExportOptions/valid_json_export (0.00s)
+    --- PASS: TestValidateExportOptions/valid_csv_export (0.00s)
+    --- PASS: TestValidateExportOptions/invalid_format_defaults_to_json (0.00s)
+    --- PASS: TestValidateExportOptions/limit_exceeds_max (0.00s)
+PASS
+ok  	pryx-core/internal/audit	3.526s
+=== RUN   TestNewManager
+--- PASS: TestNewManager (0.00s)
+=== RUN   TestInitiateDeviceFlow
+--- PASS: TestInitiateDeviceFlow (0.00s)
+=== RUN   TestSetManualToken
+--- PASS: TestSetManualToken (0.00s)
+PASS
+ok  	pryx-core/internal/auth	4.004s
+=== RUN   TestNewBus
+--- PASS: TestNewBus (0.00s)
+=== RUN   TestBus_Subscribe_Unsubscribe
+--- PASS: TestBus_Subscribe_Unsubscribe (0.00s)
+=== RUN   TestBus_Subscribe_WithTopics
+--- PASS: TestBus_Subscribe_WithTopics (0.00s)
+=== RUN   TestBus_Publish_SubscribesToAll
+--- PASS: TestBus_Publish_SubscribesToAll (0.00s)
+=== RUN   TestBus_Publish_TopicFiltering
+--- PASS: TestBus_Publish_TopicFiltering (0.10s)
+=== RUN   TestBus_Publish_MultipleSubscribers
+--- PASS: TestBus_Publish_MultipleSubscribers (0.00s)
+=== RUN   TestBus_Publish_VersionIncrement
+--- PASS: TestBus_Publish_VersionIncrement (0.00s)
+=== RUN   TestBus_Publish_BufferFull
+--- PASS: TestBus_Publish_BufferFull (0.00s)
+=== RUN   TestBus_ConcurrentSubscribePublish
+--- PASS: TestBus_ConcurrentSubscribePublish (0.01s)
+=== RUN   TestBus_Unsubscribe_Idempotent
+--- PASS: TestBus_Unsubscribe_Idempotent (0.00s)
+=== RUN   TestBus_Matches
+=== RUN   TestBus_Matches/empty_topics_matches_all
+=== RUN   TestBus_Matches/single_topic_match
+=== RUN   TestBus_Matches/single_topic_no_match
+=== RUN   TestBus_Matches/multiple_topics_match
+=== RUN   TestBus_Matches/multiple_topics_no_match
+--- PASS: TestBus_Matches (0.00s)
+    --- PASS: TestBus_Matches/empty_topics_matches_all (0.00s)
+    --- PASS: TestBus_Matches/single_topic_match (0.00s)
+    --- PASS: TestBus_Matches/single_topic_no_match (0.00s)
+    --- PASS: TestBus_Matches/multiple_topics_match (0.00s)
+    --- PASS: TestBus_Matches/multiple_topics_no_match (0.00s)
+=== RUN   TestNewEvent
+--- PASS: TestNewEvent (0.00s)
+=== RUN   TestBus_AssignsMonotonicVersions
+--- PASS: TestBus_AssignsMonotonicVersions (0.00s)
+PASS
+ok  	pryx-core/internal/bus	(cached)
+=== RUN   TestNewService
+--- PASS: TestNewService (0.00s)
+=== RUN   TestAdvertiseCapabilities
+--- PASS: TestAdvertiseCapabilities (0.00s)
+=== RUN   TestAdvertiseCapabilities_GeneratesID
+--- PASS: TestAdvertiseCapabilities_GeneratesID (0.00s)
+=== RUN   TestGetAdvertisement_NotFound
+--- PASS: TestGetAdvertisement_NotFound (0.00s)
+=== RUN   TestGetAdvertisement_Expired
+--- PASS: TestGetAdvertisement_Expired (0.00s)
+=== RUN   TestGetCapabilitiesByType
+--- PASS: TestGetCapabilitiesByType (0.00s)
+=== RUN   TestCheckCompatibility
+--- PASS: TestCheckCompatibility (0.00s)
+=== RUN   TestCheckCompatibility_ProtocolMismatch
+--- PASS: TestCheckCompatibility_ProtocolMismatch (0.00s)
+=== RUN   TestCheckCompatibility_AgentNotFound
+--- PASS: TestCheckCompatibility_AgentNotFound (0.00s)
+=== RUN   TestRequestNegotiation
+--- PASS: TestRequestNegotiation (0.00s)
+=== RUN   TestRequestNegotiation_DefaultDuration
+--- PASS: TestRequestNegotiation_DefaultDuration (0.00s)
+=== RUN   TestApproveNegotiation
+--- PASS: TestApproveNegotiation (0.00s)
+=== RUN   TestDenyNegotiation
+--- PASS: TestDenyNegotiation (0.00s)
+=== RUN   TestGetNegotiationStatus_NotFound
+--- PASS: TestGetNegotiationStatus_NotFound (0.00s)
+=== RUN   TestRevokeCapabilities
+--- PASS: TestRevokeCapabilities (0.00s)
+=== RUN   TestDiscoverCapabilities
+--- PASS: TestDiscoverCapabilities (0.00s)
+=== RUN   TestGetAdvertisementCount
+--- PASS: TestGetAdvertisementCount (0.00s)
+=== RUN   TestGetNegotiationCount
+--- PASS: TestGetNegotiationCount (0.00s)
+=== RUN   TestPrettyPrint
+--- PASS: TestPrettyPrint (0.00s)
+=== RUN   TestNegotiationExpiry
+--- PASS: TestNegotiationExpiry (0.00s)
+=== RUN   TestConcurrentNegotiations
+--- PASS: TestConcurrentNegotiations (0.00s)
+PASS
+ok  	pryx-core/internal/capability	(cached)
+=== RUN   TestManager_Register
+--- PASS: TestManager_Register (0.00s)
+=== RUN   TestManager_AutoConnect
+--- PASS: TestManager_AutoConnect (0.00s)
+=== RUN   TestRateLimit
+--- PASS: TestRateLimit (0.15s)
+PASS
+ok  	pryx-core/internal/channels	(cached)
+=== RUN   TestEmbedBuilder
+--- PASS: TestEmbedBuilder (0.00s)
+=== RUN   TestEmbedBuilderFields
+--- PASS: TestEmbedBuilderFields (0.00s)
+=== RUN   TestEmbedBuilderValidation
+--- PASS: TestEmbedBuilderValidation (0.00s)
+=== RUN   TestHexToInt
+--- PASS: TestHexToInt (0.00s)
+=== RUN   TestDefaultIntents
+--- PASS: TestDefaultIntents (0.00s)
+=== RUN   TestConfigValidation
+--- PASS: TestConfigValidation (0.00s)
+=== RUN   TestConfigWhitelist
+--- PASS: TestConfigWhitelist (0.00s)
+=== RUN   TestPrebuiltEmbeds
+--- PASS: TestPrebuiltEmbeds (0.00s)
+=== RUN   TestMarshalJSON_Success
+=== RUN   TestMarshalJSON_Success/simple_string
+=== RUN   TestMarshalJSON_Success/integer
+=== RUN   TestMarshalJSON_Success/struct
+=== RUN   TestMarshalJSON_Success/map
+--- PASS: TestMarshalJSON_Success (0.00s)
+    --- PASS: TestMarshalJSON_Success/simple_string (0.00s)
+    --- PASS: TestMarshalJSON_Success/integer (0.00s)
+    --- PASS: TestMarshalJSON_Success/struct (0.00s)
+    --- PASS: TestMarshalJSON_Success/map (0.00s)
+=== RUN   TestMarshalJSON_Error
+--- PASS: TestMarshalJSON_Error (0.00s)
+=== RUN   TestMarshalJSON_IdentifyData
+--- PASS: TestMarshalJSON_IdentifyData (0.00s)
+=== RUN   TestMarshalJSON_ResumeData
+--- PASS: TestMarshalJSON_ResumeData (0.00s)
+=== RUN   TestMarshalJSON_Nil
+--- PASS: TestMarshalJSON_Nil (0.00s)
+=== RUN   TestMarshalJSON_EmptyStruct
+--- PASS: TestMarshalJSON_EmptyStruct (0.00s)
+PASS
+ok  	pryx-core/internal/channels/discord	(cached)
+?   	pryx-core/internal/channels/slack	[no test files]
+# pryx-core/internal/doctor.test
+ld: warning: '/private/var/folders/_s/x4kzj7hj3611_2_wjj3nhn640000gn/T/go-link-3978381799/000023.o' has malformed LC_DYSYMTAB, expected 98 undefined symbols to start at index 1626, found 95 undefined symbols starting at index 1626
+=== RUN   TestClient_GetMe
+--- PASS: TestClient_GetMe (0.00s)
+=== RUN   TestClient_SendMessage
+--- PASS: TestClient_SendMessage (0.00s)
+=== RUN   TestClient_SendMessage_WithOptions
+--- PASS: TestClient_SendMessage_WithOptions (0.00s)
+=== RUN   TestClient_GetUpdates
+--- PASS: TestClient_GetUpdates (0.00s)
+=== RUN   TestClient_SetWebhook
+--- PASS: TestClient_SetWebhook (0.00s)
+=== RUN   TestClient_DeleteWebhook
+--- PASS: TestClient_DeleteWebhook (0.00s)
+=== RUN   TestClient_APIError
+--- PASS: TestClient_APIError (0.00s)
+=== RUN   TestHandler_HandleCommand_Start
+--- PASS: TestHandler_HandleCommand_Start (0.00s)
+=== RUN   TestHandler_HandleCommand_Help
+--- PASS: TestHandler_HandleCommand_Help (0.00s)
+=== RUN   TestHandler_HandleCommand_Status
+--- PASS: TestHandler_HandleCommand_Status (0.00s)
+=== RUN   TestHandler_HandleCommand_Unknown
+--- PASS: TestHandler_HandleCommand_Unknown (0.00s)
+=== RUN   TestHandler_ChatWhitelist
+--- PASS: TestHandler_ChatWhitelist (0.10s)
+=== RUN   TestChannel_Lifecycle
+--- PASS: TestChannel_Lifecycle (0.00s)
+=== RUN   TestChannel_Send
+--- PASS: TestChannel_Send (0.00s)
+=== RUN   TestChannel_IsChatAllowed
+--- PASS: TestChannel_IsChatAllowed (0.00s)
+=== RUN   TestManager_CreateChannel
+--- PASS: TestManager_CreateChannel (0.00s)
+=== RUN   TestManager_GetChannel
+--- PASS: TestManager_GetChannel (0.00s)
+=== RUN   TestManager_ChannelCount
+--- PASS: TestManager_ChannelCount (0.00s)
+=== RUN   TestConfig_Validate
+=== RUN   TestConfig_Validate/valid_config
+=== RUN   TestConfig_Validate/missing_ID
+=== RUN   TestConfig_Validate/missing_name
+=== RUN   TestConfig_Validate/missing_token_ref
+=== RUN   TestConfig_Validate/invalid_mode
+=== RUN   TestConfig_Validate/webhook_without_URL
+--- PASS: TestConfig_Validate (0.00s)
+    --- PASS: TestConfig_Validate/valid_config (0.00s)
+    --- PASS: TestConfig_Validate/missing_ID (0.00s)
+    --- PASS: TestConfig_Validate/missing_name (0.00s)
+    --- PASS: TestConfig_Validate/missing_token_ref (0.00s)
+    --- PASS: TestConfig_Validate/invalid_mode (0.00s)
+    --- PASS: TestConfig_Validate/webhook_without_URL (0.00s)
+=== RUN   TestConfig_IsChatAllowed
+--- PASS: TestConfig_IsChatAllowed (0.00s)
+=== RUN   TestConfig_IsChatAllowed_NoWhitelist
+--- PASS: TestConfig_IsChatAllowed_NoWhitelist (0.00s)
+=== RUN   TestHealthChecker_Check
+--- PASS: TestHealthChecker_Check (0.00s)
+=== RUN   TestHealthChecker_Check_Disconnected
+--- PASS: TestHealthChecker_Check_Disconnected (0.00s)
+=== RUN   TestWebhookReceiver_ServeHTTP
+--- PASS: TestWebhookReceiver_ServeHTTP (0.00s)
+=== RUN   TestWebhookReceiver_ServeHTTP_InvalidSecret
+--- PASS: TestWebhookReceiver_ServeHTTP_InvalidSecret (0.00s)
+=== RUN   TestWebhookReceiver_ServeHTTP_InvalidMethod
+--- PASS: TestWebhookReceiver_ServeHTTP_InvalidMethod (0.00s)
+=== RUN   TestPoller_StartStop
+--- PASS: TestPoller_StartStop (0.15s)
+=== RUN   TestPoller_Offset
+--- PASS: TestPoller_Offset (0.00s)
+=== RUN   TestIntegration_FullFlow
+--- PASS: TestIntegration_FullFlow (0.00s)
+=== RUN   TestIntegration_CommandFlow
+--- PASS: TestIntegration_CommandFlow (0.00s)
+PASS
+ok  	pryx-core/internal/channels/telegram	4.391s
+=== RUN   TestWebhookChannel_Send_JSON
+    webhook_test.go:30: received signature: z9dVq5+PYR4ztPdDBaNFUjChyN/G8YrDmMGuVwNM+R4=
+--- PASS: TestWebhookChannel_Send_JSON (0.00s)
+=== RUN   TestWebhookChannel_Send_FormData
+--- PASS: TestWebhookChannel_Send_FormData (0.00s)
+=== RUN   TestWebhookChannel_RetryLogic
+--- PASS: TestWebhookChannel_RetryLogic (0.20s)
+PASS
+ok  	pryx-core/internal/channels/webhook	(cached)
+=== RUN   TestDefaultPath
+--- PASS: TestDefaultPath (0.00s)
+=== RUN   TestLoadDefaults
+--- PASS: TestLoadDefaults (0.00s)
+=== RUN   TestLoadFromEnvironment
+--- PASS: TestLoadFromEnvironment (0.00s)
+=== RUN   TestLoadFromEnvironment_Partial
+--- PASS: TestLoadFromEnvironment_Partial (0.00s)
+=== RUN   TestLoadFromFile
+--- PASS: TestLoadFromFile (0.00s)
+=== RUN   TestLoadFromFile_NotFound
+--- PASS: TestLoadFromFile_NotFound (0.00s)
+=== RUN   TestLoadFromFile_InvalidYAML
+--- PASS: TestLoadFromFile_InvalidYAML (0.00s)
+=== RUN   TestConfig_Save
+--- PASS: TestConfig_Save (0.00s)
+=== RUN   TestConfig_Save_Overwrite
+--- PASS: TestConfig_Save_Overwrite (0.00s)
+=== RUN   TestConfig_Save_CreateDir
+--- PASS: TestConfig_Save_CreateDir (0.00s)
+=== RUN   TestLoad_Combined
+--- PASS: TestLoad_Combined (0.00s)
+=== RUN   TestGetEnv
+=== RUN   TestGetEnv/env_set
+=== RUN   TestGetEnv/env_not_set
+=== RUN   TestGetEnv/env_empty
+--- PASS: TestGetEnv (0.00s)
+    --- PASS: TestGetEnv/env_set (0.00s)
+    --- PASS: TestGetEnv/env_not_set (0.00s)
+    --- PASS: TestGetEnv/env_empty (0.00s)
+=== RUN   TestPartialEnvironment
+--- PASS: TestPartialEnvironment (0.00s)
+PASS
+ok  	pryx-core/internal/config	4.534s
+=== RUN   TestCatalog_LoadFromBytes
+--- PASS: TestCatalog_LoadFromBytes (0.00s)
+=== RUN   TestCatalog_DefaultCatalog
+--- PASS: TestCatalog_DefaultCatalog (0.00s)
+=== RUN   TestCatalog_PatternMatching_RealWorld
+--- PASS: TestCatalog_PatternMatching_RealWorld (0.00s)
+=== RUN   TestModelCapabilities_Effective_ProviderOverride
+--- PASS: TestModelCapabilities_Effective_ProviderOverride (0.00s)
+=== RUN   TestResolver_Resolve_ContextWindow
+--- PASS: TestResolver_Resolve_ContextWindow (0.00s)
+=== RUN   TestResolver_Resolve_Vision
+--- PASS: TestResolver_Resolve_Vision (0.00s)
+=== RUN   TestResolver_Resolve_Tools
+--- PASS: TestResolver_Resolve_Tools (0.00s)
+=== RUN   TestResolver_Resolve_Cost
+--- PASS: TestResolver_Resolve_Cost (0.00s)
+=== RUN   TestResolver_Patterns
+--- PASS: TestResolver_Patterns (0.00s)
+=== RUN   TestRouter_Select_LowestCost
+--- PASS: TestRouter_Select_LowestCost (0.00s)
+=== RUN   TestRouter_Select_FallbackChain
+--- PASS: TestRouter_Select_FallbackChain (0.00s)
+=== RUN   TestSimple
+    test_simple_test.go:8: Simple test passed
+--- PASS: TestSimple (0.00s)
+PASS
+ok  	pryx-core/internal/constraints	(cached)
+# pryx-core/internal/memory.test
+ld: warning: '/private/var/folders/_s/x4kzj7hj3611_2_wjj3nhn640000gn/T/go-link-458072219/000023.o' has malformed LC_DYSYMTAB, expected 98 undefined symbols to start at index 1626, found 95 undefined symbols starting at index 1626
+# pryx-core/internal/mesh.test
+ld: warning: '/private/var/folders/_s/x4kzj7hj3611_2_wjj3nhn640000gn/T/go-link-3815698994/000023.o' has malformed LC_DYSYMTAB, expected 98 undefined symbols to start at index 1626, found 95 undefined symbols starting at index 1626
+=== RUN   TestCostCalculator_CalculateFromUsage
+--- PASS: TestCostCalculator_CalculateFromUsage (0.00s)
+=== RUN   TestPricingManager_GetPricing
+--- PASS: TestPricingManager_GetPricing (0.00s)
+=== RUN   TestCostCalculator_UnknownModel
+--- PASS: TestCostCalculator_UnknownModel (0.00s)
+=== RUN   TestBudgetConfig
+--- PASS: TestBudgetConfig (0.00s)
+=== RUN   TestCostSummary
+--- PASS: TestCostSummary (0.00s)
+=== RUN   TestModelPricing_Providers
+--- PASS: TestModelPricing_Providers (0.00s)
+=== RUN   TestCostOptimization
+--- PASS: TestCostOptimization (0.00s)
+=== RUN   TestAllPricing
+--- PASS: TestAllPricing (0.00s)
+=== RUN   TestBudgetStatus
+--- PASS: TestBudgetStatus (0.00s)
+=== RUN   TestSessionCost
+--- PASS: TestSessionCost (0.00s)
+=== RUN   TestPricingManager_SetPricing
+--- PASS: TestPricingManager_SetPricing (0.00s)
+=== RUN   TestHandler_GetCostSummary
+--- PASS: TestHandler_GetCostSummary (0.01s)
+=== RUN   TestHandler_GetCostSummary_MethodNotAllowed
+--- PASS: TestHandler_GetCostSummary_MethodNotAllowed (0.01s)
+=== RUN   TestHandler_GetSessionCost
+--- PASS: TestHandler_GetSessionCost (0.01s)
+=== RUN   TestHandler_GetSessionCost_MissingID
+--- PASS: TestHandler_GetSessionCost_MissingID (0.01s)
+=== RUN   TestHandler_GetDailyCost
+--- PASS: TestHandler_GetDailyCost (0.01s)
+=== RUN   TestHandler_GetDailyCost_WithDate
+--- PASS: TestHandler_GetDailyCost_WithDate (0.01s)
+=== RUN   TestHandler_GetDailyCost_InvalidDate
+--- PASS: TestHandler_GetDailyCost_InvalidDate (0.01s)
+=== RUN   TestHandler_GetMonthlyCost
+--- PASS: TestHandler_GetMonthlyCost (0.01s)
+=== RUN   TestHandler_GetMonthlyCost_WithYearMonth
+--- PASS: TestHandler_GetMonthlyCost_WithYearMonth (0.01s)
+=== RUN   TestHandler_GetBudgetStatus
+--- PASS: TestHandler_GetBudgetStatus (0.01s)
+=== RUN   TestHandler_GetBudgetStatus_WithUserID
+--- PASS: TestHandler_GetBudgetStatus_WithUserID (0.01s)
+=== RUN   TestHandler_SetBudget
+--- PASS: TestHandler_SetBudget (0.01s)
+=== RUN   TestHandler_SetBudget_InvalidBody
+--- PASS: TestHandler_SetBudget_InvalidBody (0.01s)
+=== RUN   TestHandler_SetBudget_MethodNotAllowed
+--- PASS: TestHandler_SetBudget_MethodNotAllowed (0.01s)
+=== RUN   TestCostService_SetBudget
+--- PASS: TestCostService_SetBudget (0.01s)
+=== RUN   TestCostService_GetBudgetStatus_NoBudget
+--- PASS: TestCostService_GetBudgetStatus_NoBudget (0.01s)
+=== RUN   TestCostService_GetBudgetStatus_OverBudget
+--- PASS: TestCostService_GetBudgetStatus_OverBudget (0.03s)
+=== RUN   TestCostService_generateBudgetWarnings_WarningThreshold
+--- PASS: TestCostService_generateBudgetWarnings_WarningThreshold (0.01s)
+=== RUN   TestCostService_GetOptimizationSuggestions
+--- PASS: TestCostService_GetOptimizationSuggestions (0.06s)
+=== RUN   TestCostService_GetCurrentSessionCost
+--- PASS: TestCostService_GetCurrentSessionCost (0.01s)
+=== RUN   TestCostService_GetAllModelPricing
+--- PASS: TestCostService_GetAllModelPricing (0.01s)
+=== RUN   TestCostTracker_RecordCost
+--- PASS: TestCostTracker_RecordCost (0.01s)
+=== RUN   TestCostTracker_GetSessionCosts
+--- PASS: TestCostTracker_GetSessionCosts (0.01s)
+=== RUN   TestCostTracker_GetDailyCosts
+--- PASS: TestCostTracker_GetDailyCosts (0.01s)
+=== RUN   TestCostTracker_GetMonthlyCosts
+--- PASS: TestCostTracker_GetMonthlyCosts (0.02s)
+=== RUN   TestCostTracker_GetDailyCostsByDateRange
+--- PASS: TestCostTracker_GetDailyCostsByDateRange (0.01s)
+PASS
+ok  	pryx-core/internal/cost	4.870s
+=== RUN   TestCheckInstallation
+--- PASS: TestCheckInstallation (0.00s)
+=== RUN   TestCheckDependencies
+--- PASS: TestCheckDependencies (0.00s)
+=== RUN   TestCheckDatabase
+--- PASS: TestCheckDatabase (0.01s)
+=== RUN   TestCheckDatabaseMissingPath
+--- PASS: TestCheckDatabaseMissingPath (0.00s)
+=== RUN   TestHealthURL
+--- PASS: TestHealthURL (0.00s)
+=== RUN   TestCheckChannelsNotFound
+    doctor_simple_test.go:125: Expected status Warn for missing channels config, got ok
+--- FAIL: TestCheckChannelsNotFound (0.00s)
+FAIL
+FAIL	pryx-core/internal/doctor	0.789s
+=== RUN   TestNewService
+--- PASS: TestNewService (0.00s)
+=== RUN   TestRegisterTool
+--- PASS: TestRegisterTool (0.00s)
+=== RUN   TestRegisterTool_GeneratesID
+--- PASS: TestRegisterTool_GeneratesID (0.00s)
+=== RUN   TestGetTool
+--- PASS: TestGetTool (0.00s)
+=== RUN   TestGetTool_NotFound
+--- PASS: TestGetTool_NotFound (0.00s)
+=== RUN   TestGetToolsByAgent
+--- PASS: TestGetToolsByAgent (0.00s)
+=== RUN   TestGetVisibleTools
+--- PASS: TestGetVisibleTools (0.00s)
+=== RUN   TestRequestFederation
+--- PASS: TestRequestFederation (0.00s)
+=== RUN   TestRequestFederation_DefaultDuration
+--- PASS: TestRequestFederation_DefaultDuration (0.00s)
+=== RUN   TestApproveFederation
+--- PASS: TestApproveFederation (0.00s)
+=== RUN   TestApproveFederation_NotFound
+--- PASS: TestApproveFederation_NotFound (0.00s)
+=== RUN   TestInvokeTool
+--- PASS: TestInvokeTool (0.00s)
+=== RUN   TestInvokeTool_NotFound
+--- PASS: TestInvokeTool_NotFound (0.00s)
+=== RUN   TestGetInvocationStatus
+--- PASS: TestGetInvocationStatus (0.00s)
+=== RUN   TestGetInvocationStatus_NotFound
+--- PASS: TestGetInvocationStatus_NotFound (0.00s)
+=== RUN   TestGetFederationConnection
+--- PASS: TestGetFederationConnection (0.00s)
+=== RUN   TestGetConnectionsByAgent
+--- PASS: TestGetConnectionsByAgent (0.00s)
+=== RUN   TestRevokeTool
+--- PASS: TestRevokeTool (0.00s)
+=== RUN   TestGetGrantedTools
+--- PASS: TestGetGrantedTools (0.00s)
+=== RUN   TestSyncTools
+--- PASS: TestSyncTools (0.00s)
+=== RUN   TestGetToolCount
+--- PASS: TestGetToolCount (0.00s)
+=== RUN   TestGetConnectionCount
+--- PASS: TestGetConnectionCount (0.00s)
+=== RUN   TestGetInvocationCount
+--- PASS: TestGetInvocationCount (0.00s)
+=== RUN   TestPrettyPrint
+--- PASS: TestPrettyPrint (0.00s)
+=== RUN   TestConcurrentFederations
+--- PASS: TestConcurrentFederations (0.00s)
+PASS
+ok  	pryx-core/internal/federation	(cached)
+=== RUN   TestNewService
+--- PASS: TestNewService (0.00s)
+=== RUN   TestRequestHandoff
+--- PASS: TestRequestHandoff (0.00s)
+=== RUN   TestRequestHandoff_DefaultTimeout
+--- PASS: TestRequestHandoff_DefaultTimeout (0.00s)
+=== RUN   TestAcceptHandoff
+--- PASS: TestAcceptHandoff (0.00s)
+=== RUN   TestAcceptHandoff_NotFound
+--- PASS: TestAcceptHandoff_NotFound (0.00s)
+=== RUN   TestRejectHandoff
+--- PASS: TestRejectHandoff (0.00s)
+=== RUN   TestRejectHandoff_NotFound
+--- PASS: TestRejectHandoff_NotFound (0.00s)
+=== RUN   TestStartTransfer
+--- PASS: TestStartTransfer (0.00s)
+=== RUN   TestStartTransfer_NotFound
+--- PASS: TestStartTransfer_NotFound (0.00s)
+=== RUN   TestValidateTransfer
+--- PASS: TestValidateTransfer (0.00s)
+=== RUN   TestCompleteHandoff
+--- PASS: TestCompleteHandoff (0.00s)
+=== RUN   TestCompleteHandoff_NotFound
+--- PASS: TestCompleteHandoff_NotFound (0.00s)
+=== RUN   TestCancelHandoff
+--- PASS: TestCancelHandoff (0.00s)
+=== RUN   TestGetHandoffStatus
+--- PASS: TestGetHandoffStatus (0.00s)
+=== RUN   TestGetHandoffStatus_NotFound
+--- PASS: TestGetHandoffStatus_NotFound (0.00s)
+=== RUN   TestGetActiveHandoffs
+--- PASS: TestGetActiveHandoffs (0.00s)
+=== RUN   TestGetHandoffHistory
+--- PASS: TestGetHandoffHistory (0.00s)
+=== RUN   TestCreateSessionState
+--- PASS: TestCreateSessionState (0.00s)
+=== RUN   TestCreateContext
+--- PASS: TestCreateContext (0.00s)
+=== RUN   TestGetRequestCount
+--- PASS: TestGetRequestCount (0.00s)
+=== RUN   TestGetActiveCount
+--- PASS: TestGetActiveCount (0.00s)
+=== RUN   TestGetHistoryCount
+--- PASS: TestGetHistoryCount (0.00s)
+=== RUN   TestPrettyPrint
+--- PASS: TestPrettyPrint (0.00s)
+=== RUN   TestConcurrentHandoffs
+--- PASS: TestConcurrentHandoffs (0.00s)
+PASS
+ok  	pryx-core/internal/handoff	(cached)
+# pryx-core/internal/performance.test
+ld: warning: '/private/var/folders/_s/x4kzj7hj3611_2_wjj3nhn640000gn/T/go-link-3001994498/000023.o' has malformed LC_DYSYMTAB, expected 98 undefined symbols to start at index 1626, found 95 undefined symbols starting at index 1626
+=== RUN   TestNewService
+--- PASS: TestNewService (0.00s)
+=== RUN   TestRegisterAgent
+--- PASS: TestRegisterAgent (0.00s)
+=== RUN   TestRegisterAgent_AlreadyExists
+--- PASS: TestRegisterAgent_AlreadyExists (0.00s)
+=== RUN   TestDeregisterAgent
+--- PASS: TestDeregisterAgent (0.00s)
+=== RUN   TestDeregisterAgent_NotFound
+--- PASS: TestDeregisterAgent_NotFound (0.00s)
+=== RUN   TestUpdateHeartbeat
+--- PASS: TestUpdateHeartbeat (0.00s)
+=== RUN   TestUpdateHeartbeat_NotFound
+--- PASS: TestUpdateHeartbeat_NotFound (0.00s)
+=== RUN   TestUpdateComponentHealth
+--- PASS: TestUpdateComponentHealth (0.00s)
+=== RUN   TestUpdateComponentHealth_Unhealthy
+--- PASS: TestUpdateComponentHealth_Unhealthy (0.00s)
+=== RUN   TestPerformHealthCheck
+--- PASS: TestPerformHealthCheck (0.00s)
+=== RUN   TestPerformHealthCheck_NotFound
+--- PASS: TestPerformHealthCheck_NotFound (0.00s)
+=== RUN   TestGetAgentHealth
+--- PASS: TestGetAgentHealth (0.00s)
+=== RUN   TestGetAgentHealth_NotFound
+--- PASS: TestGetAgentHealth_NotFound (0.00s)
+=== RUN   TestGetAllAgentHealth
+--- PASS: TestGetAllAgentHealth (0.00s)
+=== RUN   TestGetAlerts
+--- PASS: TestGetAlerts (0.00s)
+=== RUN   TestAcknowledgeAlert
+--- PASS: TestAcknowledgeAlert (0.00s)
+=== RUN   TestGetAgentCount
+--- PASS: TestGetAgentCount (0.00s)
+=== RUN   TestGetHealthyCount
+--- PASS: TestGetHealthyCount (0.00s)
+=== RUN   TestGetAlertCount
+--- PASS: TestGetAlertCount (0.00s)
+=== RUN   TestPrettyPrint
+--- PASS: TestPrettyPrint (0.00s)
+=== RUN   TestDegradedStatus
+--- PASS: TestDegradedStatus (0.00s)
+=== RUN   TestMultipleComponents
+--- PASS: TestMultipleComponents (0.00s)
+PASS
+ok  	pryx-core/internal/health	2.115s
+=== RUN   TestNewClient
+--- PASS: TestNewClient (0.00s)
+=== RUN   TestRequestPermissionApproved
+--- PASS: TestRequestPermissionApproved (0.00s)
+=== RUN   TestRequestPermissionDenied
+--- PASS: TestRequestPermissionDenied (0.00s)
+=== RUN   TestRequestPermissionError
+--- PASS: TestRequestPermissionError (0.00s)
+=== RUN   TestRequestPermissionMismatchedID
+--- PASS: TestRequestPermissionMismatchedID (0.00s)
+PASS
+ok  	pryx-core/internal/hostrpc	(cached)
+=== RUN   TestNew
+--- PASS: TestNew (0.00s)
+=== RUN   TestSetGetDelete
+--- PASS: TestSetGetDelete (0.12s)
+=== RUN   TestGetNonExistent
+--- PASS: TestGetNonExistent (0.01s)
+=== RUN   TestDeleteNonExistent
+--- PASS: TestDeleteNonExistent (0.01s)
+=== RUN   TestMultipleUsers
+--- PASS: TestMultipleUsers (0.19s)
+PASS
+ok  	pryx-core/internal/keychain	(cached)
+?   	pryx-core/internal/llm	[no test files]
+=== RUN   TestNewProvider_OpenAI
+--- PASS: TestNewProvider_OpenAI (0.00s)
+=== RUN   TestNewProvider_Anthropic
+--- PASS: TestNewProvider_Anthropic (0.00s)
+=== RUN   TestNewProvider_OpenRouter
+--- PASS: TestNewProvider_OpenRouter (0.00s)
+=== RUN   TestNewProvider_Ollama
+--- PASS: TestNewProvider_Ollama (0.00s)
+=== RUN   TestNewProvider_CustomBaseURL
+--- PASS: TestNewProvider_CustomBaseURL (0.00s)
+PASS
+ok  	pryx-core/internal/llm/factory	2.375s
+=== RUN   TestNewHealthChecker
+--- PASS: TestNewHealthChecker (0.00s)
+=== RUN   TestHealthChecker_CheckProvider_Unsupported
+--- PASS: TestHealthChecker_CheckProvider_Unsupported (0.00s)
+=== RUN   TestHealthChecker_GetHealth
+--- PASS: TestHealthChecker_GetHealth (0.00s)
+=== RUN   TestHealthChecker_GetAllHealth
+--- PASS: TestHealthChecker_GetAllHealth (0.00s)
+=== RUN   TestProviderHealth_IsStale
+--- PASS: TestProviderHealth_IsStale (0.00s)
+=== RUN   TestNewOpenAI
+=== RUN   TestNewOpenAI/default_URL
+=== RUN   TestNewOpenAI/custom_URL
+=== RUN   TestNewOpenAI/URL_with_trailing_slash
+--- PASS: TestNewOpenAI (0.00s)
+    --- PASS: TestNewOpenAI/default_URL (0.00s)
+    --- PASS: TestNewOpenAI/custom_URL (0.00s)
+    --- PASS: TestNewOpenAI/URL_with_trailing_slash (0.00s)
+=== RUN   TestOpenAIProvider_Complete
+--- PASS: TestOpenAIProvider_Complete (0.00s)
+=== RUN   TestOpenAIProvider_Complete_Error
+--- PASS: TestOpenAIProvider_Complete_Error (0.00s)
+=== RUN   TestOpenAIProvider_Stream
+--- PASS: TestOpenAIProvider_Stream (0.04s)
+PASS
+ok  	pryx-core/internal/llm/providers	(cached)
+?   	pryx-core/internal/logging	[no test files]
+=== RUN   TestCreateListing
+--- PASS: TestCreateListing (0.00s)
+=== RUN   TestGetListing
+--- PASS: TestGetListing (0.00s)
+=== RUN   TestGetListingNotFound
+--- PASS: TestGetListingNotFound (0.00s)
+=== RUN   TestGetListingByAgentID
+--- PASS: TestGetListingByAgentID (0.00s)
+=== RUN   TestUpdateListing
+--- PASS: TestUpdateListing (0.00s)
+=== RUN   TestPublishListing
+--- PASS: TestPublishListing (0.00s)
+=== RUN   TestSuspendListing
+--- PASS: TestSuspendListing (0.00s)
+=== RUN   TestGetFeaturedListings
+--- PASS: TestGetFeaturedListings (0.00s)
+=== RUN   TestGetListingsByCategory
+--- PASS: TestGetListingsByCategory (0.00s)
+=== RUN   TestSearchListings
+--- PASS: TestSearchListings (0.00s)
+=== RUN   TestSearchListingsByCategory
+--- PASS: TestSearchListingsByCategory (0.00s)
+=== RUN   TestSearchListingsByMinRating
+--- PASS: TestSearchListingsByMinRating (0.00s)
+=== RUN   TestSearchListingsSort
+--- PASS: TestSearchListingsSort (0.00s)
+=== RUN   TestAddReview
+--- PASS: TestAddReview (0.00s)
+=== RUN   TestAddReviewUpdatesRating
+--- PASS: TestAddReviewUpdatesRating (0.00s)
+=== RUN   TestGetReviews
+--- PASS: TestGetReviews (0.00s)
+=== RUN   TestMarkReviewHelpful
+--- PASS: TestMarkReviewHelpful (0.00s)
+=== RUN   TestAddReviewResponse
+--- PASS: TestAddReviewResponse (0.00s)
+=== RUN   TestCreateCategory
+--- PASS: TestCreateCategory (0.00s)
+=== RUN   TestGetCategory
+--- PASS: TestGetCategory (0.00s)
+=== RUN   TestRecordInstall
+--- PASS: TestRecordInstall (0.00s)
+=== RUN   TestRecordDownload
+--- PASS: TestRecordDownload (0.00s)
+=== RUN   TestGetStats
+--- PASS: TestGetStats (0.00s)
+=== RUN   TestPrettyPrint
+--- PASS: TestPrettyPrint (0.00s)
+=== RUN   TestConcurrentAccess
+--- PASS: TestConcurrentAccess (0.00s)
+=== RUN   TestMarshalJSON
+--- PASS: TestMarshalJSON (0.00s)
+=== RUN   TestSplitIntoWords
+--- PASS: TestSplitIntoWords (0.00s)
+=== RUN   TestToLower
+--- PASS: TestToLower (0.00s)
+=== RUN   TestEventPublishing
+--- PASS: TestEventPublishing (0.05s)
+PASS
+ok  	pryx-core/internal/marketplace	(cached)
+# pryx-core/internal/store.test
+ld: warning: '/private/var/folders/_s/x4kzj7hj3611_2_wjj3nhn640000gn/T/go-link-3701636133/000023.o' has malformed LC_DYSYMTAB, expected 98 undefined symbols to start at index 1626, found 95 undefined symbols starting at index 1626
+# pryx-core/internal/server.test
+ld: warning: '/private/var/folders/_s/x4kzj7hj3611_2_wjj3nhn640000gn/T/go-link-254723441/000023.o' has malformed LC_DYSYMTAB, expected 98 undefined symbols to start at index 1626, found 95 undefined symbols starting at index 1626
+=== RUN   TestBrowserProvider_ListTools
+--- PASS: TestBrowserProvider_ListTools (0.00s)
+=== RUN   TestBrowserProvider_ServerInfo
+--- PASS: TestBrowserProvider_ServerInfo (0.00s)
+=== RUN   TestBrowserProvider_UnknownTool
+--- PASS: TestBrowserProvider_UnknownTool (0.00s)
+=== RUN   TestClipboardProvider_ListTools
+--- PASS: TestClipboardProvider_ListTools (0.00s)
+=== RUN   TestClipboardProvider_WriteRead
+--- PASS: TestClipboardProvider_WriteRead (0.10s)
+=== RUN   TestClipboardProvider_Base64
+--- PASS: TestClipboardProvider_Base64 (0.03s)
+=== RUN   TestClipboardProvider_ServerInfo
+--- PASS: TestClipboardProvider_ServerInfo (0.00s)
+=== RUN   TestScreenProvider_ServerInfo
+--- PASS: TestScreenProvider_ServerInfo (0.00s)
+=== RUN   TestScreenProvider_ListTools
+--- PASS: TestScreenProvider_ListTools (0.00s)
+=== RUN   TestScreenProvider_Capture_InvalidRegion
+--- PASS: TestScreenProvider_Capture_InvalidRegion (0.79s)
+=== RUN   TestScreenProvider_Record_RequiresFfmpeg
+    bundled_screen_test.go:99: Record result: {Content:[{Type:text Text:Screen recording requires ffmpeg. Install it:
+        - macOS: brew install ffmpeg
+        - Ubuntu/Debian: sudo apt install ffmpeg
+        - Windows: choco install ffmpeg Data: MimeType: URI: Name:}] IsError:true StructuredContent:[]}
+--- PASS: TestScreenProvider_Record_RequiresFfmpeg (0.00s)
+=== RUN   TestClient_Initialize
+--- PASS: TestClient_Initialize (0.00s)
+=== RUN   TestClient_Initialize_AlreadyInitialized
+--- PASS: TestClient_Initialize_AlreadyInitialized (0.00s)
+=== RUN   TestClient_ListTools
+--- PASS: TestClient_ListTools (0.00s)
+=== RUN   TestClient_ListTools_WithPagination
+--- PASS: TestClient_ListTools_WithPagination (0.00s)
+=== RUN   TestClient_CallTool
+--- PASS: TestClient_CallTool (0.00s)
+=== RUN   TestClient_CallTool_Add
+--- PASS: TestClient_CallTool_Add (0.00s)
+=== RUN   TestClient_CallTool_Error
+--- PASS: TestClient_CallTool_Error (0.00s)
+=== RUN   TestClient_CallTool_NotInitialized
+--- PASS: TestClient_CallTool_NotInitialized (0.00s)
+=== RUN   TestClient_Ping
+--- PASS: TestClient_Ping (0.00s)
+=== RUN   TestClient_Ping_NotInitialized
+--- PASS: TestClient_Ping_NotInitialized (0.00s)
+=== RUN   TestClient_Timeout
+--- PASS: TestClient_Timeout (0.05s)
+=== RUN   TestClient_TransportClosed
+--- PASS: TestClient_TransportClosed (0.00s)
+=== RUN   TestClient_DefaultProtocolVersion
+--- PASS: TestClient_DefaultProtocolVersion (0.00s)
+=== RUN   TestClient_ServerCapabilities
+--- PASS: TestClient_ServerCapabilities (0.00s)
+=== RUN   TestClient_Initialize_InvalidResponse
+--- PASS: TestClient_Initialize_InvalidResponse (0.00s)
+=== RUN   TestClient_ListTools_MethodNotFound
+--- PASS: TestClient_ListTools_MethodNotFound (0.00s)
+=== RUN   TestClient_Close
+--- PASS: TestClient_Close (0.00s)
+=== RUN   TestLoadServersConfigFromFirstExisting_None
+--- PASS: TestLoadServersConfigFromFirstExisting_None (0.00s)
+=== RUN   TestLoadServersConfigFromFirstExisting_Parse
+--- PASS: TestLoadServersConfigFromFirstExisting_Parse (0.00s)
+=== RUN   TestManager_LoadAndConnect_DefaultsToBundledTier1
+--- PASS: TestManager_LoadAndConnect_DefaultsToBundledTier1 (0.01s)
+=== RUN   TestNewManager
+--- PASS: TestNewManager (0.00s)
+=== RUN   TestNewManager_NilPolicy
+--- PASS: TestNewManager_NilPolicy (0.00s)
+=== RUN   TestManager_ResolveApproval
+--- PASS: TestManager_ResolveApproval (0.00s)
+=== RUN   TestManager_ResolveApproval_NotFound
+--- PASS: TestManager_ResolveApproval_NotFound (0.00s)
+=== RUN   TestManager_ResolveApproval_BusEvent
+--- PASS: TestManager_ResolveApproval_BusEvent (0.00s)
+=== RUN   TestSplitToolName
+=== RUN   TestSplitToolName/colon_format
+=== RUN   TestSplitToolName/slash_format
+=== RUN   TestSplitToolName/empty_string
+=== RUN   TestSplitToolName/whitespace
+=== RUN   TestSplitToolName/only_server
+=== RUN   TestSplitToolName/no_separator
+--- PASS: TestSplitToolName (0.00s)
+    --- PASS: TestSplitToolName/colon_format (0.00s)
+    --- PASS: TestSplitToolName/slash_format (0.00s)
+    --- PASS: TestSplitToolName/empty_string (0.00s)
+    --- PASS: TestSplitToolName/whitespace (0.00s)
+    --- PASS: TestSplitToolName/only_server (0.00s)
+    --- PASS: TestSplitToolName/no_separator (0.00s)
+=== RUN   TestManager_ListTools_Empty
+--- PASS: TestManager_ListTools_Empty (0.00s)
+=== RUN   TestManager_ListToolsFlat_Empty
+--- PASS: TestManager_ListToolsFlat_Empty (0.00s)
+=== RUN   TestManager_CacheHit
+--- PASS: TestManager_CacheHit (0.00s)
+=== RUN   TestManager_ApplyAuth_NonOAuth
+--- PASS: TestManager_ApplyAuth_NonOAuth (0.00s)
+=== RUN   TestManager_ApplyAuth_OAuth_MissingTokenRef
+--- PASS: TestManager_ApplyAuth_OAuth_MissingTokenRef (0.00s)
+=== RUN   TestManager_ApplyAuth_OAuth_InvalidTokenRef
+--- PASS: TestManager_ApplyAuth_OAuth_InvalidTokenRef (0.00s)
+=== RUN   TestManager_ApplyAuth_OAuth_NoKeychain
+--- PASS: TestManager_ApplyAuth_OAuth_NoKeychain (0.00s)
+=== RUN   TestHTTPTransport_Call_JSON
+--- PASS: TestHTTPTransport_Call_JSON (0.01s)
+=== RUN   TestHTTPTransport_Call_SSE
+--- PASS: TestHTTPTransport_Call_SSE (0.01s)
+=== RUN   TestSSETransport_Basic
+--- PASS: TestSSETransport_Basic (0.10s)
+=== RUN   TestSSETransport_IsConnected
+--- PASS: TestSSETransport_IsConnected (0.00s)
+=== RUN   TestSSETransport_Close
+--- PASS: TestSSETransport_Close (0.00s)
+=== RUN   TestSSETransport_SetEndpoints
+--- PASS: TestSSETransport_SetEndpoints (0.00s)
+=== RUN   TestStdioTransport_ClientFlow
+--- PASS: TestStdioTransport_ClientFlow (0.02s)
+=== RUN   TestMCPHelperProcess
+--- PASS: TestMCPHelperProcess (0.00s)
+PASS
+ok  	pryx-core/internal/mcp	3.121s
+=== RUN   TestDefaultCuratedRegistry
+--- PASS: TestDefaultCuratedRegistry (0.00s)
+=== RUN   TestCuratedRegistry_GetByID
+--- PASS: TestCuratedRegistry_GetByID (0.00s)
+=== RUN   TestCuratedRegistry_GetByCategory
+--- PASS: TestCuratedRegistry_GetByCategory (0.00s)
+=== RUN   TestNewDiscoveryService
+--- PASS: TestNewDiscoveryService (0.00s)
+=== RUN   TestDiscoveryService_GetCuratedServer
+--- PASS: TestDiscoveryService_GetCuratedServer (0.00s)
+=== RUN   TestDiscoveryService_SearchCuratedServers
+=== RUN   TestDiscoveryService_SearchCuratedServers/search_by_query
+=== RUN   TestDiscoveryService_SearchCuratedServers/search_by_category
+=== RUN   TestDiscoveryService_SearchCuratedServers/search_verified_only
+=== RUN   TestDiscoveryService_SearchCuratedServers/search_by_security_level
+=== RUN   TestDiscoveryService_SearchCuratedServers/combined_filters
+--- PASS: TestDiscoveryService_SearchCuratedServers (0.00s)
+    --- PASS: TestDiscoveryService_SearchCuratedServers/search_by_query (0.00s)
+    --- PASS: TestDiscoveryService_SearchCuratedServers/search_by_category (0.00s)
+    --- PASS: TestDiscoveryService_SearchCuratedServers/search_verified_only (0.00s)
+    --- PASS: TestDiscoveryService_SearchCuratedServers/search_by_security_level (0.00s)
+    --- PASS: TestDiscoveryService_SearchCuratedServers/combined_filters (0.00s)
+=== RUN   TestDiscoveryService_GetCategories
+--- PASS: TestDiscoveryService_GetCategories (0.00s)
+=== RUN   TestDiscoveryService_ValidateCustomURL
+=== RUN   TestDiscoveryService_ValidateCustomURL/valid_https_URL
+=== RUN   TestDiscoveryService_ValidateCustomURL/http_URL_warns
+=== RUN   TestDiscoveryService_ValidateCustomURL/localhost_blocked
+=== RUN   TestDiscoveryService_ValidateCustomURL/127.0.0.1_blocked
+=== RUN   TestDiscoveryService_ValidateCustomURL/invalid_URL_format
+--- PASS: TestDiscoveryService_ValidateCustomURL (0.00s)
+    --- PASS: TestDiscoveryService_ValidateCustomURL/valid_https_URL (0.00s)
+    --- PASS: TestDiscoveryService_ValidateCustomURL/http_URL_warns (0.00s)
+    --- PASS: TestDiscoveryService_ValidateCustomURL/localhost_blocked (0.00s)
+    --- PASS: TestDiscoveryService_ValidateCustomURL/127.0.0.1_blocked (0.00s)
+    --- PASS: TestDiscoveryService_ValidateCustomURL/invalid_URL_format (0.00s)
+=== RUN   TestDiscoveryService_CustomServers
+--- PASS: TestDiscoveryService_CustomServers (0.00s)
+=== RUN   TestDiscoveryService_Persistence
+--- PASS: TestDiscoveryService_Persistence (0.00s)
+=== RUN   TestDiscoveryService_GetRecommendedConfig
+--- PASS: TestDiscoveryService_GetRecommendedConfig (0.00s)
+=== RUN   TestDiscoveryService_GetSecurityWarnings
+--- PASS: TestDiscoveryService_GetSecurityWarnings (0.00s)
+=== RUN   TestMatchesPattern
+--- PASS: TestMatchesPattern (0.00s)
+=== RUN   TestGetSecurityLevelColor
+--- PASS: TestGetSecurityLevelColor (0.00s)
+=== RUN   TestGetCategoryIcon
+--- PASS: TestGetCategoryIcon (0.00s)
+=== RUN   TestGenerateID
+--- PASS: TestGenerateID (0.00s)
+=== RUN   TestCuratedServerToServerConfig
+--- PASS: TestCuratedServerToServerConfig (0.00s)
+PASS
+ok  	pryx-core/internal/mcp/discovery	(cached)
+=== RUN   TestRiskRating
+=== RUN   TestRiskRating/A_rating
+=== RUN   TestRiskRating/B_rating
+=== RUN   TestRiskRating/C_rating
+=== RUN   TestRiskRating/D_rating
+=== RUN   TestRiskRating/F_rating
+--- PASS: TestRiskRating (0.00s)
+    --- PASS: TestRiskRating/A_rating (0.00s)
+    --- PASS: TestRiskRating/B_rating (0.00s)
+    --- PASS: TestRiskRating/C_rating (0.00s)
+    --- PASS: TestRiskRating/D_rating (0.00s)
+    --- PASS: TestRiskRating/F_rating (0.00s)
+=== RUN   TestRiskScoreIsSafe
+=== RUN   TestRiskScoreIsSafe/Safe_A_rating
+=== RUN   TestRiskScoreIsSafe/Safe_B_rating
+=== RUN   TestRiskScoreIsSafe/Safe_C_rating
+=== RUN   TestRiskScoreIsSafe/Safe_D_rating
+=== RUN   TestRiskScoreIsSafe/Blocked_F_rating
+=== RUN   TestRiskScoreIsSafe/Low_score_D
+--- PASS: TestRiskScoreIsSafe (0.00s)
+    --- PASS: TestRiskScoreIsSafe/Safe_A_rating (0.00s)
+    --- PASS: TestRiskScoreIsSafe/Safe_B_rating (0.00s)
+    --- PASS: TestRiskScoreIsSafe/Safe_C_rating (0.00s)
+    --- PASS: TestRiskScoreIsSafe/Safe_D_rating (0.00s)
+    --- PASS: TestRiskScoreIsSafe/Blocked_F_rating (0.00s)
+    --- PASS: TestRiskScoreIsSafe/Low_score_D (0.00s)
+=== RUN   TestRiskScoreNeedsUserConfirmation
+=== RUN   TestRiskScoreNeedsUserConfirmation/A_rating_no_confirm
+=== RUN   TestRiskScoreNeedsUserConfirmation/B_rating_no_confirm
+=== RUN   TestRiskScoreNeedsUserConfirmation/C_rating_no_confirm
+=== RUN   TestRiskScoreNeedsUserConfirmation/D_rating_needs_confirm
+=== RUN   TestRiskScoreNeedsUserConfirmation/F_rating_needs_confirm
+=== RUN   TestRiskScoreNeedsUserConfirmation/Approval_required
+--- PASS: TestRiskScoreNeedsUserConfirmation (0.00s)
+    --- PASS: TestRiskScoreNeedsUserConfirmation/A_rating_no_confirm (0.00s)
+    --- PASS: TestRiskScoreNeedsUserConfirmation/B_rating_no_confirm (0.00s)
+    --- PASS: TestRiskScoreNeedsUserConfirmation/C_rating_no_confirm (0.00s)
+    --- PASS: TestRiskScoreNeedsUserConfirmation/D_rating_needs_confirm (0.00s)
+    --- PASS: TestRiskScoreNeedsUserConfirmation/F_rating_needs_confirm (0.00s)
+    --- PASS: TestRiskScoreNeedsUserConfirmation/Approval_required (0.00s)
+=== RUN   TestCalculateRiskScore
+=== RUN   TestCalculateRiskScore/Verified_HTTPS_server
+=== RUN   TestCalculateRiskScore/Community_HTTPS_server
+=== RUN   TestCalculateRiskScore/Unknown_HTTP_server
+=== RUN   TestCalculateRiskScore/Blocked_domain
+=== RUN   TestCalculateRiskScore/Malicious_server
+=== RUN   TestCalculateRiskScore/Server_with_exec_tools
+--- PASS: TestCalculateRiskScore (0.00s)
+    --- PASS: TestCalculateRiskScore/Verified_HTTPS_server (0.00s)
+    --- PASS: TestCalculateRiskScore/Community_HTTPS_server (0.00s)
+    --- PASS: TestCalculateRiskScore/Unknown_HTTP_server (0.00s)
+    --- PASS: TestCalculateRiskScore/Blocked_domain (0.00s)
+    --- PASS: TestCalculateRiskScore/Malicious_server (0.00s)
+    --- PASS: TestCalculateRiskScore/Server_with_exec_tools (0.00s)
+=== RUN   TestClassifyToolRisk
+=== RUN   TestClassifyToolRisk/Read_tool
+=== RUN   TestClassifyToolRisk/Write_tool
+=== RUN   TestClassifyToolRisk/Execute_tool
+=== RUN   TestClassifyToolRisk/Network_tool
+=== RUN   TestClassifyToolRisk/System_tool
+=== RUN   TestClassifyToolRisk/Dangerous_tool
+--- PASS: TestClassifyToolRisk (0.00s)
+    --- PASS: TestClassifyToolRisk/Read_tool (0.00s)
+    --- PASS: TestClassifyToolRisk/Write_tool (0.00s)
+    --- PASS: TestClassifyToolRisk/Execute_tool (0.00s)
+    --- PASS: TestClassifyToolRisk/Network_tool (0.00s)
+    --- PASS: TestClassifyToolRisk/System_tool (0.00s)
+    --- PASS: TestClassifyToolRisk/Dangerous_tool (0.00s)
+=== RUN   TestAnalyzeTools
+--- PASS: TestAnalyzeTools (0.00s)
+=== RUN   TestDefaultSandboxConfig
+--- PASS: TestDefaultSandboxConfig (0.00s)
+=== RUN   TestNewSandbox
+--- PASS: TestNewSandbox (0.00s)
+=== RUN   TestSandboxApply
+--- PASS: TestSandboxApply (0.00s)
+=== RUN   TestSandboxValidateTool
+=== RUN   TestSandboxValidateTool/Read_tool_in_read-only_sandbox
+=== RUN   TestSandboxValidateTool/Write_tool_in_read-only_sandbox
+=== RUN   TestSandboxValidateTool/Exec_tool_when_shell_disabled
+=== RUN   TestSandboxValidateTool/Exec_tool_when_shell_enabled
+--- PASS: TestSandboxValidateTool (0.00s)
+    --- PASS: TestSandboxValidateTool/Read_tool_in_read-only_sandbox (0.00s)
+    --- PASS: TestSandboxValidateTool/Write_tool_in_read-only_sandbox (0.00s)
+    --- PASS: TestSandboxValidateTool/Exec_tool_when_shell_disabled (0.00s)
+    --- PASS: TestSandboxValidateTool/Exec_tool_when_shell_enabled (0.00s)
+=== RUN   TestSandboxValidateFilePath
+=== RUN   TestSandboxValidateFilePath/Read_in_allowed_directory
+=== RUN   TestSandboxValidateFilePath/Read_in_blocked_directory
+=== RUN   TestSandboxValidateFilePath/Write_in_read-only_sandbox
+--- PASS: TestSandboxValidateFilePath (0.00s)
+    --- PASS: TestSandboxValidateFilePath/Read_in_allowed_directory (0.00s)
+    --- PASS: TestSandboxValidateFilePath/Read_in_blocked_directory (0.00s)
+    --- PASS: TestSandboxValidateFilePath/Write_in_read-only_sandbox (0.00s)
+=== RUN   TestSandboxValidateHost
+=== RUN   TestSandboxValidateHost/HTTPS_allowed
+=== RUN   TestSandboxValidateHost/HTTPS_blocked
+=== RUN   TestSandboxValidateHost/HTTP_not_allowed
+=== RUN   TestSandboxValidateHost/Blocked_host
+--- PASS: TestSandboxValidateHost (0.00s)
+    --- PASS: TestSandboxValidateHost/HTTPS_allowed (0.00s)
+    --- PASS: TestSandboxValidateHost/HTTPS_blocked (0.00s)
+    --- PASS: TestSandboxValidateHost/HTTP_not_allowed (0.00s)
+    --- PASS: TestSandboxValidateHost/Blocked_host (0.00s)
+=== RUN   TestSandboxValidateEnvironment
+--- PASS: TestSandboxValidateEnvironment (0.00s)
+=== RUN   TestSandboxFromRisk
+=== RUN   TestSandboxFromRisk/A
+=== RUN   TestSandboxFromRisk/B
+=== RUN   TestSandboxFromRisk/C
+=== RUN   TestSandboxFromRisk/D
+=== RUN   TestSandboxFromRisk/F
+--- PASS: TestSandboxFromRisk (0.00s)
+    --- PASS: TestSandboxFromRisk/A (0.00s)
+    --- PASS: TestSandboxFromRisk/B (0.00s)
+    --- PASS: TestSandboxFromRisk/C (0.00s)
+    --- PASS: TestSandboxFromRisk/D (0.00s)
+    --- PASS: TestSandboxFromRisk/F (0.00s)
+=== RUN   TestIsSubpath
+=== RUN   TestIsSubpath//home/user/file.txt
+=== RUN   TestIsSubpath//home/user/docs/file.txt
+=== RUN   TestIsSubpath//home/other/file.txt
+=== RUN   TestIsSubpath//home/user
+=== RUN   TestIsSubpath//home/us
+--- PASS: TestIsSubpath (0.00s)
+    --- PASS: TestIsSubpath//home/user/file.txt (0.00s)
+    --- PASS: TestIsSubpath//home/user/docs/file.txt (0.00s)
+    --- PASS: TestIsSubpath//home/other/file.txt (0.00s)
+    --- PASS: TestIsSubpath//home/user (0.00s)
+    --- PASS: TestIsSubpath//home/us (0.00s)
+=== RUN   TestMatchesHost
+=== RUN   TestMatchesHost/example.com_example.com
+=== RUN   TestMatchesHost/api.example.com_*.example.com
+=== RUN   TestMatchesHost/example.com_*.example.com
+=== RUN   TestMatchesHost/deep.sub.example.com_*.example.com
+=== RUN   TestMatchesHost/other.com_example.com
+--- PASS: TestMatchesHost (0.00s)
+    --- PASS: TestMatchesHost/example.com_example.com (0.00s)
+    --- PASS: TestMatchesHost/api.example.com_*.example.com (0.00s)
+    --- PASS: TestMatchesHost/example.com_*.example.com (0.00s)
+    --- PASS: TestMatchesHost/deep.sub.example.com_*.example.com (0.00s)
+    --- PASS: TestMatchesHost/other.com_example.com (0.00s)
+=== RUN   TestSandboxMiddleware
+--- PASS: TestSandboxMiddleware (0.00s)
+=== RUN   TestNewValidator
+--- PASS: TestNewValidator (0.00s)
+=== RUN   TestValidatorWithOptions
+--- PASS: TestValidatorWithOptions (0.00s)
+=== RUN   TestValidatorValidate
+=== RUN   TestValidatorValidate/Valid_HTTPS_URL
+=== RUN   TestValidatorValidate/HTTP_URL_rejected_by_default
+=== RUN   TestValidatorValidate/Blocked_localhost
+=== RUN   TestValidatorValidate/Bundled_transport
+=== RUN   TestValidatorValidate/Invalid_URL
+--- PASS: TestValidatorValidate (0.00s)
+    --- PASS: TestValidatorValidate/Valid_HTTPS_URL (0.00s)
+    --- PASS: TestValidatorValidate/HTTP_URL_rejected_by_default (0.00s)
+    --- PASS: TestValidatorValidate/Blocked_localhost (0.00s)
+    --- PASS: TestValidatorValidate/Bundled_transport (0.00s)
+    --- PASS: TestValidatorValidate/Invalid_URL (0.00s)
+=== RUN   TestValidatorValidateWithTools
+--- PASS: TestValidatorValidateWithTools (0.00s)
+=== RUN   TestCheckDomain
+=== RUN   TestCheckDomain/api.example.com
+=== RUN   TestCheckDomain/sub.api.example.com
+=== RUN   TestCheckDomain/trusted.org
+=== RUN   TestCheckDomain/evil.com
+=== RUN   TestCheckDomain/sub.evil.com
+=== RUN   TestCheckDomain/malware-site.com
+=== RUN   TestCheckDomain/unknown.com
+--- PASS: TestCheckDomain (0.00s)
+    --- PASS: TestCheckDomain/api.example.com (0.00s)
+    --- PASS: TestCheckDomain/sub.api.example.com (0.00s)
+    --- PASS: TestCheckDomain/trusted.org (0.00s)
+    --- PASS: TestCheckDomain/evil.com (0.00s)
+    --- PASS: TestCheckDomain/sub.evil.com (0.00s)
+    --- PASS: TestCheckDomain/malware-site.com (0.00s)
+    --- PASS: TestCheckDomain/unknown.com (0.00s)
+=== RUN   TestMatchesDomainPattern
+=== RUN   TestMatchesDomainPattern/example.com_example.com
+=== RUN   TestMatchesDomainPattern/example.com_other.com
+=== RUN   TestMatchesDomainPattern/api.example.com_*.example.com
+=== RUN   TestMatchesDomainPattern/example.com_*.example.com
+=== RUN   TestMatchesDomainPattern/deep.sub.example.com_*.example.com
+=== RUN   TestMatchesDomainPattern/test123.com_regex:test[0-9]+.com
+=== RUN   TestMatchesDomainPattern/testabc.com_regex:test[0-9]+.com
+--- PASS: TestMatchesDomainPattern (0.00s)
+    --- PASS: TestMatchesDomainPattern/example.com_example.com (0.00s)
+    --- PASS: TestMatchesDomainPattern/example.com_other.com (0.00s)
+    --- PASS: TestMatchesDomainPattern/api.example.com_*.example.com (0.00s)
+    --- PASS: TestMatchesDomainPattern/example.com_*.example.com (0.00s)
+    --- PASS: TestMatchesDomainPattern/deep.sub.example.com_*.example.com (0.00s)
+    --- PASS: TestMatchesDomainPattern/test123.com_regex:test[0-9]+.com (0.00s)
+    --- PASS: TestMatchesDomainPattern/testabc.com_regex:test[0-9]+.com (0.00s)
+=== RUN   TestNormalizeURL
+=== RUN   TestNormalizeURL/https://example.com
+=== RUN   TestNormalizeURL/http://example.com/path/
+=== RUN   TestNormalizeURL/example.com
+=== RUN   TestNormalizeURL/bundled
+=== RUN   TestNormalizeURL/://invalid
+--- PASS: TestNormalizeURL (0.00s)
+    --- PASS: TestNormalizeURL/https://example.com (0.00s)
+    --- PASS: TestNormalizeURL/http://example.com/path/ (0.00s)
+    --- PASS: TestNormalizeURL/example.com (0.00s)
+    --- PASS: TestNormalizeURL/bundled (0.00s)
+    --- PASS: TestNormalizeURL/://invalid (0.00s)
+=== RUN   TestDefaultAllowlist
+--- PASS: TestDefaultAllowlist (0.00s)
+=== RUN   TestDefaultBlocklist
+--- PASS: TestDefaultBlocklist (0.00s)
+PASS
+ok  	pryx-core/internal/mcp/security	3.193s
+=== RUN   TestGetMemoryUsage_Basic
+--- PASS: TestGetMemoryUsage_Basic (0.00s)
+=== RUN   TestGetMemoryUsage_HighUsage
+--- PASS: TestGetMemoryUsage_HighUsage (0.07s)
+=== RUN   TestSummarizeSession_Basic
+--- PASS: TestSummarizeSession_Basic (0.00s)
+=== RUN   TestGetSessionMemory
+--- PASS: TestGetSessionMemory (0.00s)
+=== RUN   TestAutoManageMemory
+--- PASS: TestAutoManageMemory (0.00s)
+=== RUN   TestCleanupOldSessions
+--- PASS: TestCleanupOldSessions (0.00s)
+=== RUN   TestQueryRAG
+--- PASS: TestQueryRAG (0.00s)
+=== RUN   TestEstimateTokens
+--- PASS: TestEstimateTokens (0.00s)
+=== RUN   TestConstants
+--- PASS: TestConstants (0.00s)
+=== RUN   TestMemoryUsageStruct
+--- PASS: TestMemoryUsageStruct (0.00s)
+=== RUN   TestSessionMemoryStruct
+--- PASS: TestSessionMemoryStruct (0.00s)
+=== RUN   TestCompressionResultStruct
+--- PASS: TestCompressionResultStruct (0.00s)
+=== RUN   TestArchiveResultStruct
+--- PASS: TestArchiveResultStruct (0.00s)
+=== RUN   TestRAGManager_WriteDaily
+--- PASS: TestRAGManager_WriteDaily (0.00s)
+=== RUN   TestRAGManager_WriteLongterm
+--- PASS: TestRAGManager_WriteLongterm (0.00s)
+=== RUN   TestRAGManager_List
+--- PASS: TestRAGManager_List (0.00s)
+=== RUN   TestRAGManager_Search
+--- PASS: TestRAGManager_Search (0.00s)
+=== RUN   TestRAGManager_Stats
+--- PASS: TestRAGManager_Stats (0.00s)
+=== RUN   TestRAGManager_Delete
+--- PASS: TestRAGManager_Delete (0.00s)
+=== RUN   TestRAGManager_Disabled
+--- PASS: TestRAGManager_Disabled (0.00s)
+=== RUN   TestAutoFlush_ShouldFlush
+--- PASS: TestAutoFlush_ShouldFlush (0.00s)
+=== RUN   TestAutoFlush_FlushSession
+--- PASS: TestAutoFlush_FlushSession (0.00s)
+PASS
+ok  	pryx-core/internal/memory	2.726s
+=== RUN   TestNewManager
+--- PASS: TestNewManager (0.00s)
+=== RUN   TestManager_GetDeviceID
+=== RUN   TestManager_GetDeviceID/existing_device_ID
+2026/02/03 14:25:46 Pryx Mesh Manager started (device: test-device-123)
+2026/02/03 14:25:46 Mesh: Connection failed: not authenticated, retrying in 1s
+=== RUN   TestManager_GetDeviceID/new_device_ID_generated
+2026/02/03 14:25:46 Pryx Mesh Manager started (device: test-device-123)
+2026/02/03 14:25:46 Mesh: Connection failed: not authenticated, retrying in 1s
+--- PASS: TestManager_GetDeviceID (0.16s)
+    --- PASS: TestManager_GetDeviceID/existing_device_ID (0.10s)
+    --- PASS: TestManager_GetDeviceID/new_device_ID_generated (0.05s)
+=== RUN   TestManager_IsConnected
+--- PASS: TestManager_IsConnected (0.00s)
+=== RUN   TestManager_Stop
+2026/02/03 14:25:46 Pryx Mesh Manager started (device: test-device-123)
+2026/02/03 14:25:46 Mesh: Connection failed: not authenticated, retrying in 1s
+--- PASS: TestManager_Stop (0.08s)
+=== RUN   TestGenerateDeviceID
+--- PASS: TestGenerateDeviceID (0.00s)
+=== RUN   TestMin
+--- PASS: TestMin (0.00s)
+=== RUN   TestWebSocketMessageTypes
+--- PASS: TestWebSocketMessageTypes (0.00s)
+=== RUN   TestManager_RequestSync
+--- PASS: TestManager_RequestSync (0.00s)
+=== RUN   TestManager_broadcastEvent
+--- PASS: TestManager_broadcastEvent (0.00s)
+=== RUN   TestManager_handleMessage
+=== RUN   TestManager_handleMessage/event_message
+2026/02/03 14:25:46 Mesh: Received event  from other-device
+=== RUN   TestManager_handleMessage/sync_response
+=== RUN   TestManager_handleMessage/ping_message
+=== RUN   TestManager_handleMessage/presence_message
+2026/02/03 14:25:46 Mesh: Device other-device is online
+=== RUN   TestManager_handleMessage/unknown_message_type
+2026/02/03 14:25:46 Mesh: Unknown message type: unknown
+--- PASS: TestManager_handleMessage (0.00s)
+    --- PASS: TestManager_handleMessage/event_message (0.00s)
+    --- PASS: TestManager_handleMessage/sync_response (0.00s)
+    --- PASS: TestManager_handleMessage/ping_message (0.00s)
+    --- PASS: TestManager_handleMessage/presence_message (0.00s)
+    --- PASS: TestManager_handleMessage/unknown_message_type (0.00s)
+=== RUN   TestManager_handleRemoteEvent
+2026/02/03 14:25:46 Mesh: Received event chat.request from other-device
+--- PASS: TestManager_handleRemoteEvent (0.00s)
+=== RUN   TestManager_handleRemoteEvent_OwnEvent
+--- PASS: TestManager_handleRemoteEvent_OwnEvent (0.10s)
+=== RUN   TestManager_sendPresence
+--- PASS: TestManager_sendPresence (0.00s)
+=== RUN   TestManager_sendPong
+--- PASS: TestManager_sendPong (0.00s)
+=== RUN   TestManager_handlePresence
+2026/02/03 14:25:46 Mesh: Device other-device is online
+--- PASS: TestManager_handlePresence (0.00s)
+PASS
+ok  	pryx-core/internal/mesh	4.285s
+?   	pryx-core/internal/message	[no test files]
+=== RUN   TestCatalog_IsStale
+--- PASS: TestCatalog_IsStale (0.00s)
+=== RUN   TestCatalog_GetProviderModels
+--- PASS: TestCatalog_GetProviderModels (0.00s)
+=== RUN   TestCatalog_GetModel
+--- PASS: TestCatalog_GetModel (0.00s)
+=== RUN   TestCatalog_GetProvider
+--- PASS: TestCatalog_GetProvider (0.00s)
+=== RUN   TestModelInfo_SupportsTools
+--- PASS: TestModelInfo_SupportsTools (0.00s)
+=== RUN   TestModelInfo_SupportsVision
+--- PASS: TestModelInfo_SupportsVision (0.00s)
+=== RUN   TestModelInfo_CalculateCost
+--- PASS: TestModelInfo_CalculateCost (0.00s)
+=== RUN   TestService_NewService
+--- PASS: TestService_NewService (0.00s)
+=== RUN   TestGetSupportedProviders
+--- PASS: TestGetSupportedProviders (0.00s)
+=== RUN   TestRawProviderDataStructure
+--- PASS: TestRawProviderDataStructure (0.00s)
+PASS
+ok  	pryx-core/internal/models	(cached)
+=== RUN   TestParser_Parse_SetupIntent
+=== RUN   TestParser_Parse_SetupIntent/setup_openai_provider
+=== RUN   TestParser_Parse_SetupIntent/install_anthropic
+=== RUN   TestParser_Parse_SetupIntent/initialize_google
+=== RUN   TestParser_Parse_SetupIntent/prepare_openai
+=== RUN   TestParser_Parse_SetupIntent/get_ready
+=== RUN   TestParser_Parse_SetupIntent/help_me_set_up
+=== RUN   TestParser_Parse_SetupIntent/i_want_to_use
+--- PASS: TestParser_Parse_SetupIntent (0.01s)
+    --- PASS: TestParser_Parse_SetupIntent/setup_openai_provider (0.00s)
+    --- PASS: TestParser_Parse_SetupIntent/install_anthropic (0.00s)
+    --- PASS: TestParser_Parse_SetupIntent/initialize_google (0.00s)
+    --- PASS: TestParser_Parse_SetupIntent/prepare_openai (0.00s)
+    --- PASS: TestParser_Parse_SetupIntent/get_ready (0.00s)
+    --- PASS: TestParser_Parse_SetupIntent/help_me_set_up (0.00s)
+    --- PASS: TestParser_Parse_SetupIntent/i_want_to_use (0.00s)
+=== RUN   TestParser_Parse_ConnectIntent
+=== RUN   TestParser_Parse_ConnectIntent/connect_telegram
+=== RUN   TestParser_Parse_ConnectIntent/link_slack
+=== RUN   TestParser_Parse_ConnectIntent/integrate_teams
+=== RUN   TestParser_Parse_ConnectIntent/attach_webhook
+=== RUN   TestParser_Parse_ConnectIntent/join_channel
+=== RUN   TestParser_Parse_ConnectIntent/hook_up_integration
+=== RUN   TestParser_Parse_ConnectIntent/connect_with_whatsapp
+--- PASS: TestParser_Parse_ConnectIntent (0.01s)
+    --- PASS: TestParser_Parse_ConnectIntent/connect_telegram (0.00s)
+    --- PASS: TestParser_Parse_ConnectIntent/link_slack (0.00s)
+    --- PASS: TestParser_Parse_ConnectIntent/integrate_teams (0.00s)
+    --- PASS: TestParser_Parse_ConnectIntent/attach_webhook (0.00s)
+    --- PASS: TestParser_Parse_ConnectIntent/join_channel (0.00s)
+    --- PASS: TestParser_Parse_ConnectIntent/hook_up_integration (0.00s)
+    --- PASS: TestParser_Parse_ConnectIntent/connect_with_whatsapp (0.00s)
+=== RUN   TestParser_Parse_ConfigureIntent
+=== RUN   TestParser_Parse_ConfigureIntent/configure_discord_webhook
+=== RUN   TestParser_Parse_ConfigureIntent/set_up_settings
+=== RUN   TestParser_Parse_ConfigureIntent/adjust_config
+=== RUN   TestParser_Parse_ConfigureIntent/customize_discord
+=== RUN   TestParser_Parse_ConfigureIntent/tweak_settings
+--- PASS: TestParser_Parse_ConfigureIntent (0.01s)
+    --- PASS: TestParser_Parse_ConfigureIntent/configure_discord_webhook (0.00s)
+    --- PASS: TestParser_Parse_ConfigureIntent/set_up_settings (0.00s)
+    --- PASS: TestParser_Parse_ConfigureIntent/adjust_config (0.00s)
+    --- PASS: TestParser_Parse_ConfigureIntent/customize_discord (0.00s)
+    --- PASS: TestParser_Parse_ConfigureIntent/tweak_settings (0.00s)
+=== RUN   TestParser_Parse_EnableIntent
+=== RUN   TestParser_Parse_EnableIntent/enable_filesystem_tool
+=== RUN   TestParser_Parse_EnableIntent/turn_on_mcp
+=== RUN   TestParser_Parse_EnableIntent/activate_slack
+=== RUN   TestParser_Parse_EnableIntent/use_tool
+=== RUN   TestParser_Parse_EnableIntent/enable_plugin
+--- PASS: TestParser_Parse_EnableIntent (0.01s)
+    --- PASS: TestParser_Parse_EnableIntent/enable_filesystem_tool (0.00s)
+    --- PASS: TestParser_Parse_EnableIntent/turn_on_mcp (0.00s)
+    --- PASS: TestParser_Parse_EnableIntent/activate_slack (0.00s)
+    --- PASS: TestParser_Parse_EnableIntent/use_tool (0.00s)
+    --- PASS: TestParser_Parse_EnableIntent/enable_plugin (0.01s)
+=== RUN   TestParser_Parse_DisableIntent
+=== RUN   TestParser_Parse_DisableIntent/disable_filesystem_tool
+=== RUN   TestParser_Parse_DisableIntent/turn_off_mcp
+=== RUN   TestParser_Parse_DisableIntent/deactivate_slack
+=== RUN   TestParser_Parse_DisableIntent/stop_discord
+--- PASS: TestParser_Parse_DisableIntent (0.01s)
+    --- PASS: TestParser_Parse_DisableIntent/disable_filesystem_tool (0.00s)
+    --- PASS: TestParser_Parse_DisableIntent/turn_off_mcp (0.00s)
+    --- PASS: TestParser_Parse_DisableIntent/deactivate_slack (0.00s)
+    --- PASS: TestParser_Parse_DisableIntent/stop_discord (0.00s)
+=== RUN   TestParser_Parse_ProviderEntity
+=== RUN   TestParser_Parse_ProviderEntity/openai
+=== RUN   TestParser_Parse_ProviderEntity/anthropic
+=== RUN   TestParser_Parse_ProviderEntity/google
+=== RUN   TestParser_Parse_ProviderEntity/claude
+=== RUN   TestParser_Parse_ProviderEntity/gpt
+=== RUN   TestParser_Parse_ProviderEntity/gemini
+=== RUN   TestParser_Parse_ProviderEntity/palm
+=== RUN   TestParser_Parse_ProviderEntity/mistral
+=== RUN   TestParser_Parse_ProviderEntity/llama
+=== RUN   TestParser_Parse_ProviderEntity/ollama
+=== RUN   TestParser_Parse_ProviderEntity/cohere
+=== RUN   TestParser_Parse_ProviderEntity/azure
+--- PASS: TestParser_Parse_ProviderEntity (0.02s)
+    --- PASS: TestParser_Parse_ProviderEntity/openai (0.00s)
+    --- PASS: TestParser_Parse_ProviderEntity/anthropic (0.00s)
+    --- PASS: TestParser_Parse_ProviderEntity/google (0.00s)
+    --- PASS: TestParser_Parse_ProviderEntity/claude (0.00s)
+    --- PASS: TestParser_Parse_ProviderEntity/gpt (0.00s)
+    --- PASS: TestParser_Parse_ProviderEntity/gemini (0.00s)
+    --- PASS: TestParser_Parse_ProviderEntity/palm (0.00s)
+    --- PASS: TestParser_Parse_ProviderEntity/mistral (0.00s)
+    --- PASS: TestParser_Parse_ProviderEntity/llama (0.00s)
+    --- PASS: TestParser_Parse_ProviderEntity/ollama (0.00s)
+    --- PASS: TestParser_Parse_ProviderEntity/cohere (0.00s)
+    --- PASS: TestParser_Parse_ProviderEntity/azure (0.00s)
+=== RUN   TestParser_Parse_ChannelEntity
+=== RUN   TestParser_Parse_ChannelEntity/telegram
+=== RUN   TestParser_Parse_ChannelEntity/discord
+=== RUN   TestParser_Parse_ChannelEntity/slack
+=== RUN   TestParser_Parse_ChannelEntity/teams
+=== RUN   TestParser_Parse_ChannelEntity/whatsapp
+=== RUN   TestParser_Parse_ChannelEntity/messenger
+=== RUN   TestParser_Parse_ChannelEntity/signal
+=== RUN   TestParser_Parse_ChannelEntity/matrix
+=== RUN   TestParser_Parse_ChannelEntity/irc
+--- PASS: TestParser_Parse_ChannelEntity (0.01s)
+    --- PASS: TestParser_Parse_ChannelEntity/telegram (0.00s)
+    --- PASS: TestParser_Parse_ChannelEntity/discord (0.00s)
+    --- PASS: TestParser_Parse_ChannelEntity/slack (0.00s)
+    --- PASS: TestParser_Parse_ChannelEntity/teams (0.00s)
+    --- PASS: TestParser_Parse_ChannelEntity/whatsapp (0.00s)
+    --- PASS: TestParser_Parse_ChannelEntity/messenger (0.00s)
+    --- PASS: TestParser_Parse_ChannelEntity/signal (0.00s)
+    --- PASS: TestParser_Parse_ChannelEntity/matrix (0.00s)
+    --- PASS: TestParser_Parse_ChannelEntity/irc (0.00s)
+=== RUN   TestParser_Parse_IntegrationEntity
+=== RUN   TestParser_Parse_IntegrationEntity/mcp
+=== RUN   TestParser_Parse_IntegrationEntity/webhook
+=== RUN   TestParser_Parse_IntegrationEntity/api
+=== RUN   TestParser_Parse_IntegrationEntity/rest
+=== RUN   TestParser_Parse_IntegrationEntity/graphql
+=== RUN   TestParser_Parse_IntegrationEntity/grpc
+=== RUN   TestParser_Parse_IntegrationEntity/websocket
+=== RUN   TestParser_Parse_IntegrationEntity/skill
+=== RUN   TestParser_Parse_IntegrationEntity/tool
+=== RUN   TestParser_Parse_IntegrationEntity/plugin
+=== RUN   TestParser_Parse_IntegrationEntity/filesystem
+--- PASS: TestParser_Parse_IntegrationEntity (0.01s)
+    --- PASS: TestParser_Parse_IntegrationEntity/mcp (0.00s)
+    --- PASS: TestParser_Parse_IntegrationEntity/webhook (0.00s)
+    --- PASS: TestParser_Parse_IntegrationEntity/api (0.00s)
+    --- PASS: TestParser_Parse_IntegrationEntity/rest (0.00s)
+    --- PASS: TestParser_Parse_IntegrationEntity/graphql (0.00s)
+    --- PASS: TestParser_Parse_IntegrationEntity/grpc (0.00s)
+    --- PASS: TestParser_Parse_IntegrationEntity/websocket (0.00s)
+    --- PASS: TestParser_Parse_IntegrationEntity/skill (0.00s)
+    --- PASS: TestParser_Parse_IntegrationEntity/tool (0.00s)
+    --- PASS: TestParser_Parse_IntegrationEntity/plugin (0.00s)
+    --- PASS: TestParser_Parse_IntegrationEntity/filesystem (0.00s)
+=== RUN   TestParser_Parse_TokenEntity
+=== RUN   TestParser_Parse_TokenEntity/token
+=== RUN   TestParser_Parse_TokenEntity/api_key
+=== RUN   TestParser_Parse_TokenEntity/secret
+=== RUN   TestParser_Parse_TokenEntity/auth_token
+--- PASS: TestParser_Parse_TokenEntity (0.01s)
+    --- PASS: TestParser_Parse_TokenEntity/token (0.00s)
+    --- PASS: TestParser_Parse_TokenEntity/api_key (0.00s)
+    --- PASS: TestParser_Parse_TokenEntity/secret (0.00s)
+    --- PASS: TestParser_Parse_TokenEntity/auth_token (0.00s)
+=== RUN   TestParser_SuggestSetupAction
+=== RUN   TestParser_SuggestSetupAction/setup_with_provider
+=== RUN   TestParser_SuggestSetupAction/connect_with_channel
+=== RUN   TestParser_SuggestSetupAction/configure_with_multiple_entities
+=== RUN   TestParser_SuggestSetupAction/enable_with_integration
+=== RUN   TestParser_SuggestSetupAction/disable_with_channel
+--- PASS: TestParser_SuggestSetupAction (0.00s)
+    --- PASS: TestParser_SuggestSetupAction/setup_with_provider (0.00s)
+    --- PASS: TestParser_SuggestSetupAction/connect_with_channel (0.00s)
+    --- PASS: TestParser_SuggestSetupAction/configure_with_multiple_entities (0.00s)
+    --- PASS: TestParser_SuggestSetupAction/enable_with_integration (0.00s)
+    --- PASS: TestParser_SuggestSetupAction/disable_with_channel (0.00s)
+=== RUN   TestParser_Parse_CaseInsensitive
+=== RUN   TestParser_Parse_CaseInsensitive/uppercase
+=== RUN   TestParser_Parse_CaseInsensitive/lowercase
+=== RUN   TestParser_Parse_CaseInsensitive/mixed_case
+=== RUN   TestParser_Parse_CaseInsensitive/sentence
+=== RUN   TestParser_Parse_CaseInsensitive/uppercase_connect
+=== RUN   TestParser_Parse_CaseInsensitive/mixed_case_enable
+--- PASS: TestParser_Parse_CaseInsensitive (0.01s)
+    --- PASS: TestParser_Parse_CaseInsensitive/uppercase (0.00s)
+    --- PASS: TestParser_Parse_CaseInsensitive/lowercase (0.00s)
+    --- PASS: TestParser_Parse_CaseInsensitive/mixed_case (0.00s)
+    --- PASS: TestParser_Parse_CaseInsensitive/sentence (0.00s)
+    --- PASS: TestParser_Parse_CaseInsensitive/uppercase_connect (0.00s)
+    --- PASS: TestParser_Parse_CaseInsensitive/mixed_case_enable (0.00s)
+=== RUN   TestParser_GetIntentDescription_Setup
+=== RUN   TestParser_GetIntentDescription_Setup/setup
+=== RUN   TestParser_GetIntentDescription_Setup/connect
+=== RUN   TestParser_GetIntentDescription_Setup/configure
+=== RUN   TestParser_GetIntentDescription_Setup/enable
+=== RUN   TestParser_GetIntentDescription_Setup/disable
+--- PASS: TestParser_GetIntentDescription_Setup (0.00s)
+    --- PASS: TestParser_GetIntentDescription_Setup/setup (0.00s)
+    --- PASS: TestParser_GetIntentDescription_Setup/connect (0.00s)
+    --- PASS: TestParser_GetIntentDescription_Setup/configure (0.00s)
+    --- PASS: TestParser_GetIntentDescription_Setup/enable (0.00s)
+    --- PASS: TestParser_GetIntentDescription_Setup/disable (0.00s)
+=== RUN   TestParser_IsAmbiguous_Setup
+=== RUN   TestParser_IsAmbiguous_Setup/clear_setup
+=== RUN   TestParser_IsAmbiguous_Setup/clear_connect
+=== RUN   TestParser_IsAmbiguous_Setup/clear_configure
+=== RUN   TestParser_IsAmbiguous_Setup/clear_enable
+=== RUN   TestParser_IsAmbiguous_Setup/unclear
+--- PASS: TestParser_IsAmbiguous_Setup (0.01s)
+    --- PASS: TestParser_IsAmbiguous_Setup/clear_setup (0.00s)
+    --- PASS: TestParser_IsAmbiguous_Setup/clear_connect (0.00s)
+    --- PASS: TestParser_IsAmbiguous_Setup/clear_configure (0.00s)
+    --- PASS: TestParser_IsAmbiguous_Setup/clear_enable (0.00s)
+    --- PASS: TestParser_IsAmbiguous_Setup/unclear (0.00s)
+PASS
+ok  	pryx-core/internal/nlp	(cached)
+# pryx-core/tests/integration.test
+ld: warning: '/private/var/folders/_s/x4kzj7hj3611_2_wjj3nhn640000gn/T/go-link-4130133537/000023.o' has malformed LC_DYSYMTAB, expected 98 undefined symbols to start at index 1626, found 95 undefined symbols starting at index 1626
+=== RUN   TestNewMemoryProfiler
+--- PASS: TestNewMemoryProfiler (0.00s)
+=== RUN   TestNewMemoryProfilerWithLogger
+--- PASS: TestNewMemoryProfilerWithLogger (0.00s)
+=== RUN   TestSetLimits
+--- PASS: TestSetLimits (0.00s)
+=== RUN   TestRecordComponent
+--- PASS: TestRecordComponent (0.00s)
+=== RUN   TestUpdateComponent
+--- PASS: TestUpdateComponent (0.00s)
+=== RUN   TestUpdateComponent_NegativeBounds
+--- PASS: TestUpdateComponent_NegativeBounds (0.00s)
+=== RUN   TestGetCurrentSnapshot
+--- PASS: TestGetCurrentSnapshot (0.00s)
+=== RUN   TestTakeSnapshot
+--- PASS: TestTakeSnapshot (0.00s)
+=== RUN   TestTakeSnapshot_MaxSnapshots
+--- PASS: TestTakeSnapshot_MaxSnapshots (0.14s)
+=== RUN   TestGetComponents
+--- PASS: TestGetComponents (0.00s)
+=== RUN   TestGetTotalComponentMemory
+--- PASS: TestGetTotalComponentMemory (0.00s)
+=== RUN   TestGetComponent_NotFound
+--- PASS: TestGetComponent_NotFound (0.00s)
+=== RUN   TestEnableDisable
+--- PASS: TestEnableDisable (0.00s)
+=== RUN   TestReset
+--- PASS: TestReset (0.00s)
+=== RUN   TestForceGC
+--- PASS: TestForceGC (0.00s)
+=== RUN   TestGenerateReport
+--- PASS: TestGenerateReport (0.00s)
+=== RUN   TestGetMemoryStats
+--- PASS: TestGetMemoryStats (0.00s)
+=== RUN   TestFormatBytes
+--- PASS: TestFormatBytes (0.00s)
+=== RUN   TestSetCallbacks
+[MEMORY] 2026/02/03 14:25:46.718207 ⚠ CRITICAL: Memory usage at 847284000.0% (alloc: 200.6 KB, sys: 8.1 MB)
+[MEMORY] 2026/02/03 14:25:46.820615 ⚡ WARNING: Memory usage at 0.8% (alloc: 208.6 KB, sys: 8.1 MB)
+--- PASS: TestSetCallbacks (0.20s)
+=== RUN   TestStartMonitoring
+--- PASS: TestStartMonitoring (0.10s)
+=== RUN   TestCheckLimits
+--- PASS: TestCheckLimits (0.00s)
+=== RUN   TestTakeSnapshot_Disabled
+--- PASS: TestTakeSnapshot_Disabled (0.00s)
+=== RUN   TestRecordComponent_Disabled
+--- PASS: TestRecordComponent_Disabled (0.00s)
+=== RUN   TestMemoryProfilerConcurrency
+--- PASS: TestMemoryProfilerConcurrency (0.01s)
+=== RUN   TestRealMemoryTracking
+    memory_test.go:562: Note: HeapAlloc decreased from 272160 to 194480 (GC may have run)
+--- PASS: TestRealMemoryTracking (0.16s)
+=== RUN   TestEventBusPerformance
+    performance_test.go:77: EventBus Performance: EventBus Publish - 2.9572235s (avg: 295.722µs, target: 500ms) - true
+--- PASS: TestEventBusPerformance (2.97s)
+=== RUN   TestSessionPerformance
+    performance_test.go:122: Session Performance: Session Create - 937.991708ms (avg: 937.991µs, target: 100ms) - true
+    performance_test.go:146: Session Performance: Session List - 1.761986709s (avg: 1.761986ms, target: 1s) - true
+    performance_test.go:180: Session Performance: Session Concurrent Access - 20.633199417s (avg: 2.063319ms, target: 1s) - true
+--- PASS: TestSessionPerformance (23.35s)
+=== RUN   TestWebhookPerformance100
+    performance_test.go:244: Webhook Performance: Webhook 50 Concurrent - 234.667µs (avg: 4.693µs, p50: 94.25µs, p95: 2.541µs, target: 5s) - true
+--- PASS: TestWebhookPerformance100 (0.00s)
+=== RUN   TestMemoryUsageBenchmark
+    performance_test.go:279: Memory Benchmark: 10000 events in 188.782667ms (avg: 18.878µs)
+--- PASS: TestMemoryUsageBenchmark (0.19s)
+=== RUN   TestConcurrencyBenchmark
+    performance_test.go:340: Concurrency Performance: Concurrent Operations - 86.416875ms (avg: 8.641µs, target: 500ms) - true
+--- PASS: TestConcurrencyBenchmark (0.09s)
+=== RUN   TestLatencyBenchmark
+    performance_test.go:419: Latency Performance: End-to-End Latency - avg: 26.94µs, p50: 14.25µs, p95: 6.833µs, target: 100ms - true
+--- PASS: TestLatencyBenchmark (0.00s)
+=== RUN   TestNewStartupProfiler
+--- PASS: TestNewStartupProfiler (0.00s)
+=== RUN   TestStartupProfiler_StartPhase
+[STARTUP] 2026/02/03 14:26:13.790227 ▶ test-phase
+--- PASS: TestStartupProfiler_StartPhase (0.00s)
+=== RUN   TestStartupProfiler_EndPhase
+[STARTUP] 2026/02/03 14:26:13.790449 ▶ test-phase
+[STARTUP] 2026/02/03 14:26:13.800703 ✓ test-phase (10ms)
+--- PASS: TestStartupProfiler_EndPhase (0.01s)
+=== RUN   TestStartupProfiler_EndPhase_Error
+[STARTUP] 2026/02/03 14:26:13.800792 ▶ error-phase
+[STARTUP] 2026/02/03 14:26:13.800819 ✗ error-phase (23µs)
+--- PASS: TestStartupProfiler_EndPhase_Error (0.00s)
+=== RUN   TestStartupProfiler_EndPhase_Unknown
+[STARTUP] 2026/02/03 14:26:13.800915 ⚠ EndPhase called for unknown phase: non-existent-phase
+--- PASS: TestStartupProfiler_EndPhase_Unknown (0.00s)
+=== RUN   TestStartupProfiler_TimeFunc
+[STARTUP] 2026/02/03 14:26:13.801335 ▶ timed-func
+[STARTUP] 2026/02/03 14:26:13.806735 ✓ timed-func (5ms)
+--- PASS: TestStartupProfiler_TimeFunc (0.01s)
+=== RUN   TestStartupProfiler_TimeFuncWithResult
+[STARTUP] 2026/02/03 14:26:13.806827 ▶ timed-func-with-result
+[STARTUP] 2026/02/03 14:26:13.813131 ✓ timed-func-with-result (6ms) - success
+--- PASS: TestStartupProfiler_TimeFuncWithResult (0.01s)
+=== RUN   TestStartupProfiler_MarkComplete
+[STARTUP] 2026/02/03 14:26:13.813236 ═ Startup complete: 3µs
+--- PASS: TestStartupProfiler_MarkComplete (0.00s)
+=== RUN   TestStartupProfiler_GetAllPhases
+[STARTUP] 2026/02/03 14:26:13.813325 ▶ phase-1
+[STARTUP] 2026/02/03 14:26:13.818843 ✓ phase-1 (5ms)
+[STARTUP] 2026/02/03 14:26:13.818872 ▶ phase-2
+[STARTUP] 2026/02/03 14:26:13.825171 ✓ phase-2 (6ms)
+--- PASS: TestStartupProfiler_GetAllPhases (0.01s)
+=== RUN   TestStartupProfiler_GenerateReport
+[STARTUP] 2026/02/03 14:26:13.825349 ▶ fast-phase
+[STARTUP] 2026/02/03 14:26:13.825369 ✓ fast-phase (16µs)
+[STARTUP] 2026/02/03 14:26:13.825387 ▶ slow-phase
+[STARTUP] 2026/02/03 14:26:13.847414 ✓ slow-phase (22ms)
+[STARTUP] 2026/02/03 14:26:13.847442 ═ Startup complete: 22ms
+--- PASS: TestStartupProfiler_GenerateReport (0.02s)
+=== RUN   TestStartupProfiler_EnableDisable
+--- PASS: TestStartupProfiler_EnableDisable (0.00s)
+=== RUN   TestStartupProfiler_Reset
+[STARTUP] 2026/02/03 14:26:13.847662 ▶ phase-1
+[STARTUP] 2026/02/03 14:26:13.847681 ✓ phase-1 (15µs)
+--- PASS: TestStartupProfiler_Reset (0.00s)
+=== RUN   TestAsyncProfiler
+[STARTUP] 2026/02/03 14:26:13.847762 ▶ async-task
+[STARTUP] 2026/02/03 14:26:13.858078 ✓ async-task (10ms) - done
+--- PASS: TestAsyncProfiler (0.01s)
+=== RUN   TestAsyncProfiler_Timeout
+[STARTUP] 2026/02/03 14:26:13.858342 ▶ slow-async-task
+--- PASS: TestAsyncProfiler_Timeout (0.01s)
+=== RUN   TestFormatDuration
+--- PASS: TestFormatDuration (0.00s)
+=== RUN   TestTruncateString
+--- PASS: TestTruncateString (0.00s)
+=== RUN   TestNewStartupProfilerWithLogger
+--- PASS: TestNewStartupProfilerWithLogger (0.00s)
+PASS
+ok  	pryx-core/internal/performance	31.366s
+=== RUN   TestDefaultPolicy
+--- PASS: TestDefaultPolicy (0.00s)
+=== RUN   TestExplicitAllow
+--- PASS: TestExplicitAllow (0.00s)
+=== RUN   TestExactMatch
+--- PASS: TestExactMatch (0.00s)
+=== RUN   TestScopeMatching
+--- PASS: TestScopeMatching (0.00s)
+=== RUN   TestArgMatching
+--- PASS: TestArgMatching (0.00s)
+=== RUN   TestArgExistsMatching
+--- PASS: TestArgExistsMatching (0.00s)
+=== RUN   TestCombinedScopeAndArgMatching
+--- PASS: TestCombinedScopeAndArgMatching (0.00s)
+PASS
+ok  	pryx-core/internal/policy	(cached)
+=== RUN   TestBuilder_NewBuilder
+--- PASS: TestBuilder_NewBuilder (0.00s)
+=== RUN   TestBuilder_NewBuilder_DefaultMode
+--- PASS: TestBuilder_NewBuilder_DefaultMode (0.00s)
+=== RUN   TestBuilder_NewBuilder_CustomMode
+--- PASS: TestBuilder_NewBuilder_CustomMode (0.00s)
+=== RUN   TestBuilder_SetMode
+--- PASS: TestBuilder_SetMode (0.00s)
+=== RUN   TestBuilder_BuildMinimal
+--- PASS: TestBuilder_BuildMinimal (0.00s)
+=== RUN   TestBuilder_BuildFull
+--- PASS: TestBuilder_BuildFull (0.00s)
+=== RUN   TestBuilder_BuildFull_WithTools
+--- PASS: TestBuilder_BuildFull_WithTools (0.00s)
+=== RUN   TestBuilder_Build_NoAvailableTools
+--- PASS: TestBuilder_Build_NoAvailableTools (0.00s)
+=== RUN   TestBuilder_Build_ConfidenceHigh
+--- PASS: TestBuilder_Build_ConfidenceHigh (0.00s)
+=== RUN   TestBuilder_Build_ConfidenceMedium
+--- PASS: TestBuilder_Build_ConfidenceMedium (0.00s)
+=== RUN   TestBuilder_Build_ConfidenceLow
+--- PASS: TestBuilder_Build_ConfidenceLow (0.00s)
+PASS
+ok  	pryx-core/internal/prompt	(cached)
+?   	pryx-core/internal/registry	[no test files]
+=== RUN   TestRedactString_APIKeys
+=== RUN   TestRedactString_APIKeys/OpenAI_API_key
+=== RUN   TestRedactString_APIKeys/Bearer_token
+=== RUN   TestRedactString_APIKeys/Password_in_string
+=== RUN   TestRedactString_APIKeys/API_key_with_quotes
+--- PASS: TestRedactString_APIKeys (0.00s)
+    --- PASS: TestRedactString_APIKeys/OpenAI_API_key (0.00s)
+    --- PASS: TestRedactString_APIKeys/Bearer_token (0.00s)
+    --- PASS: TestRedactString_APIKeys/Password_in_string (0.00s)
+    --- PASS: TestRedactString_APIKeys/API_key_with_quotes (0.00s)
+=== RUN   TestRedactString_PII
+=== RUN   TestRedactString_PII/Email_address
+=== RUN   TestRedactString_PII/Phone_number
+=== RUN   TestRedactString_PII/Credit_card
+=== RUN   TestRedactString_PII/SSN
+--- PASS: TestRedactString_PII (0.00s)
+    --- PASS: TestRedactString_PII/Email_address (0.00s)
+    --- PASS: TestRedactString_PII/Phone_number (0.00s)
+    --- PASS: TestRedactString_PII/Credit_card (0.00s)
+    --- PASS: TestRedactString_PII/SSN (0.00s)
+=== RUN   TestRedactMap
+--- PASS: TestRedactMap (0.00s)
+=== RUN   TestRedactMap_Nested
+--- PASS: TestRedactMap_Nested (0.00s)
+=== RUN   TestIsSensitiveKey
+--- PASS: TestIsSensitiveKey (0.00s)
+=== RUN   TestRedactor_SetEnabled
+--- PASS: TestRedactor_SetEnabled (0.00s)
+=== RUN   TestGlobalRedactor
+--- PASS: TestGlobalRedactor (0.00s)
+=== RUN   TestE2EEForMeshSync
+=== RUN   TestE2EEForMeshSync/mesh_messages_should_be_encrypted
+    verification_test.go:13: ✓ Mesh E2EE encryption is implemented
+    verification_test.go:14:   - Messages are encrypted before transmission
+    verification_test.go:15:   - Each device has unique encryption keys
+    verification_test.go:16:   - Forward secrecy is maintained
+=== RUN   TestE2EEForMeshSync/mesh_encryption_uses_strong_cryptography
+    verification_test.go:21: ✓ Using AES-256-GCM for encryption
+    verification_test.go:22: ✓ Using ECDH for key exchange
+    verification_test.go:23: ✓ Keys are rotated periodically
+--- PASS: TestE2EEForMeshSync (0.00s)
+    --- PASS: TestE2EEForMeshSync/mesh_messages_should_be_encrypted (0.00s)
+    --- PASS: TestE2EEForMeshSync/mesh_encryption_uses_strong_cryptography (0.00s)
+=== RUN   TestNoSecretLeakage
+=== RUN   TestNoSecretLeakage/API_key_in_log_message
+=== RUN   TestNoSecretLeakage/Bearer_token_in_log
+=== RUN   TestNoSecretLeakage/Password_in_error
+=== RUN   TestNoSecretLeakage/Database_connection_string
+=== RUN   TestNoSecretLeakage/Safe_log_message
+=== NAME  TestNoSecretLeakage
+    verification_test.go:82: ✓ No secret leakage in logs - all sensitive data properly redacted
+--- PASS: TestNoSecretLeakage (0.00s)
+    --- PASS: TestNoSecretLeakage/API_key_in_log_message (0.00s)
+    --- PASS: TestNoSecretLeakage/Bearer_token_in_log (0.00s)
+    --- PASS: TestNoSecretLeakage/Password_in_error (0.00s)
+    --- PASS: TestNoSecretLeakage/Database_connection_string (0.00s)
+    --- PASS: TestNoSecretLeakage/Safe_log_message (0.00s)
+=== RUN   TestPIIRedaction100Percent
+=== RUN   TestPIIRedaction100Percent/Email_addresses
+=== RUN   TestPIIRedaction100Percent/Phone_numbers
+=== RUN   TestPIIRedaction100Percent/Credit_cards
+=== RUN   TestPIIRedaction100Percent/Social_Security_Numbers
+=== RUN   TestPIIRedaction100Percent/Mixed_PII
+=== NAME  TestPIIRedaction100Percent
+    verification_test.go:138: ✓ PII redaction is 100% effective
+    verification_test.go:139:   - All email addresses redacted
+    verification_test.go:140:   - All phone numbers redacted
+    verification_test.go:141:   - All credit card numbers redacted
+    verification_test.go:142:   - All SSNs redacted
+--- PASS: TestPIIRedaction100Percent (0.00s)
+    --- PASS: TestPIIRedaction100Percent/Email_addresses (0.00s)
+    --- PASS: TestPIIRedaction100Percent/Phone_numbers (0.00s)
+    --- PASS: TestPIIRedaction100Percent/Credit_cards (0.00s)
+    --- PASS: TestPIIRedaction100Percent/Social_Security_Numbers (0.00s)
+    --- PASS: TestPIIRedaction100Percent/Mixed_PII (0.00s)
+PASS
+ok  	pryx-core/internal/security	(cached)
+=== RUN   TestCORSMiddleware_AllowedOrigin
+--- PASS: TestCORSMiddleware_AllowedOrigin (0.00s)
+=== RUN   TestCORSMiddleware_DisallowedOrigin
+--- PASS: TestCORSMiddleware_DisallowedOrigin (0.00s)
+=== RUN   TestCORSMiddleware_PreflightAllowed
+--- PASS: TestCORSMiddleware_PreflightAllowed (0.00s)
+=== RUN   TestCORSMiddleware_PreflightDisallowed
+--- PASS: TestCORSMiddleware_PreflightDisallowed (0.00s)
+=== RUN   TestCORSMiddleware_LocalhostAlwaysAllowed
+=== RUN   TestCORSMiddleware_LocalhostAlwaysAllowed/http://localhost:3000
+=== RUN   TestCORSMiddleware_LocalhostAlwaysAllowed/https://localhost:3000
+=== RUN   TestCORSMiddleware_LocalhostAlwaysAllowed/http://localhost:8080
+--- PASS: TestCORSMiddleware_LocalhostAlwaysAllowed (0.00s)
+    --- PASS: TestCORSMiddleware_LocalhostAlwaysAllowed/http://localhost:3000 (0.00s)
+    --- PASS: TestCORSMiddleware_LocalhostAlwaysAllowed/https://localhost:3000 (0.00s)
+    --- PASS: TestCORSMiddleware_LocalhostAlwaysAllowed/http://localhost:8080 (0.00s)
+=== RUN   TestCORSMiddleware_EmptyOriginAllowed
+--- PASS: TestCORSMiddleware_EmptyOriginAllowed (0.00s)
+=== RUN   TestIsOriginAllowed
+=== RUN   TestIsOriginAllowed/exact_match
+=== RUN   TestIsOriginAllowed/no_match
+=== RUN   TestIsOriginAllowed/localhost_http
+=== RUN   TestIsOriginAllowed/localhost_https
+=== RUN   TestIsOriginAllowed/empty_origin
+=== RUN   TestIsOriginAllowed/multiple_origins_with_match
+=== RUN   TestIsOriginAllowed/case_insensitive
+--- PASS: TestIsOriginAllowed (0.00s)
+    --- PASS: TestIsOriginAllowed/exact_match (0.00s)
+    --- PASS: TestIsOriginAllowed/no_match (0.00s)
+    --- PASS: TestIsOriginAllowed/localhost_http (0.00s)
+    --- PASS: TestIsOriginAllowed/localhost_https (0.00s)
+    --- PASS: TestIsOriginAllowed/empty_origin (0.00s)
+    --- PASS: TestIsOriginAllowed/multiple_origins_with_match (0.00s)
+    --- PASS: TestIsOriginAllowed/case_insensitive (0.00s)
+=== RUN   TestNewServer
+2026/02/03 14:25:47 RAG Memory system initialized (enabled: false)
+--- PASS: TestNewServer (0.01s)
+=== RUN   TestServer_Routes
+2026/02/03 14:25:47 RAG Memory system initialized (enabled: false)
+=== RUN   TestServer_Routes/health_GET
+2026/02/03 14:25:47 "GET http://example.com/health HTTP/1.1" from 192.0.2.1:1234 - 200 55B in 108.792µs
+=== RUN   TestServer_Routes/skills_GET
+2026/02/03 14:25:47 "GET http://example.com/skills HTTP/1.1" from 192.0.2.1:1234 - 200 1632B in 1.4575ms
+=== RUN   TestServer_Routes/skills_info_GET
+2026/02/03 14:25:47 "GET http://example.com/skills/test-id HTTP/1.1" from 192.0.2.1:1234 - 404 22B in 148.75µs
+=== RUN   TestServer_Routes/skills_enable_POST
+2026/02/03 14:25:47 "POST http://example.com/skills/enable HTTP/1.1" from 192.0.2.1:1234 - 400 32B in 157.166µs
+=== RUN   TestServer_Routes/skills_disable_POST
+2026/02/03 14:25:47 "POST http://example.com/skills/disable HTTP/1.1" from 192.0.2.1:1234 - 400 32B in 58.125µs
+=== RUN   TestServer_Routes/skills_install_POST
+2026/02/03 14:25:47 "POST http://example.com/skills/install HTTP/1.1" from 192.0.2.1:1234 - 400 27B in 55.333µs
+=== RUN   TestServer_Routes/skills_uninstall_POST
+2026/02/03 14:25:47 "POST http://example.com/skills/uninstall HTTP/1.1" from 192.0.2.1:1234 - 400 32B in 52.958µs
+=== RUN   TestServer_Routes/mcp_tools_GET
+2026/02/03 14:25:47 "GET http://example.com/mcp/tools HTTP/1.1" from 192.0.2.1:1234 - 200 15B in 355.208µs
+=== RUN   TestServer_Routes/mcp_call_POST_no_body
+2026/02/03 14:25:47 "POST http://example.com/mcp/tools/call HTTP/1.1" from 192.0.2.1:1234 - 400 34B in 136µs
+--- PASS: TestServer_Routes (0.01s)
+    --- PASS: TestServer_Routes/health_GET (0.00s)
+    --- PASS: TestServer_Routes/skills_GET (0.00s)
+    --- PASS: TestServer_Routes/skills_info_GET (0.00s)
+    --- PASS: TestServer_Routes/skills_enable_POST (0.00s)
+    --- PASS: TestServer_Routes/skills_disable_POST (0.00s)
+    --- PASS: TestServer_Routes/skills_install_POST (0.00s)
+    --- PASS: TestServer_Routes/skills_uninstall_POST (0.00s)
+    --- PASS: TestServer_Routes/mcp_tools_GET (0.00s)
+    --- PASS: TestServer_Routes/mcp_call_POST_no_body (0.00s)
+=== RUN   TestHandleSkillsEnableDisableRoundTrip
+2026/02/03 14:25:47 RAG Memory system initialized (enabled: false)
+2026/02/03 14:25:47 "POST http://example.com/skills/enable HTTP/1.1" from 192.0.2.1:1234 - 200 12B in 759.25µs
+2026/02/03 14:25:47 "POST http://example.com/skills/disable HTTP/1.1" from 192.0.2.1:1234 - 200 12B in 677.542µs
+--- PASS: TestHandleSkillsEnableDisableRoundTrip (0.01s)
+=== RUN   TestHandleSkillsInstallFromURLAndUninstall
+2026/02/03 14:25:47 RAG Memory system initialized (enabled: false)
+2026/02/03 14:25:47 "POST http://example.com/skills/install HTTP/1.1" from 192.0.2.1:1234 - 200 496B in 3.181458ms
+2026/02/03 14:25:48 "POST http://example.com/skills/uninstall HTTP/1.1" from 192.0.2.1:1234 - 200 12B in 1.363542ms
+--- PASS: TestHandleSkillsInstallFromURLAndUninstall (0.01s)
+=== RUN   TestHandleHealth
+2026/02/03 14:25:48 RAG Memory system initialized (enabled: false)
+--- PASS: TestHandleHealth (0.00s)
+=== RUN   TestHandleSkillsList
+2026/02/03 14:25:48 RAG Memory system initialized (enabled: false)
+--- PASS: TestHandleSkillsList (0.00s)
+=== RUN   TestHandleSkillsInfo_MissingID
+2026/02/03 14:25:48 RAG Memory system initialized (enabled: false)
+--- PASS: TestHandleSkillsInfo_MissingID (0.01s)
+=== RUN   TestHandleSkillsInfo_NotFound
+2026/02/03 14:25:48 RAG Memory system initialized (enabled: false)
+--- PASS: TestHandleSkillsInfo_NotFound (0.00s)
+=== RUN   TestHandleMCPTools
+2026/02/03 14:25:48 RAG Memory system initialized (enabled: false)
+--- PASS: TestHandleMCPTools (0.00s)
+=== RUN   TestHandleMCPCall_InvalidJSON
+2026/02/03 14:25:48 RAG Memory system initialized (enabled: false)
+--- PASS: TestHandleMCPCall_InvalidJSON (0.01s)
+=== RUN   TestHandleMCPCall_MissingTool
+2026/02/03 14:25:48 RAG Memory system initialized (enabled: false)
+--- PASS: TestHandleMCPCall_MissingTool (0.01s)
+=== RUN   TestCorsMiddleware
+2026/02/03 14:25:48 RAG Memory system initialized (enabled: false)
+2026/02/03 14:25:48 "OPTIONS http://example.com/health HTTP/1.1" from 192.0.2.1:1234 - 200 0B in 14.542µs
+--- PASS: TestCorsMiddleware (0.00s)
+=== RUN   TestHandleCloudLogin_HappyPath
+2026/02/03 14:25:48 RAG Memory system initialized (enabled: false)
+2026/02/03 14:25:48 "POST http://example.com/api/v1/cloud/login/start HTTP/1.1" from 192.0.2.1:1234 - 200 130B in 1.970375ms
+2026/02/03 14:25:48 "POST http://example.com/api/v1/cloud/login/poll HTTP/1.1" from 192.0.2.1:1234 - 200 12B in 1.390209ms
+--- PASS: TestHandleCloudLogin_HappyPath (0.01s)
+=== RUN   TestHandleCloudLogin_RetryAfterTimeoutKeepsPKCE
+2026/02/03 14:25:48 RAG Memory system initialized (enabled: false)
+2026/02/03 14:25:48 "POST http://example.com/api/v1/cloud/login/start HTTP/1.1" from 192.0.2.1:1234 - 200 130B in 1.404042ms
+2026/02/03 14:25:49 "POST http://example.com/api/v1/cloud/login/poll HTTP/1.1" from 192.0.2.1:1234 - 408 28B in 1.006219583s
+2026/02/03 14:25:49 "POST http://example.com/api/v1/cloud/login/poll HTTP/1.1" from 192.0.2.1:1234 - 200 12B in 3.338291ms
+--- PASS: TestHandleCloudLogin_RetryAfterTimeoutKeepsPKCE (1.02s)
+=== RUN   TestHandleProviderKey_RoundTrip
+2026/02/03 14:25:49 RAG Memory system initialized (enabled: false)
+2026/02/03 14:25:49 "GET http://example.com/api/v1/providers/openai/key HTTP/1.1" from 192.0.2.1:1234 - 200 44B in 244.916µs
+2026/02/03 14:25:49 "POST http://example.com/api/v1/providers/openai/key HTTP/1.1" from 192.0.2.1:1234 - 200 35B in 580.375µs
+2026/02/03 14:25:49 "GET http://example.com/api/v1/providers/openai/key HTTP/1.1" from 192.0.2.1:1234 - 200 43B in 126.542µs
+2026/02/03 14:25:49 "DELETE http://example.com/api/v1/providers/openai/key HTTP/1.1" from 192.0.2.1:1234 - 204 0B in 281.458µs
+2026/02/03 14:25:49 "GET http://example.com/api/v1/providers/openai/key HTTP/1.1" from 192.0.2.1:1234 - 200 44B in 129.583µs
+--- PASS: TestHandleProviderKey_RoundTrip (0.01s)
+=== RUN   TestHandleProviderKeySet_InvalidBody
+2026/02/03 14:25:49 RAG Memory system initialized (enabled: false)
+2026/02/03 14:25:49 "POST http://example.com/api/v1/providers/openai/key HTTP/1.1" from 192.0.2.1:1234 - 400 33B in 155.792µs
+2026/02/03 14:25:49 "POST http://example.com/api/v1/providers/openai/key HTTP/1.1" from 192.0.2.1:1234 - 400 33B in 215.417µs
+--- PASS: TestHandleProviderKeySet_InvalidBody (0.01s)
+=== RUN   TestHandleProviderKey_InvalidProviderID
+2026/02/03 14:25:49 RAG Memory system initialized (enabled: false)
+2026/02/03 14:25:49 "GET http://example.com/api/v1/providers/bad%20id/key HTTP/1.1" from 192.0.2.1:1234 - 400 77B in 146.792µs
+2026/02/03 14:25:49 "POST http://example.com/api/v1/providers/bad%20id/key HTTP/1.1" from 192.0.2.1:1234 - 400 77B in 127.875µs
+2026/02/03 14:25:49 "DELETE http://example.com/api/v1/providers/bad%20id/key HTTP/1.1" from 192.0.2.1:1234 - 400 77B in 106.042µs
+--- PASS: TestHandleProviderKey_InvalidProviderID (0.01s)
+=== RUN   TestHandleProviderKey_KeychainUnavailable
+2026/02/03 14:25:49 RAG Memory system initialized (enabled: false)
+2026/02/03 14:25:49 "GET http://example.com/api/v1/providers/openai/key HTTP/1.1" from 192.0.2.1:1234 - 503 35B in 134.5µs
+--- PASS: TestHandleProviderKey_KeychainUnavailable (0.00s)
+=== RUN   TestServer_Bus
+2026/02/03 14:25:49 RAG Memory system initialized (enabled: false)
+--- PASS: TestServer_Bus (0.00s)
+=== RUN   TestServer_Handler
+2026/02/03 14:25:49 RAG Memory system initialized (enabled: false)
+--- PASS: TestServer_Handler (0.01s)
+=== RUN   TestServer_Serve
+2026/02/03 14:25:49 RAG Memory system initialized (enabled: false)
+2026/02/03 14:25:49 "GET http://127.0.0.1:54062/health HTTP/1.1" from 127.0.0.1:54067 - 200 55B in 102.416µs
+--- PASS: TestServer_Serve (0.02s)
+=== RUN   TestServer_Shutdown
+2026/02/03 14:25:49 RAG Memory system initialized (enabled: false)
+--- PASS: TestServer_Shutdown (0.02s)
+=== RUN   TestServer_Shutdown_NotStarted
+2026/02/03 14:25:49 RAG Memory system initialized (enabled: false)
+--- PASS: TestServer_Shutdown_NotStarted (0.01s)
+=== RUN   TestServer_DynamicPortAllocation
+2026/02/03 14:25:49 RAG Memory system initialized (enabled: false)
+2026/02/03 14:25:49 Runtime port written to ~/.pryx/runtime.port: 54077
+2026/02/03 14:25:49 Starting server on http://localhost:54077
+--- PASS: TestServer_DynamicPortAllocation (0.06s)
+=== RUN   TestGetClientIP
+=== RUN   TestGetClientIP/X-Forwarded-For
+=== RUN   TestGetClientIP/X-Real-Ip
+=== RUN   TestGetClientIP/RemoteAddr_fallback
+=== RUN   TestGetClientIP/IPv6_RemoteAddr
+--- PASS: TestGetClientIP (0.00s)
+    --- PASS: TestGetClientIP/X-Forwarded-For (0.00s)
+    --- PASS: TestGetClientIP/X-Real-Ip (0.00s)
+    --- PASS: TestGetClientIP/RemoteAddr_fallback (0.00s)
+    --- PASS: TestGetClientIP/IPv6_RemoteAddr (0.00s)
+=== RUN   TestRateLimiter_AllowUnderLimit
+--- PASS: TestRateLimiter_AllowUnderLimit (0.00s)
+=== RUN   TestRateLimiter_BlockOverLimit
+--- PASS: TestRateLimiter_BlockOverLimit (0.00s)
+=== RUN   TestWebSocketBufferSize
+--- PASS: TestWebSocketBufferSize (0.00s)
+=== RUN   TestGenerateConnectionID
+--- PASS: TestGenerateConnectionID (0.00s)
+=== RUN   TestDefaultConstants
+--- PASS: TestDefaultConstants (0.00s)
+PASS
+ok  	pryx-core/internal/server	5.044s
+=== RUN   TestDiscoverPrecedenceWorkspaceOverridesManaged
+--- PASS: TestDiscoverPrecedenceWorkspaceOverridesManaged (0.00s)
+=== RUN   TestLoadSkillsWithin1s
+    discover_test.go:179: Loaded 50 skills in 9.197958ms (within 1s requirement)
+--- PASS: TestLoadSkillsWithin1s (0.04s)
+=== RUN   TestDiscoverAppliesEnabledConfig
+--- PASS: TestDiscoverAppliesEnabledConfig (0.00s)
+=== RUN   TestDiscoverComputesEligibilityFromRequirements
+--- PASS: TestDiscoverComputesEligibilityFromRequirements (0.00s)
+=== RUN   TestParseSkillFile
+--- PASS: TestParseSkillFile (0.00s)
+=== RUN   TestParseSkillFileMissingFrontmatter
+--- PASS: TestParseSkillFileMissingFrontmatter (0.00s)
+=== RUN   TestNewRegistry
+--- PASS: TestNewRegistry (0.00s)
+=== RUN   TestRegistry_Upsert
+--- PASS: TestRegistry_Upsert (0.00s)
+=== RUN   TestRegistry_Upsert_UpdateExisting
+--- PASS: TestRegistry_Upsert_UpdateExisting (0.00s)
+=== RUN   TestRegistry_Get
+--- PASS: TestRegistry_Get (0.00s)
+=== RUN   TestRegistry_EnableDisable
+--- PASS: TestRegistry_EnableDisable (0.00s)
+=== RUN   TestRegistry_Get_Concurrent
+--- PASS: TestRegistry_Get_Concurrent (0.00s)
+=== RUN   TestRegistry_List
+--- PASS: TestRegistry_List (0.00s)
+=== RUN   TestRegistry_List_Concurrent
+--- PASS: TestRegistry_List_Concurrent (0.00s)
+=== RUN   TestRegistry_MetadataSummary
+=== RUN   TestRegistry_MetadataSummary/empty_registry
+=== RUN   TestRegistry_MetadataSummary/single_skill
+=== RUN   TestRegistry_MetadataSummary/skill_with_requirements
+=== RUN   TestRegistry_MetadataSummary/skill_with_env_requirements
+=== RUN   TestRegistry_MetadataSummary/skill_with_both_requirements
+=== RUN   TestRegistry_MetadataSummary/multiple_skills
+=== RUN   TestRegistry_MetadataSummary/skill_without_description
+--- PASS: TestRegistry_MetadataSummary (0.00s)
+    --- PASS: TestRegistry_MetadataSummary/empty_registry (0.00s)
+    --- PASS: TestRegistry_MetadataSummary/single_skill (0.00s)
+    --- PASS: TestRegistry_MetadataSummary/skill_with_requirements (0.00s)
+    --- PASS: TestRegistry_MetadataSummary/skill_with_env_requirements (0.00s)
+    --- PASS: TestRegistry_MetadataSummary/skill_with_both_requirements (0.00s)
+    --- PASS: TestRegistry_MetadataSummary/multiple_skills (0.00s)
+    --- PASS: TestRegistry_MetadataSummary/skill_without_description (0.00s)
+=== RUN   TestRegistry_MetadataSummary_NoDescription
+--- PASS: TestRegistry_MetadataSummary_NoDescription (0.00s)
+PASS
+ok  	pryx-core/internal/skills	2.985s
+=== RUN   TestSessionPerformanceBasic
+    session_benchmark_test.go:34: Created 100 sessions in 70.147792ms (avg: 701.477µs)
+    session_benchmark_test.go:49: Listed sessions 100 times in 152.532042ms (avg: 1.52532ms)
+    session_benchmark_test.go:74: Concurrent access: 1000 ops in 1.801172791s (avg: 1.801172ms)
+--- PASS: TestSessionPerformanceBasic (2.04s)
+=== RUN   TestStore
+--- PASS: TestStore (0.03s)
+PASS
+ok  	pryx-core/internal/store	6.468s
+=== RUN   TestNewProvider
+=== RUN   TestNewProvider/default_enabled
+2026/02/03 14:25:49 Telemetry: No cloud token, will queue events
+2026/02/03 14:25:49 Telemetry: Initialized with sampling=1.00
+=== RUN   TestNewProvider/explicitly_enabled
+2026/02/03 14:25:49 Telemetry: No cloud token, will queue events
+2026/02/03 14:25:49 Telemetry: Initialized with sampling=1.00
+=== RUN   TestNewProvider/disabled
+=== RUN   TestNewProvider/custom_sampling
+2026/02/03 14:25:49 Telemetry: No cloud token, will queue events
+2026/02/03 14:25:49 Telemetry: Initialized with sampling=0.50
+--- PASS: TestNewProvider (0.20s)
+    --- PASS: TestNewProvider/default_enabled (0.08s)
+    --- PASS: TestNewProvider/explicitly_enabled (0.06s)
+    --- PASS: TestNewProvider/disabled (0.00s)
+    --- PASS: TestNewProvider/custom_sampling (0.07s)
+=== RUN   TestProvider_Enabled
+=== RUN   TestProvider_Enabled/enabled
+=== RUN   TestProvider_Enabled/disabled
+--- PASS: TestProvider_Enabled (0.00s)
+    --- PASS: TestProvider_Enabled/enabled (0.00s)
+    --- PASS: TestProvider_Enabled/disabled (0.00s)
+=== RUN   TestProvider_DeviceID
+2026/02/03 14:25:49 Telemetry: No cloud token, will queue events
+2026/02/03 14:25:49 Telemetry: Initialized with sampling=1.00
+--- PASS: TestProvider_DeviceID (0.10s)
+=== RUN   TestProvider_StartSpan_Disabled
+--- PASS: TestProvider_StartSpan_Disabled (0.00s)
+=== RUN   TestProvider_Shutdown
+--- PASS: TestProvider_Shutdown (0.00s)
+=== RUN   TestGenerateDeviceID
+--- PASS: TestGenerateDeviceID (0.00s)
+=== RUN   TestGetVersion
+=== RUN   TestGetVersion/default_version
+=== RUN   TestGetVersion/custom_version
+--- PASS: TestGetVersion (0.00s)
+    --- PASS: TestGetVersion/default_version (0.00s)
+    --- PASS: TestGetVersion/custom_version (0.00s)
+=== RUN   TestNoopSpan
+--- PASS: TestNoopSpan (0.00s)
+PASS
+ok  	pryx-core/internal/telemetry	3.235s
+=== RUN   TestEstablishTrust
+--- PASS: TestEstablishTrust (0.00s)
+=== RUN   TestEstablishTrustSelf
+--- PASS: TestEstablishTrustSelf (0.00s)
+=== RUN   TestGetTrustRelationship
+--- PASS: TestGetTrustRelationship (0.00s)
+=== RUN   TestGetTrustRelationshipNotFound
+--- PASS: TestGetTrustRelationshipNotFound (0.00s)
+=== RUN   TestUpdateTrustLevel
+--- PASS: TestUpdateTrustLevel (0.00s)
+=== RUN   TestGetTrustedAgents
+--- PASS: TestGetTrustedAgents (0.00s)
+=== RUN   TestCalculateTrustScore
+--- PASS: TestCalculateTrustScore (0.00s)
+=== RUN   TestMeetsTrustThreshold
+--- PASS: TestMeetsTrustThreshold (0.00s)
+=== RUN   TestRecordReputation
+--- PASS: TestRecordReputation (0.00s)
+=== RUN   TestGetReputationScore
+--- PASS: TestGetReputationScore (0.00s)
+=== RUN   TestGetReputationScoreNotFound
+--- PASS: TestGetReputationScoreNotFound (0.00s)
+=== RUN   TestRegisterNode
+--- PASS: TestRegisterNode (0.00s)
+=== RUN   TestUpdateNodeHeartbeat
+--- PASS: TestUpdateNodeHeartbeat (0.01s)
+=== RUN   TestUpdateNodeHeartbeatNotFound
+--- PASS: TestUpdateNodeHeartbeatNotFound (0.00s)
+=== RUN   TestDiscoverNodes
+--- PASS: TestDiscoverNodes (0.00s)
+=== RUN   TestDiscoverNodesTrustedOnly
+--- PASS: TestDiscoverNodesTrustedOnly (0.00s)
+=== RUN   TestPropagateTrust
+--- PASS: TestPropagateTrust (0.00s)
+=== RUN   TestAddPolicy
+--- PASS: TestAddPolicy (0.00s)
+=== RUN   TestEvaluatePolicy
+--- PASS: TestEvaluatePolicy (0.00s)
+=== RUN   TestEvaluatePolicyFailTrustLevel
+--- PASS: TestEvaluatePolicyFailTrustLevel (0.00s)
+=== RUN   TestScoreToTrustLevel
+--- PASS: TestScoreToTrustLevel (0.00s)
+=== RUN   TestGetStats
+--- PASS: TestGetStats (0.00s)
+=== RUN   TestPrettyPrint
+--- PASS: TestPrettyPrint (0.00s)
+=== RUN   TestConcurrentAccess
+--- PASS: TestConcurrentAccess (0.00s)
+=== RUN   TestMarshalJSON
+--- PASS: TestMarshalJSON (0.00s)
+=== RUN   TestEventPublishing
+--- PASS: TestEventPublishing (0.05s)
+PASS
+ok  	pryx-core/internal/trust	(cached)
+=== RUN   TestNetworkAdapter
+--- PASS: TestNetworkAdapter (0.00s)
+=== RUN   TestNetworkAdapterSearch
+--- PASS: TestNetworkAdapterSearch (0.00s)
+=== RUN   TestNetworkAdapterFetchManifest
+--- PASS: TestNetworkAdapterFetchManifest (0.00s)
+=== RUN   TestNetworkAgentCache
+--- PASS: TestNetworkAgentCache (0.00s)
+=== RUN   TestUniversalHub
+--- PASS: TestUniversalHub (0.00s)
+=== RUN   TestConnectionManager
+--- PASS: TestConnectionManager (0.00s)
+=== RUN   TestCircuitBreaker
+--- PASS: TestCircuitBreaker (2.00s)
+=== RUN   TestRegistry
+--- PASS: TestRegistry (0.00s)
+=== RUN   TestMessageRouter
+--- PASS: TestMessageRouter (0.00s)
+=== RUN   TestTranslator
+--- PASS: TestTranslator (0.00s)
+=== RUN   TestDetector
+--- PASS: TestDetector (0.02s)
+=== RUN   TestUniversalMessage
+--- PASS: TestUniversalMessage (0.00s)
+=== RUN   TestCorrelationID
+--- PASS: TestCorrelationID (0.00s)
+=== RUN   TestConnectionMetrics
+--- PASS: TestConnectionMetrics (0.00s)
+PASS
+ok  	pryx-core/internal/universal	5.603s
+=== RUN   TestNewValidator
+--- PASS: TestNewValidator (0.00s)
+=== RUN   TestValidateString
+=== RUN   TestValidateString/valid_string
+=== RUN   TestValidateString/empty_string_allowed
+=== RUN   TestValidateString/empty_string_not_allowed
+=== RUN   TestValidateString/whitespace_only_not_allowed
+=== RUN   TestValidateString/min_length
+=== RUN   TestValidateString/max_length_exceeded
+--- PASS: TestValidateString (0.00s)
+    --- PASS: TestValidateString/valid_string (0.00s)
+    --- PASS: TestValidateString/empty_string_allowed (0.00s)
+    --- PASS: TestValidateString/empty_string_not_allowed (0.00s)
+    --- PASS: TestValidateString/whitespace_only_not_allowed (0.00s)
+    --- PASS: TestValidateString/min_length (0.00s)
+    --- PASS: TestValidateString/max_length_exceeded (0.00s)
+=== RUN   TestValidateID
+=== RUN   TestValidateID/valid_ID
+=== RUN   TestValidateID/empty_ID
+=== RUN   TestValidateID/ID_with_spaces
+=== RUN   TestValidateID/ID_with_special_chars
+--- PASS: TestValidateID (0.00s)
+    --- PASS: TestValidateID/valid_ID (0.00s)
+    --- PASS: TestValidateID/empty_ID (0.00s)
+    --- PASS: TestValidateID/ID_with_spaces (0.00s)
+    --- PASS: TestValidateID/ID_with_special_chars (0.00s)
+=== RUN   TestValidateSessionID
+=== RUN   TestValidateSessionID/empty_session_ID
+=== RUN   TestValidateSessionID/valid_UUID_v4
+=== RUN   TestValidateSessionID/invalid_UUID
+=== RUN   TestValidateSessionID/UUID_v1
+--- PASS: TestValidateSessionID (0.00s)
+    --- PASS: TestValidateSessionID/empty_session_ID (0.00s)
+    --- PASS: TestValidateSessionID/valid_UUID_v4 (0.00s)
+    --- PASS: TestValidateSessionID/invalid_UUID (0.00s)
+    --- PASS: TestValidateSessionID/UUID_v1 (0.00s)
+=== RUN   TestValidateToolName
+=== RUN   TestValidateToolName/valid_tool_name
+=== RUN   TestValidateToolName/empty_tool_name
+=== RUN   TestValidateToolName/tool_name_with_spaces
+--- PASS: TestValidateToolName (0.00s)
+    --- PASS: TestValidateToolName/valid_tool_name (0.00s)
+    --- PASS: TestValidateToolName/empty_tool_name (0.00s)
+    --- PASS: TestValidateToolName/tool_name_with_spaces (0.00s)
+=== RUN   TestValidateFilePath
+=== RUN   TestValidateFilePath/valid_relative_path
+=== RUN   TestValidateFilePath/path_traversal_attempt
+=== RUN   TestValidateFilePath/absolute_path
+=== RUN   TestValidateFilePath/null_byte_injection
+=== RUN   TestValidateFilePath/empty_path
+--- PASS: TestValidateFilePath (0.00s)
+    --- PASS: TestValidateFilePath/valid_relative_path (0.00s)
+    --- PASS: TestValidateFilePath/path_traversal_attempt (0.00s)
+    --- PASS: TestValidateFilePath/absolute_path (0.00s)
+    --- PASS: TestValidateFilePath/null_byte_injection (0.00s)
+    --- PASS: TestValidateFilePath/empty_path (0.00s)
+=== RUN   TestValidateCommand
+=== RUN   TestValidateCommand/valid_command
+=== RUN   TestValidateCommand/command_with_semicolon
+=== RUN   TestValidateCommand/command_with_pipe
+=== RUN   TestValidateCommand/command_with_backtick
+=== RUN   TestValidateCommand/empty_command
+--- PASS: TestValidateCommand (0.00s)
+    --- PASS: TestValidateCommand/valid_command (0.00s)
+    --- PASS: TestValidateCommand/command_with_semicolon (0.00s)
+    --- PASS: TestValidateCommand/command_with_pipe (0.00s)
+    --- PASS: TestValidateCommand/command_with_backtick (0.00s)
+    --- PASS: TestValidateCommand/empty_command (0.00s)
+=== RUN   TestValidateChatContent
+=== RUN   TestValidateChatContent/valid_content
+=== RUN   TestValidateChatContent/empty_content
+=== RUN   TestValidateChatContent/whitespace_only
+=== RUN   TestValidateChatContent/null_byte
+--- PASS: TestValidateChatContent (0.00s)
+    --- PASS: TestValidateChatContent/valid_content (0.00s)
+    --- PASS: TestValidateChatContent/empty_content (0.00s)
+    --- PASS: TestValidateChatContent/whitespace_only (0.00s)
+    --- PASS: TestValidateChatContent/null_byte (0.00s)
+=== RUN   TestSanitizeString
+=== RUN   TestSanitizeString/normal_string
+=== RUN   TestSanitizeString/null_bytes_removed
+=== RUN   TestSanitizeString/control_characters_removed
+=== RUN   TestSanitizeString/newlines_preserved
+=== RUN   TestSanitizeString/tabs_preserved
+--- PASS: TestSanitizeString (0.00s)
+    --- PASS: TestSanitizeString/normal_string (0.00s)
+    --- PASS: TestSanitizeString/null_bytes_removed (0.00s)
+    --- PASS: TestSanitizeString/control_characters_removed (0.00s)
+    --- PASS: TestSanitizeString/newlines_preserved (0.00s)
+    --- PASS: TestSanitizeString/tabs_preserved (0.00s)
+=== RUN   TestTruncateString
+=== RUN   TestTruncateString/no_truncation_needed
+=== RUN   TestTruncateString/truncate_to_maxLen
+=== RUN   TestTruncateString/unicode_truncation
+--- PASS: TestTruncateString (0.00s)
+    --- PASS: TestTruncateString/no_truncation_needed (0.00s)
+    --- PASS: TestTruncateString/truncate_to_maxLen (0.00s)
+    --- PASS: TestTruncateString/unicode_truncation (0.00s)
+=== RUN   TestValidateRequired
+=== RUN   TestValidateRequired/valid_non-empty_string
+=== RUN   TestValidateRequired/empty_string
+=== RUN   TestValidateRequired/whitespace_only
+=== RUN   TestValidateRequired/string_with_whitespace
+--- PASS: TestValidateRequired (0.00s)
+    --- PASS: TestValidateRequired/valid_non-empty_string (0.00s)
+    --- PASS: TestValidateRequired/empty_string (0.00s)
+    --- PASS: TestValidateRequired/whitespace_only (0.00s)
+    --- PASS: TestValidateRequired/string_with_whitespace (0.00s)
+PASS
+ok  	pryx-core/internal/validation	(cached)
+=== RUN   TestNewAuditLogger
+--- PASS: TestNewAuditLogger (0.00s)
+=== RUN   TestAuditLogger_Log
+--- PASS: TestAuditLogger_Log (0.01s)
+=== RUN   TestAuditLogger_ConvenienceMethods
+--- PASS: TestAuditLogger_ConvenienceMethods (0.01s)
+=== RUN   TestAuditLogger_Query
+=== RUN   TestAuditLogger_Query/query_all
+=== RUN   TestAuditLogger_Query/query_by_actor
+=== RUN   TestAuditLogger_Query/query_by_action
+=== RUN   TestAuditLogger_Query/query_by_target
+=== RUN   TestAuditLogger_Query/query_by_success
+=== RUN   TestAuditLogger_Query/query_by_failure
+--- PASS: TestAuditLogger_Query (0.01s)
+    --- PASS: TestAuditLogger_Query/query_all (0.00s)
+    --- PASS: TestAuditLogger_Query/query_by_actor (0.00s)
+    --- PASS: TestAuditLogger_Query/query_by_action (0.00s)
+    --- PASS: TestAuditLogger_Query/query_by_target (0.00s)
+    --- PASS: TestAuditLogger_Query/query_by_success (0.00s)
+    --- PASS: TestAuditLogger_Query/query_by_failure (0.00s)
+=== RUN   TestAuditLogger_QueryTimeRange
+--- PASS: TestAuditLogger_QueryTimeRange (0.01s)
+=== RUN   TestAuditLogger_VerifyIntegrity
+--- PASS: TestAuditLogger_VerifyIntegrity (0.00s)
+=== RUN   TestAuditLogger_Cleanup
+--- PASS: TestAuditLogger_Cleanup (0.00s)
+=== RUN   TestAuditLogger_Export
+--- PASS: TestAuditLogger_Export (0.01s)
+=== RUN   TestAuditLogger_ExportCSV
+--- PASS: TestAuditLogger_ExportCSV (0.00s)
+=== RUN   TestAuditLogger_BackgroundFlush
+--- PASS: TestAuditLogger_BackgroundFlush (6.00s)
+=== RUN   TestAuditLogger_HashChain
+--- PASS: TestAuditLogger_HashChain (0.03s)
+=== RUN   TestAuditLogger_EntryHash
+--- PASS: TestAuditLogger_EntryHash (0.00s)
+=== RUN   TestNewMasterKeyManager
+--- PASS: TestNewMasterKeyManager (0.00s)
+=== RUN   TestMasterKeyManager_Unlock
+=== RUN   TestMasterKeyManager_Unlock/valid_password_unlocks_vault
+=== RUN   TestMasterKeyManager_Unlock/short_password_fails
+=== RUN   TestMasterKeyManager_Unlock/empty_password_fails
+--- PASS: TestMasterKeyManager_Unlock (0.50s)
+    --- PASS: TestMasterKeyManager_Unlock/valid_password_unlocks_vault (0.50s)
+    --- PASS: TestMasterKeyManager_Unlock/short_password_fails (0.00s)
+    --- PASS: TestMasterKeyManager_Unlock/empty_password_fails (0.00s)
+=== RUN   TestMasterKeyManager_Lock
+--- PASS: TestMasterKeyManager_Lock (0.54s)
+=== RUN   TestMasterKeyManager_GetKey
+--- PASS: TestMasterKeyManager_GetKey (0.52s)
+=== RUN   TestMasterKeyManager_KeyExpiration
+--- PASS: TestMasterKeyManager_KeyExpiration (0.65s)
+=== RUN   TestMasterKeyManager_VerifyPassword
+--- PASS: TestMasterKeyManager_VerifyPassword (1.49s)
+=== RUN   TestMasterKeyManager_RotateKey
+--- PASS: TestMasterKeyManager_RotateKey (2.74s)
+=== RUN   TestMasterKeyManager_RateLimiting
+--- PASS: TestMasterKeyManager_RateLimiting (0.00s)
+=== RUN   TestMasterKeyManager_GetStatus
+--- PASS: TestMasterKeyManager_GetStatus (0.51s)
+=== RUN   TestMasterKeyManager_Salt
+--- PASS: TestMasterKeyManager_Salt (0.00s)
+=== RUN   TestEncodeDecodeSalt
+--- PASS: TestEncodeDecodeSalt (0.00s)
+=== RUN   TestGenerateSalt
+--- PASS: TestGenerateSalt (0.00s)
+PASS
+ok  	pryx-core/internal/vault	(cached)
+?   	pryx-core/tests	[no test files]
+=== RUN   TestAuditQueryCommand
+    query_test.go:24: audit command not available in CLI
+--- SKIP: TestAuditQueryCommand (0.11s)
+=== RUN   TestAuditQueryWithSession
+    query_test.go:45: audit command not available in CLI
+--- SKIP: TestAuditQueryWithSession (0.02s)
+=== RUN   TestAuditQueryWithSurface
+    query_test.go:66: audit command not available in CLI
+--- SKIP: TestAuditQueryWithSurface (0.02s)
+=== RUN   TestAuditQueryWithJSON
+    query_test.go:87: audit command not available in CLI
+--- SKIP: TestAuditQueryWithJSON (0.02s)
+=== RUN   TestAuditQueryWithLimit
+    query_test.go:110: audit command not available in CLI
+--- SKIP: TestAuditQueryWithLimit (0.02s)
+=== RUN   TestAuditExportCommand
+    query_test.go:131: audit command not available in CLI
+--- SKIP: TestAuditExportCommand (0.02s)
+=== RUN   TestAuditExportToJSON
+    query_test.go:152: audit command not available in CLI
+--- SKIP: TestAuditExportToJSON (0.02s)
+=== RUN   TestAuditExportToCSV
+    query_test.go:173: audit command not available in CLI
+--- SKIP: TestAuditExportToCSV (0.02s)
+=== RUN   TestAuditExportToJSONL
+    query_test.go:194: audit command not available in CLI
+--- SKIP: TestAuditExportToJSONL (0.02s)
+=== RUN   TestAuditStatsCommand
+    query_test.go:215: audit command not available in CLI
+--- SKIP: TestAuditStatsCommand (0.03s)
+=== RUN   TestAuditHelpCommand
+    query_test.go:236: audit command not available in CLI
+--- SKIP: TestAuditHelpCommand (0.02s)
+=== RUN   TestAuditQueryWithTimeFilter
+    query_test.go:264: audit command not available in CLI
+--- SKIP: TestAuditQueryWithTimeFilter (0.02s)
+=== RUN   TestAuditQueryWithToolFilter
+    query_test.go:285: audit command not available in CLI
+--- SKIP: TestAuditQueryWithToolFilter (0.03s)
+=== RUN   TestAuditQueryWithMultipleFilters
+    query_test.go:306: audit command not available in CLI
+--- SKIP: TestAuditQueryWithMultipleFilters (0.03s)
+=== RUN   TestAuditUnknownCommand
+    query_test.go:327: audit command not available in CLI
+--- SKIP: TestAuditUnknownCommand (0.02s)
+PASS
+ok  	pryx-core/tests/cli/audit	4.211s
+=== RUN   TestCostSummaryCommand
+--- PASS: TestCostSummaryCommand (0.03s)
+=== RUN   TestCostSummaryWithSession
+--- PASS: TestCostSummaryWithSession (0.01s)
+=== RUN   TestCostSummaryWithJSON
+    summary_test.go:55: JSON output not implemented, got text: Cost Summary
+        ============
+        Total Cost:         $0.0000
+        Total Input Tokens:  0
+        Total Output Tokens: 0
+        Total Tokens:        0
+        Total Requests:      0
+        Average Cost/Req:   $0.0000
+--- PASS: TestCostSummaryWithJSON (0.01s)
+=== RUN   TestCostSummaryWithTimeRange
+--- PASS: TestCostSummaryWithTimeRange (0.01s)
+=== RUN   TestCostBudgetCommand
+--- PASS: TestCostBudgetCommand (0.02s)
+=== RUN   TestCostBudgetSetCommand
+--- PASS: TestCostBudgetSetCommand (0.01s)
+=== RUN   TestCostBudgetWithAlert
+--- PASS: TestCostBudgetWithAlert (0.02s)
+=== RUN   TestCostModelsCommand
+--- PASS: TestCostModelsCommand (0.01s)
+=== RUN   TestCostModelsWithJSON
+    summary_test.go:153: JSON output not implemented, got: Model                     Provider   Input ($/1K)  Output ($/1K)
+        -----                     --------   ------------  -------------
+        gpt-3.5-turbo             openai     $0.50         $1.50
+        claude-opus-4-20250514    anthropic  $15.00        $75.00
+        deepseek-chat             deepseek   $0.14         $0.28
+        gpt-4o                    openai     $2.50         $10.00
+        gpt-4o-mini               openai     $0.15         $0.60
+        gpt-4-turbo               openai     $10.00        $30.00
+        claude-haiku-3-20250514   anthropic  $0.25         $1.25
+        gemini-1.5-pro            google     $1.25         $5.00
+        gemini-1.5-flash          google     $0.07         $0.30
+        gpt-4                     openai     $30.00        $60.00
+        claude-sonnet-4-20250514  anthropic  $3.00         $15.00
+--- PASS: TestCostModelsWithJSON (0.02s)
+=== RUN   TestCostBreakdownCommand
+--- PASS: TestCostBreakdownCommand (0.01s)
+=== RUN   TestCostHelpCommand
+--- PASS: TestCostHelpCommand (0.01s)
+=== RUN   TestCostUnknownCommand
+--- PASS: TestCostUnknownCommand (0.01s)
+=== RUN   TestCostSummaryWithModelFilter
+--- PASS: TestCostSummaryWithModelFilter (0.01s)
+=== RUN   TestCostSummaryWithMultipleFlags
+    summary_test.go:234: Text output confirmed: Cost Summary
+        ============
+        Total Cost:         $0.0000
+        Total Input Tokens:  0
+        Total Output Tokens: 0
+        Total Tokens:        0
+        Total Requests:      0
+        Average Cost/Req:   $0.0000
+--- PASS: TestCostSummaryWithMultipleFlags (0.01s)
+=== RUN   TestCostOptimizeCommand
+--- PASS: TestCostOptimizeCommand (0.02s)
+PASS
+ok  	pryx-core/tests/cli/cost	4.620s
+=== RUN   TestListCommand
+--- PASS: TestListCommand (0.02s)
+=== RUN   TestListCommandWithJSON
+--- PASS: TestListCommandWithJSON (0.01s)
+=== RUN   TestAddCommand
+--- PASS: TestAddCommand (0.01s)
+=== RUN   TestRemoveCommand
+--- PASS: TestRemoveCommand (0.01s)
+=== RUN   TestTestCommand
+--- PASS: TestTestCommand (0.01s)
+=== RUN   TestAuthCommand
+--- PASS: TestAuthCommand (0.01s)
+=== RUN   TestHelpCommand
+--- PASS: TestHelpCommand (0.02s)
+=== RUN   TestAddCommandWithInvalidArgs
+    list_test.go:158: Expected usage or error message, got: Error: server name and connection method required
+        pryx-core mcp - Manage MCP servers
+        
+        Commands:
+          list                          List configured MCP servers
+          add <name> --url <url>        Add HTTP MCP server
+          add <name> --cmd <command>    Add stdio MCP server
+          remove <name>                 Remove an MCP server
+          test <name>                   Test MCP server connection
+          auth <name>                   Manage authentication
+        
+        Options:
+          --url, -u <url>               Server URL (for HTTP transport)
+          --cmd, -c <command>           Command (for stdio transport)
+          --auth <type>                 Authentication type (bearer, basic)
+          --token-ref <ref>             Token reference (keychain)
+          --json, -j                    Output in JSON format
+--- PASS: TestAddCommandWithInvalidArgs (0.01s)
+=== RUN   TestRemoveCommandWithMissingServer
+    list_test.go:172: Expected usage or error message, got: Error: server name required
+--- PASS: TestRemoveCommandWithMissingServer (0.02s)
+=== RUN   TestUnknownCommand
+--- PASS: TestUnknownCommand (0.01s)
+=== RUN   TestAddCommandWithAuth
+--- PASS: TestAddCommandWithAuth (0.01s)
+=== RUN   TestListCommandWithVerbose
+--- PASS: TestListCommandWithVerbose (0.02s)
+PASS
+ok  	pryx-core/tests/cli/mcp	4.802s
+=== RUN   TestMemoryUsageCommand
+    usage_test.go:20: memory command not available in CLI
+--- SKIP: TestMemoryUsageCommand (0.01s)
+=== RUN   TestMemoryUsageWithSession
+    usage_test.go:20: memory command not available in CLI
+--- SKIP: TestMemoryUsageWithSession (0.01s)
+=== RUN   TestMemoryUsageWithJSON
+    usage_test.go:20: memory command not available in CLI
+--- SKIP: TestMemoryUsageWithJSON (0.01s)
+=== RUN   TestMemorySessionsCommand
+    usage_test.go:20: memory command not available in CLI
+--- SKIP: TestMemorySessionsCommand (0.01s)
+=== RUN   TestMemorySessionsWithJSON
+    usage_test.go:20: memory command not available in CLI
+--- SKIP: TestMemorySessionsWithJSON (0.01s)
+=== RUN   TestMemorySummarizeCommand
+    usage_test.go:20: memory command not available in CLI
+--- SKIP: TestMemorySummarizeCommand (0.01s)
+=== RUN   TestMemoryArchiveCommand
+    usage_test.go:20: memory command not available in CLI
+--- SKIP: TestMemoryArchiveCommand (0.01s)
+=== RUN   TestMemoryUnarchiveCommand
+    usage_test.go:20: memory command not available in CLI
+--- SKIP: TestMemoryUnarchiveCommand (0.01s)
+=== RUN   TestMemoryCleanupCommand
+    usage_test.go:20: memory command not available in CLI
+--- SKIP: TestMemoryCleanupCommand (0.02s)
+=== RUN   TestMemoryCleanupDryRun
+    usage_test.go:20: memory command not available in CLI
+--- SKIP: TestMemoryCleanupDryRun (0.01s)
+=== RUN   TestMemoryRAGCommand
+    usage_test.go:20: memory command not available in CLI
+--- SKIP: TestMemoryRAGCommand (0.01s)
+=== RUN   TestMemoryHelpCommand
+    usage_test.go:20: memory command not available in CLI
+--- SKIP: TestMemoryHelpCommand (0.01s)
+=== RUN   TestMemoryUnknownCommand
+    usage_test.go:20: memory command not available in CLI
+--- SKIP: TestMemoryUnknownCommand (0.01s)
+=== RUN   TestMemoryUsageWithThreshold
+    usage_test.go:20: memory command not available in CLI
+--- SKIP: TestMemoryUsageWithThreshold (0.01s)
+=== RUN   TestMemorySummarizeWithRatio
+    usage_test.go:20: memory command not available in CLI
+--- SKIP: TestMemorySummarizeWithRatio (0.01s)
+=== RUN   TestMemoryRAGWithLimit
+    usage_test.go:20: memory command not available in CLI
+--- SKIP: TestMemoryRAGWithLimit (0.01s)
+=== RUN   TestMemoryArchiveWithAuto
+    usage_test.go:20: memory command not available in CLI
+--- SKIP: TestMemoryArchiveWithAuto (0.02s)
+PASS
+ok  	pryx-core/tests/cli/memory	3.051s
+=== RUN   TestListCommand
+--- PASS: TestListCommand (0.01s)
+=== RUN   TestListCommandWithEligible
+--- PASS: TestListCommandWithEligible (0.01s)
+=== RUN   TestListCommandWithJSON
+--- PASS: TestListCommandWithJSON (0.01s)
+=== RUN   TestInfoCommand
+--- PASS: TestInfoCommand (0.01s)
+=== RUN   TestInfoCommandWithValidSkill
+    list_test.go:91: Info command failed (skill may not exist): exit status 1, output: Error: skill not found: git-master
+--- PASS: TestInfoCommandWithValidSkill (0.01s)
+=== RUN   TestCheckCommand
+--- PASS: TestCheckCommand (0.01s)
+=== RUN   TestEnableCommand
+--- PASS: TestEnableCommand (0.01s)
+=== RUN   TestDisableCommand
+--- PASS: TestDisableCommand (0.01s)
+=== RUN   TestInstallCommand
+    list_test.go:168: Expected error for unknown skill, got: Error: failed to install skill: no source specified. Use --from <path|url|bundled/skill-name>
+--- PASS: TestInstallCommand (0.01s)
+=== RUN   TestUninstallCommand
+--- PASS: TestUninstallCommand (0.01s)
+=== RUN   TestUnknownCommand
+--- PASS: TestUnknownCommand (0.01s)
+=== RUN   TestHelpCommand
+--- PASS: TestHelpCommand (0.01s)
+=== RUN   TestListCommandWithBothFlags
+--- PASS: TestListCommandWithBothFlags (0.01s)
+PASS
+ok  	pryx-core/tests/cli/skills	3.200s
+=== RUN   TestMemoryAndSessionIntegration
+--- PASS: TestMemoryAndSessionIntegration (0.00s)
+=== RUN   TestCLIToRuntimeIntegration
+=== RUN   TestCLIToRuntimeIntegration/skills_list
+=== RUN   TestCLIToRuntimeIntegration/mcp_list
+=== RUN   TestCLIToRuntimeIntegration/cost_summary
+--- PASS: TestCLIToRuntimeIntegration (8.75s)
+    --- PASS: TestCLIToRuntimeIntegration/skills_list (0.86s)
+    --- PASS: TestCLIToRuntimeIntegration/mcp_list (0.01s)
+    --- PASS: TestCLIToRuntimeIntegration/cost_summary (0.01s)
+=== RUN   TestFullWorkflowIntegration
+--- PASS: TestFullWorkflowIntegration (0.00s)
+=== RUN   TestMemoryWarningThresholds
+    workflow_test.go:240: Memory usage: 8150/128000 tokens (6.37%), warning level: 
+--- PASS: TestMemoryWarningThresholds (0.01s)
+=== RUN   TestSessionArchiveWorkflow
+--- PASS: TestSessionArchiveWorkflow (0.00s)
+=== RUN   TestAutoMemoryManagement
+    workflow_test.go:331: After auto-management: 700 tokens used
+--- PASS: TestAutoMemoryManagement (0.01s)
+=== RUN   TestMultipleSessionsMemory
+--- PASS: TestMultipleSessionsMemory (0.00s)
+PASS
+ok  	pryx-core/tests/integration	10.846s
+=== RUN   TestSkillsCLI_List
+--- PASS: TestSkillsCLI_List (8.78s)
+=== RUN   TestSkillsCLI_Help
+--- PASS: TestSkillsCLI_Help (0.01s)
+=== RUN   TestSkillsCLI_ListJSON
+--- PASS: TestSkillsCLI_ListJSON (0.01s)
+=== RUN   TestSkillsCLI_Check
+--- PASS: TestSkillsCLI_Check (0.01s)
+=== RUN   TestSkillsCLI_InfoError
+--- PASS: TestSkillsCLI_InfoError (0.01s)
+=== RUN   TestSkillsCLI_UnknownCommand
+--- PASS: TestSkillsCLI_UnknownCommand (0.01s)
+=== RUN   TestMCPCLI_List
+--- PASS: TestMCPCLI_List (0.01s)
+=== RUN   TestMCPCLI_Help
+--- PASS: TestMCPCLI_Help (0.01s)
+=== RUN   TestMCPCLI_AddRemove
+--- PASS: TestMCPCLI_AddRemove (0.02s)
+=== RUN   TestMCPCLI_ListJSON
+--- PASS: TestMCPCLI_ListJSON (0.01s)
+=== RUN   TestMCPCLI_TestError
+--- PASS: TestMCPCLI_TestError (0.01s)
+=== RUN   TestConfigCLI_Get
+--- PASS: TestConfigCLI_Get (0.01s)
+=== RUN   TestConfigCLI_Set
+--- PASS: TestConfigCLI_Set (0.02s)
+=== RUN   TestConfigCLI_List
+--- PASS: TestConfigCLI_List (0.01s)
+=== RUN   TestConfigCLI_InvalidCommand
+--- PASS: TestConfigCLI_InvalidCommand (0.01s)
+=== RUN   TestConfigCLI_MissingValue
+--- PASS: TestConfigCLI_MissingValue (0.01s)
+=== RUN   TestCostCLI_Summary
+--- PASS: TestCostCLI_Summary (0.03s)
+=== RUN   TestCostCLI_Pricing
+--- PASS: TestCostCLI_Pricing (0.02s)
+=== RUN   TestCostCLI_Daily
+--- PASS: TestCostCLI_Daily (0.02s)
+=== RUN   TestCostCLI_Monthly
+--- PASS: TestCostCLI_Monthly (0.02s)
+=== RUN   TestCostCLI_BudgetStatus
+--- PASS: TestCostCLI_BudgetStatus (0.02s)
+=== RUN   TestCostCLI_BudgetSet
+--- PASS: TestCostCLI_BudgetSet (0.02s)
+=== RUN   TestCostCLI_Optimize
+--- PASS: TestCostCLI_Optimize (0.02s)
+=== RUN   TestCostCLI_InvalidCommand
+--- PASS: TestCostCLI_InvalidCommand (0.02s)
+=== RUN   TestCostCLI_NoSubcommand
+--- PASS: TestCostCLI_NoSubcommand (0.01s)
+=== RUN   TestDoctorCLI_Run
+--- PASS: TestDoctorCLI_Run (0.02s)
+=== RUN   TestDoctorCLI_CheckNames
+--- PASS: TestDoctorCLI_CheckNames (0.02s)
+=== RUN   TestDoctorCLI_StatusIndicators
+--- PASS: TestDoctorCLI_StatusIndicators (0.02s)
+=== RUN   TestMCPCLI_TestValidServer
+--- PASS: TestMCPCLI_TestValidServer (0.05s)
+=== RUN   TestMCPCLI_AddWithCmd
+    mcp_cli_test.go:44: Expected 'add' in output, got: ℹ Server 'test-stdio' already exists, updating...
+        ✓ Added MCP server: test-stdio
+          Config saved to: /Users/irfandi/.pryx/mcp/servers.json
+--- PASS: TestMCPCLI_AddWithCmd (0.01s)
+=== RUN   TestMCPCLI_AddWithAuth
+    mcp_cli_test.go:59: Expected 'add' in output, got: ℹ Server 'test-auth' already exists, updating...
+        ✓ Added MCP server: test-auth
+          Config saved to: /Users/irfandi/.pryx/mcp/servers.json
+--- PASS: TestMCPCLI_AddWithAuth (0.01s)
+=== RUN   TestMCPCLI_AuthInfo
+--- PASS: TestMCPCLI_AuthInfo (0.02s)
+=== RUN   TestSkillsCLI_Enable
+    skills_cli_test.go:27: Enable output: Error: skill not found: test-skill
+    skills_cli_test.go:33: Expected 'enable' in output, got: Error: skill not found: test-skill
+--- PASS: TestSkillsCLI_Enable (0.01s)
+=== RUN   TestSkillsCLI_Disable
+    skills_cli_test.go:44: Disable output: Error: skill not found: test-skill
+    skills_cli_test.go:50: Expected 'disable' in output, got: Error: skill not found: test-skill
+--- PASS: TestSkillsCLI_Disable (0.01s)
+=== RUN   TestSkillsCLI_EnableDisable
+    skills_cli_test.go:61: Enable output: Error: skill not found: test-skill
+    skills_cli_test.go:68: Disable output: Error: skill not found: test-skill
+    skills_cli_test.go:75: Re-enable output: Error: skill not found: test-skill
+    skills_cli_test.go:79: Enable-disable round-trip completed
+--- PASS: TestSkillsCLI_EnableDisable (0.03s)
+=== RUN   TestSkillsCLI_Info
+--- PASS: TestSkillsCLI_Info (0.02s)
+=== RUN   TestSkillsCLI_EnableNotFound
+--- PASS: TestSkillsCLI_EnableNotFound (0.01s)
+=== RUN   TestSkillsCLI_Install
+    skills_cli_test.go:125: Install output: Error: failed to install skill: no source specified. Use --from <path|url|bundled/skill-name>
+--- PASS: TestSkillsCLI_Install (0.01s)
+=== RUN   TestSkillsCLI_Uninstall
+    skills_cli_test.go:142: Uninstall output: Error: skill not found at /Users/irfandi/.pryx/skills/test-skill
+    skills_cli_test.go:148: Expected 'uninstall' in output, got: Error: skill not found at /Users/irfandi/.pryx/skills/test-skill
+--- PASS: TestSkillsCLI_Uninstall (0.01s)
+PASS
+ok  	pryx-core/e2e	12.005s
+FAIL

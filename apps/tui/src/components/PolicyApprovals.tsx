@@ -1,9 +1,19 @@
 import { createSignal, For, Show, onMount } from "solid-js";
 import { useKeyboard } from "@opentui/solid";
 import { palette } from "../theme";
+import { getRuntimeHttpUrl } from "../services/skills-api";
 
 type ApprovalAction = "allow" | "deny" | "require_review";
 type ActionType = "file_ops" | "shell" | "network" | "channel_message" | "credential_access";
+
+interface ApprovalRequest {
+  id: string;
+  agentName: string;
+  actionType: ActionType;
+  tool: string;
+  status: "pending" | "approved" | "denied";
+  timestamp: string;
+}
 
 interface PolicyRule {
   id: string;
@@ -23,7 +33,6 @@ interface PolicyApprovalsProps {
 }
 
 export default function PolicyApprovals(props: PolicyApprovalsProps) {
-  const keyboard = useKeyboard();
   const [policies, setPolicies] = createSignal<PolicyRule[]>([]);
   const [requests, setRequests] = createSignal<ApprovalRequest[]>([]);
   const [view, setView] = createSignal<"policies" | "requests">("policies");
@@ -32,51 +41,79 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
   const [newPolicyName, setNewPolicyName] = createSignal("");
   const [newActionType, setNewActionType] = createSignal<ActionType>("shell");
   const [newApprovalAction, setNewApprovalAction] = createSignal<ApprovalAction>("require_review");
-  const [newAutoApprove, setNewAutoApprove] = createSignal(false);
+  const [newAutoApprove] = createSignal(false);
   const [newMaxCost, setNewMaxCost] = createSignal("");
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal("");
 
+  const getErrorMessage = (err: unknown): string => {
+    return err instanceof Error ? err.message : String(err);
+  };
+
+  useKeyboard(evt => {
+    if (showCreateModal()) {
+      if (evt.name === "escape") {
+        evt.preventDefault?.();
+        setShowCreateModal(false);
+        return;
+      }
+    }
+
+    switch (evt.name) {
+      case "1":
+        evt.preventDefault?.();
+        setView("policies");
+        return;
+      case "2":
+        evt.preventDefault?.();
+        setView("requests");
+        return;
+      case "n":
+        evt.preventDefault?.();
+        setShowCreateModal(true);
+        setNewPolicyName("");
+        setNewMaxCost("");
+        return;
+      case "e":
+        evt.preventDefault?.();
+        editPolicy();
+        return;
+      case "d":
+        evt.preventDefault?.();
+        deletePolicy();
+        return;
+      case "a":
+        evt.preventDefault?.();
+        togglePolicy();
+        return;
+      case "r":
+        evt.preventDefault?.();
+        reviewRequest();
+        return;
+      case "q":
+        evt.preventDefault?.();
+        props.onClose();
+        return;
+    }
+  });
+
   onMount(() => {
     loadPolicies();
     loadRequests();
-    setupKeyboard();
     startPolling();
   });
-
-  const setupKeyboard = () => {
-    keyboard.bind("1", () => setView("policies"));
-    keyboard.bind("2", () => setView("requests"));
-    keyboard.bind("n", () => {
-      setShowCreateModal(true);
-      setNewPolicyName("");
-      setNewMaxCost("");
-    });
-    keyboard.bind("e", () => editPolicy());
-    keyboard.bind("d", () => deletePolicy());
-    keyboard.bind("a", () => togglePolicy());
-    keyboard.bind("r", () => reviewRequest());
-    keyboard.bind("esc", () => {
-      if (showCreateModal()) {
-        setShowCreateModal(false);
-      }
-    });
-      keyboard.bind("q", () => {
-        props.onClose();
-      });
-  };
 
   const loadPolicies = async () => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:3000/api/policies");
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/policies`);
       if (!response.ok) {
         throw new Error("Failed to load policies");
       }
       const data = await response.json();
       setPolicies(data.policies || []);
     } catch (err) {
-      setError(`Failed to load policies: ${err.message}`);
+      setError(`Failed to load policies: ${getErrorMessage(err)}`);
     } finally {
       setLoading(false);
     }
@@ -84,16 +121,14 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
 
   const loadRequests = async () => {
     try {
-      const response = await fetch(
-        "http://localhost:3000/api/approvals/pending"
-      );
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/approvals/pending`);
       if (!response.ok) {
         throw new Error("Failed to load approval requests");
       }
       const data = await response.json();
       setRequests(data.requests || []);
     } catch (err) {
-      setError(`Failed to load requests: ${err.message}`);
+      setError(`Failed to load requests: ${getErrorMessage(err)}`);
     }
   };
 
@@ -119,7 +154,7 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
     };
 
     try {
-      const response = await fetch("http://localhost:3000/api/policies", {
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/policies`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -134,7 +169,7 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
       setShowCreateModal(false);
       loadPolicies();
     } catch (err) {
-      setError(`Failed to create policy: ${err.message}`);
+      setError(`Failed to create policy: ${getErrorMessage(err)}`);
     }
   };
 
@@ -150,12 +185,9 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
     if (!policy) return;
 
     try {
-      const response = await fetch(
-        `http://localhost:3000/api/policies/${policy.id}`,
-        {
-          method: "DELETE",
-        }
-      );
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/policies/${policy.id}`, {
+        method: "DELETE",
+      });
 
       if (!response.ok) {
         throw new Error("Failed to delete policy");
@@ -163,7 +195,7 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
 
       loadPolicies();
     } catch (err) {
-      setError(`Failed to delete policy: ${err.message}`);
+      setError(`Failed to delete policy: ${getErrorMessage(err)}`);
     }
   };
 
@@ -172,12 +204,9 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
     if (!policy) return;
 
     try {
-      const response = await fetch(
-        `http://localhost:3000/api/policies/${policy.id}/toggle`,
-        {
-          method: "POST",
-        }
-      );
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/policies/${policy.id}/toggle`, {
+        method: "POST",
+      });
 
       if (!response.ok) {
         throw new Error("Failed to toggle policy");
@@ -185,7 +214,7 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
 
       loadPolicies();
     } catch (err) {
-      setError(`Failed to toggle policy: ${err.message}`);
+      setError(`Failed to toggle policy: ${getErrorMessage(err)}`);
     }
   };
 
@@ -198,12 +227,9 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
 
   const approveRequest = async (requestId: string) => {
     try {
-      const response = await fetch(
-        `http://localhost:3000/api/approvals/${requestId}/approve`,
-        {
-          method: "POST",
-        }
-      );
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/approvals/${requestId}/approve`, {
+        method: "POST",
+      });
 
       if (!response.ok) {
         throw new Error("Failed to approve request");
@@ -211,18 +237,15 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
 
       loadRequests();
     } catch (err) {
-      setError(`Failed to approve request: ${err.message}`);
+      setError(`Failed to approve request: ${getErrorMessage(err)}`);
     }
   };
 
   const denyRequest = async (requestId: string) => {
     try {
-      const response = await fetch(
-        `http://localhost:3000/api/approvals/${requestId}/deny`,
-        {
-          method: "POST",
-        }
-      );
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/approvals/${requestId}/deny`, {
+        method: "POST",
+      });
 
       if (!response.ok) {
         throw new Error("Failed to deny request");
@@ -230,7 +253,7 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
 
       loadRequests();
     } catch (err) {
-      setError(`Failed to deny request: ${err.message}`);
+      setError(`Failed to deny request: ${getErrorMessage(err)}`);
     }
   };
 
@@ -284,34 +307,27 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
 
   return (
     <Box flexDirection="column" width="100%" height="100%">
-      <Box
-        flexDirection="row"
-        padding={1}
-        backgroundColor={palette.primary}
-        color={palette.background}
-      >
+      <Box flexDirection="row" padding={1} backgroundColor={palette.bgPrimary} color={palette.text}>
         <Text bold>🛡️ Policies & Approvals</Text>
         <Box flexGrow={1} />
         <Text>
           View: <Text bold>[1]</Text> Policies <Text bold>[2]</Text> Requests
         </Text>
-        <Text>Quit: <Text bold>[Q]</Text></Text>
+        <Text>
+          Quit: <Text bold>[Q]</Text>
+        </Text>
       </Box>
 
       <Show when={error()}>
         <Box padding={1} backgroundColor={palette.error}>
-          <Text color={palette.background}>{error()}</Text>
+          <Text color={palette.bgPrimary}>{error()}</Text>
         </Box>
       </Show>
 
       <Show when={!loading()}>
         <Box flexDirection="column" padding={1} flexGrow={1}>
           <Show when={view() === "policies"}>
-            <Box
-              flexDirection="row"
-              padding={1}
-              backgroundColor={palette.bgSecondary}
-            >
+            <Box flexDirection="row" padding={1} backgroundColor={palette.bgSecondary}>
               <Box flexGrow={1}>
                 <Text bold>Total Policies</Text>
                 <Text fontSize={2}>{policies().length}</Text>
@@ -319,13 +335,13 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
               <Box flexGrow={1}>
                 <Text bold>Active</Text>
                 <Text fontSize={2} color={palette.success}>
-                  {policies().filter((p) => p.active).length}
+                  {policies().filter(p => p.active).length}
                 </Text>
               </Box>
               <Box flexGrow={1}>
                 <Text bold>Auto-Approve</Text>
                 <Text fontSize={2} color={palette.accent}>
-                  {policies().filter((p) => p.autoApprove).length}
+                  {policies().filter(p => p.autoApprove).length}
                 </Text>
               </Box>
             </Box>
@@ -392,15 +408,13 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
                     <Button onClick={createPolicy}>Create</Button>
                   </Box>
                   <Box flexGrow={1}>
-                    <Button onClick={() => setShowCreateModal(false)}>
-                      Cancel
-                    </Button>
+                    <Button onClick={() => setShowCreateModal(false)}>Cancel</Button>
                   </Box>
                 </Box>
               </Box>
             </Show>
 
-            <Box padding={1} marginTop={1} backgroundColor={palette.background}>
+            <Box padding={1} marginTop={1} backgroundColor={palette.bgPrimary}>
               <Text bold>Policy Rules</Text>
             </Box>
 
@@ -408,45 +422,30 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
               flexDirection="column"
               flexGrow={1}
               padding={1}
-              backgroundColor={palette.background}
+              backgroundColor={palette.bgPrimary}
             >
               <For each={policies()}>
                 {(policy, index) => (
                   <Box
                     flexDirection="row"
                     padding={0.5}
-                    backgroundColor={
-                      index() === selectedIndex()
-                        ? palette.bgSelected
-                        : undefined
-                    }
+                    backgroundColor={index() === selectedIndex() ? palette.bgSelected : undefined}
                     onClick={() => setSelectedIndex(index())}
                   >
                     <Text width={30}>{policy.name}</Text>
-                    <Text width={20}>
-                      {getActionTypeLabel(policy.actionType)}
-                    </Text>
-                    <Text width={20}>
-                      {getApprovalActionLabel(policy.action)}
-                    </Text>
-                    <Text
-                      width={15}
-                      color={policy.active ? palette.success : palette.dim}
-                    >
+                    <Text width={20}>{getActionTypeLabel(policy.actionType)}</Text>
+                    <Text width={20}>{getApprovalActionLabel(policy.action)}</Text>
+                    <Text width={15} color={policy.active ? palette.success : palette.dim}>
                       {policy.active ? "Active" : "Inactive"}
                     </Text>
-                    <Text width={15}>
-                      {policy.autoApprove ? "Auto" : "Manual"}
-                    </Text>
+                    <Text width={15}>{policy.autoApprove ? "Auto" : "Manual"}</Text>
                   </Box>
                 )}
               </For>
 
               <Show when={policies().length === 0}>
                 <Box padding={2} textAlign="center">
-                  <Text color={palette.dim}>
-                    No policies configured. Press [N] to create one.
-                  </Text>
+                  <Text color={palette.dim}>No policies configured. Press [N] to create one.</Text>
                 </Box>
               </Show>
             </Box>
@@ -457,50 +456,38 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
               marginTop={1}
               backgroundColor={palette.bgSecondary}
             >
-              <Text>Create: <Text bold>[N]</Text></Text>
+              <Text>
+                Create: <Text bold>[N]</Text>
+              </Text>
               <Box flexGrow={1} />
               <Text>
-                Edit: <Text bold>[E]</Text> Delete: <Text bold>[D]</Text>{" "}
-                Toggle: <Text bold>[A]</Text>
+                Edit: <Text bold>[E]</Text> Delete: <Text bold>[D]</Text> Toggle:{" "}
+                <Text bold>[A]</Text>
               </Text>
             </Box>
           </Show>
 
           <Show when={view() === "requests"}>
-            <Box
-              flexDirection="row"
-              padding={1}
-              backgroundColor={palette.bgSecondary}
-            >
+            <Box flexDirection="row" padding={1} backgroundColor={palette.bgSecondary}>
               <Box flexGrow={1}>
                 <Text bold>Pending Requests</Text>
-                <Text fontSize={2}>
-                  {requests().filter((r) => r.status === "pending").length}
-                </Text>
+                <Text fontSize={2}>{requests().filter(r => r.status === "pending").length}</Text>
               </Box>
               <Box flexGrow={1}>
                 <Text bold>Approved Today</Text>
                 <Text fontSize={2} color={palette.success}>
-                  {
-                    requests().filter(
-                      (r) => r.status === "approved"
-                    ).length
-                  }
+                  {requests().filter(r => r.status === "approved").length}
                 </Text>
               </Box>
               <Box flexGrow={1}>
                 <Text bold>Denied Today</Text>
                 <Text fontSize={2} color={palette.error}>
-                  {
-                    requests().filter(
-                      (r) => r.status === "denied"
-                    ).length
-                  }
+                  {requests().filter(r => r.status === "denied").length}
                 </Text>
               </Box>
             </Box>
 
-            <Box padding={1} marginTop={1} backgroundColor={palette.background}>
+            <Box padding={1} marginTop={1} backgroundColor={palette.bgPrimary}>
               <Text bold>Approval Requests</Text>
             </Box>
 
@@ -508,29 +495,20 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
               flexDirection="column"
               flexGrow={1}
               padding={1}
-              backgroundColor={palette.background}
+              backgroundColor={palette.bgPrimary}
             >
               <For each={requests()}>
                 {(request, index) => (
                   <Box
                     flexDirection="row"
                     padding={0.5}
-                    backgroundColor={
-                      index() === selectedIndex()
-                        ? palette.bgSelected
-                        : undefined
-                    }
+                    backgroundColor={index() === selectedIndex() ? palette.bgSelected : undefined}
                     onClick={() => setSelectedIndex(index())}
                   >
                     <Text width={25}>{request.agentName}</Text>
-                    <Text width={20}>
-                      {getActionTypeLabel(request.actionType)}
-                    </Text>
+                    <Text width={20}>{getActionTypeLabel(request.actionType)}</Text>
                     <Text width={20}>{request.tool}</Text>
-                    <Text
-                      width={15}
-                      color={getRequestStatusColor(request.status)}
-                    >
+                    <Text width={15} color={getRequestStatusColor(request.status)}>
                       {getRequestStatusLabel(request.status)}
                     </Text>
                     <Text width={20}>{request.timestamp}</Text>
@@ -559,9 +537,7 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
 
               <Show when={requests().length === 0}>
                 <Box padding={2} textAlign="center">
-                  <Text color={palette.dim}>
-                    No pending requests.
-                  </Text>
+                  <Text color={palette.dim}>No pending requests.</Text>
                 </Box>
               </Show>
             </Box>
@@ -572,9 +548,13 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
               marginTop={1}
               backgroundColor={palette.bgSecondary}
             >
-              <Text>Review: <Text bold>[R]</Text></Text>
+              <Text>
+                Review: <Text bold>[R]</Text>
+              </Text>
               <Box flexGrow={1} />
-              <Text>Approve: <Text bold>✓</Text> Deny: <Text bold>✗</Text></Text>
+              <Text>
+                Approve: <Text bold>✓</Text> Deny: <Text bold>✗</Text>
+              </Text>
             </Box>
           </Show>
         </Box>
@@ -585,27 +565,34 @@ export default function PolicyApprovals(props: PolicyApprovalsProps) {
 
 const Box: any = (props: any) => props.children;
 const Text: any = (props: any) => {
-  const content = typeof props.children === "string" ? props.children : props.children?.join?.("") || "";
+  const content =
+    typeof props.children === "string" ? props.children : props.children?.join?.("") || "";
   return <span style={props}>{content}</span>;
 };
-const TextInput: any = (props: any) => (
-  <input
-    type={props.multiline ? "textarea" : "text"}
-    value={props.value}
-    onInput={props.onInput}
-    placeholder={props.placeholder}
-    style={{
-      width: "100%",
-      padding: "0.5",
-      backgroundColor: palette.bgSecondary,
-      border: `1px solid ${palette.border}`,
-      color: palette.text,
-      ...props.style,
-    }}
-  />
-);
+const NativeInput: any = "input";
+const NativeTextarea: any = "textarea";
+const NativeSelect: any = "select";
+const TextInput: any = (props: any) => {
+  const Component = props.multiline ? NativeTextarea : NativeInput;
+  return (
+    <Component
+      {...(props.multiline ? {} : { type: "text" })}
+      value={props.value}
+      onInput={props.onInput}
+      placeholder={props.placeholder}
+      style={{
+        width: "100%",
+        padding: "0.5",
+        backgroundColor: palette.bgSecondary,
+        border: `1px solid ${palette.border}`,
+        color: palette.text,
+        ...props.style,
+      }}
+    />
+  );
+};
 const Select: any = (props: any) => (
-  <select
+  <NativeSelect
     value={props.value}
     onChange={props.onChange}
     style={{
@@ -618,15 +605,15 @@ const Select: any = (props: any) => (
     }}
   >
     {props.children}
-  </select>
+  </NativeSelect>
 );
 const Button: any = (props: any) => (
   <button
     onClick={props.onClick}
     style={{
       padding: "0.5 1",
-      backgroundColor: props.style?.backgroundColor || palette.primary,
-      color: palette.background,
+      backgroundColor: props.style?.backgroundColor || palette.accent,
+      color: palette.bgPrimary,
       border: "none",
       cursor: "pointer",
       ...props.style,

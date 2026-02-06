@@ -5,54 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
 	"pryx-core/internal/skills"
 )
-
-type skillsConfig struct {
-	EnabledSkills map[string]bool `json:"enabled_skills"`
-}
-
-func loadSkillsConfig(path string) (*skillsConfig, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return &skillsConfig{EnabledSkills: map[string]bool{}}, nil
-		}
-		return nil, err
-	}
-
-	var cfg skillsConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return nil, err
-	}
-	if cfg.EnabledSkills == nil {
-		cfg.EnabledSkills = map[string]bool{}
-	}
-	return &cfg, nil
-}
-
-func saveSkillsConfig(path string, cfg *skillsConfig) error {
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0o644)
-}
-
-func configPath() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return filepath.Join(".pryx", "skills.yaml")
-	}
-	return filepath.Join(home, ".pryx", "skills.yaml")
-}
 
 func runList(args []string) int {
 	eligibleOnly := false
@@ -197,8 +154,8 @@ func runEnableDisable(name string, enable bool) int {
 		return 1
 	}
 
-	path := configPath()
-	cfg, err := loadSkillsConfig(path)
+	path := skills.EnabledConfigPath()
+	cfg, err := skills.LoadEnabledConfig(path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to load skills config: %v\n", err)
 		return 1
@@ -209,7 +166,7 @@ func runEnableDisable(name string, enable bool) int {
 	} else {
 		delete(cfg.EnabledSkills, name)
 	}
-	if err := saveSkillsConfig(path, cfg); err != nil {
+	if err := skills.SaveEnabledConfig(path, cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to save skills config: %v\n", err)
 		return 1
 	}

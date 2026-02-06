@@ -1,38 +1,363 @@
-// Package server provides the HTTP server and WebSocket handlers for the Pryx runtime.
-// It handles REST API endpoints, WebSocket connections, and serves as the main interface
-// for clients like the TUI and host application.
 package server
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
-	"github.com/go-chi/chi/v5"
+	"pryx-core/internal/auth"
+	"pryx-core/internal/config"
+	"pryx-core/internal/memory"
 	"pryx-core/internal/skills"
 	"pryx-core/internal/validation"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/zalando/go-keyring"
 )
 
 // handleHealth returns a simple health check response.
-// Returns HTTP 200 with "OK" body if the server is running.
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
+	s.cfgMu.RLock()
+	activeProvider := strings.TrimSpace(s.cfg.ModelProvider)
+	ollamaEndpoint := strings.TrimSpace(s.cfg.OllamaEndpoint)
+	s.cfgMu.RUnlock()
+
+	configuredProviders := []string{}
+	configuredProvidersSet := map[string]struct{}{}
+	appendConfiguredProvider := func(providerID string) {
+		if providerID == "" {
+			return
+		}
+		if _, ok := configuredProvidersSet[providerID]; ok {
+			return
+		}
+		configuredProvidersSet[providerID] = struct{}{}
+		configuredProviders = append(configuredProviders, providerID)
+	}
+	cloudLoggedIn := false
+	if s.keychain != nil {
+		if token, err := s.keychain.Get("cloud_access_token"); err == nil && strings.TrimSpace(token) != "" {
+			cloudLoggedIn = true
+		}
+	}
+
+	switch activeProvider {
+	case "":
+	case "ollama":
+		if ollamaEndpoint != "" {
+			appendConfiguredProvider("ollama")
+		}
+	default:
+		if s.keychain != nil {
+			if key, err := s.keychain.GetProviderKey(activeProvider); err == nil && strings.TrimSpace(key) != "" {
+				appendConfiguredProvider(activeProvider)
+			}
+			if activeProvider == "google" {
+				if token, err := s.keychain.Get("oauth_google_access"); err == nil && strings.TrimSpace(token) != "" {
+					appendConfiguredProvider(activeProvider)
+				}
+			}
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"status":          "ok",
+		"providers":       configuredProviders,
+		"cloud_logged_in": cloudLoggedIn,
+	})
+}
+
+func (s *Server) handleCloudStatus(w http.ResponseWriter, r *http.Request) {
+	if s.keychain == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "keychain not available"})
+		return
+	}
+
+	token, err := s.keychain.Get("cloud_access_token")
+	if err != nil {
+		token = ""
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"logged_in": strings.TrimSpace(token) != "",
+	})
+}
+
+func (s *Server) handleCloudLoginStart(w http.ResponseWriter, r *http.Request) {
+	s.cfgMu.RLock()
+	apiUrl := strings.TrimSpace(s.cfg.CloudAPIUrl)
+	s.cfgMu.RUnlock()
+	if apiUrl == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "missing cloud api url"})
+		return
+	}
+
+	// Use PKCE-enabled device flow for enhanced security (RFC 7636)
+	res, pkce, err := auth.StartDeviceFlowWithPKCE(apiUrl)
+	if err != nil {
+		w.WriteHeader(http.StatusBadGateway)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+		return
+	}
+
+	// Store PKCE parameters temporarily (they'll be used during polling)
+	// In production, store in session or encrypted cookie
+	s.mu.Lock()
+	if s.pkceParams == nil {
+		s.pkceParams = make(map[string]pkceEntry)
+	}
+	expiresInSeconds := res.ExpiresIn
+	if expiresInSeconds <= 0 || expiresInSeconds > 1800 {
+		expiresInSeconds = 600
+	}
+	s.pkceParams[res.DeviceCode] = pkceEntry{
+		params:    pkce,
+		expiresAt: time.Now().Add(time.Duration(expiresInSeconds) * time.Second),
+	}
+	s.mu.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(res)
+}
+
+type cloudLoginPollRequest struct {
+	DeviceCode string `json:"device_code"`
+	Interval   int    `json:"interval"`
+	ExpiresIn  int    `json:"expires_in"`
+}
+
+func (s *Server) handleCloudLoginPoll(w http.ResponseWriter, r *http.Request) {
+	if s.keychain == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "keychain not available"})
+		return
+	}
+
+	s.cfgMu.RLock()
+	apiUrl := strings.TrimSpace(s.cfg.CloudAPIUrl)
+	s.cfgMu.RUnlock()
+	if apiUrl == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "missing cloud api url"})
+		return
+	}
+
+	req := cloudLoginPollRequest{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "invalid json body"})
+		return
+	}
+	deviceCode := strings.TrimSpace(req.DeviceCode)
+	if deviceCode == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "missing device_code"})
+		return
+	}
+
+	timeoutSeconds := req.ExpiresIn
+	if timeoutSeconds <= 0 || timeoutSeconds > 1800 {
+		timeoutSeconds = 600
+	}
+
+	var entry pkceEntry
+	var hasEntry bool
+	now := time.Now()
+	s.mu.Lock()
+	if s.pkceParams != nil {
+		if e, ok := s.pkceParams[deviceCode]; ok {
+			if !e.expiresAt.IsZero() && now.After(e.expiresAt) {
+				delete(s.pkceParams, deviceCode)
+			} else {
+				entry = e
+				hasEntry = e.params != nil
+			}
+		}
+	}
+	s.mu.Unlock()
+
+	if hasEntry && !entry.expiresAt.IsZero() {
+		until := time.Until(entry.expiresAt)
+		if until <= 0 {
+			w.WriteHeader(http.StatusRequestTimeout)
+			_ = json.NewEncoder(w).Encode(map[string]any{"error": "login timed out"})
+			return
+		}
+		untilSeconds := int(until.Seconds())
+		if untilSeconds > 0 && untilSeconds < timeoutSeconds {
+			timeoutSeconds = untilSeconds
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(timeoutSeconds)*time.Second)
+	defer cancel()
+
+	var token *auth.TokenResponse
+	var err error
+
+	if hasEntry {
+		// Use PKCE-enabled polling
+		token, err = auth.PollForTokenWithPKCE(ctx, apiUrl, deviceCode, req.Interval, entry.params.CodeVerifier)
+	} else {
+		// Fallback to legacy polling (for backwards compatibility)
+		token, err = auth.PollForTokenWithContext(ctx, apiUrl, deviceCode, req.Interval)
+	}
+
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			w.WriteHeader(http.StatusRequestTimeout)
+			_ = json.NewEncoder(w).Encode(map[string]any{"error": "login timed out"})
+			return
+		}
+		w.WriteHeader(http.StatusBadGateway)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+		return
+	}
+
+	if err := s.keychain.Set("cloud_access_token", token.AccessToken); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "failed to store token"})
+		return
+	}
+
+	if hasEntry {
+		s.mu.Lock()
+		if s.pkceParams != nil {
+			delete(s.pkceParams, deviceCode)
+		}
+		s.mu.Unlock()
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
+}
+
+func (s *Server) handleConfigGet(w http.ResponseWriter, r *http.Request) {
+	s.cfgMu.RLock()
+	modelProvider := strings.TrimSpace(s.cfg.ModelProvider)
+	modelName := strings.TrimSpace(s.cfg.ModelName)
+	ollamaEndpoint := strings.TrimSpace(s.cfg.OllamaEndpoint)
+	s.cfgMu.RUnlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"model_provider":  modelProvider,
+		"model_name":      modelName,
+		"ollama_endpoint": ollamaEndpoint,
+	})
+}
+
+type configPatchRequest struct {
+	ModelProvider  *string `json:"model_provider"`
+	ModelName      *string `json:"model_name"`
+	OllamaEndpoint *string `json:"ollama_endpoint"`
+}
+
+func (s *Server) handleConfigPatch(w http.ResponseWriter, r *http.Request) {
+	req := configPatchRequest{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "invalid json body"})
+		return
+	}
+
+	validator := validation.NewValidator()
+
+	var nextProvider *string
+	if req.ModelProvider != nil {
+		p := strings.TrimSpace(*req.ModelProvider)
+		if err := validator.ValidateID("model_provider", p); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+			return
+		}
+		if !s.providerExists(p) {
+			w.WriteHeader(http.StatusNotFound)
+			_ = json.NewEncoder(w).Encode(map[string]any{"error": "provider not found"})
+			return
+		}
+		nextProvider = &p
+	}
+
+	var nextModelName *string
+	if req.ModelName != nil {
+		m := strings.TrimSpace(*req.ModelName)
+		if m != "" {
+			if err := validator.ValidateString("model_name", m, validation.MaxLength(256), validation.AllowEmpty(false)); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+				return
+			}
+		}
+		nextModelName = &m
+	}
+
+	var nextOllama *string
+	if req.OllamaEndpoint != nil {
+		raw := strings.TrimSpace(*req.OllamaEndpoint)
+		if raw != "" {
+			u, err := url.Parse(raw)
+			if err != nil || u.Scheme == "" || u.Host == "" {
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(map[string]any{"error": "ollama_endpoint: invalid URL"})
+				return
+			}
+			if u.Scheme != "http" && u.Scheme != "https" {
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(map[string]any{"error": "ollama_endpoint: only http and https allowed"})
+				return
+			}
+		}
+		nextOllama = &raw
+	}
+
+	s.cfgMu.Lock()
+	if nextProvider != nil {
+		s.cfg.ModelProvider = *nextProvider
+	}
+	if nextModelName != nil {
+		s.cfg.ModelName = *nextModelName
+	}
+	if nextOllama != nil {
+		s.cfg.OllamaEndpoint = *nextOllama
+	}
+
+	nextCfg := *s.cfg
+	s.cfgMu.Unlock()
+
+	if err := nextCfg.Save(config.DefaultPath()); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "failed to save config"})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"ok": true,
+	})
 }
 
 // handleMCPTools returns the list of available MCP tools.
-// Supports a "refresh" query parameter to force reloading tools from MCP servers.
 func (s *Server) handleMCPTools(w http.ResponseWriter, r *http.Request) {
 	refresh := strings.TrimSpace(r.URL.Query().Get("refresh")) == "1"
 	tools, err := s.mcp.ListToolsFlat(r.Context(), refresh)
 	if err != nil {
 		w.WriteHeader(http.StatusBadGateway)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"error": err.Error(),
 		})
 		return
 	}
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]any{
 		"tools": tools,
 	})
 }
@@ -45,12 +370,11 @@ type mcpCallRequest struct {
 }
 
 // handleMCPCall executes an MCP tool call.
-// Validates the request, calls the tool, and returns the result.
 func (s *Server) handleMCPCall(w http.ResponseWriter, r *http.Request) {
 	req := mcpCallRequest{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"error": "invalid json body",
 		})
 		return
@@ -60,7 +384,7 @@ func (s *Server) handleMCPCall(w http.ResponseWriter, r *http.Request) {
 
 	if err := validator.ValidateSessionID(req.SessionID); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"error": err.Error(),
 		})
 		return
@@ -68,7 +392,7 @@ func (s *Server) handleMCPCall(w http.ResponseWriter, r *http.Request) {
 
 	if err := validator.ValidateToolName(req.Tool); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"error": err.Error(),
 		})
 		return
@@ -80,7 +404,7 @@ func (s *Server) handleMCPCall(w http.ResponseWriter, r *http.Request) {
 
 	if err := validator.ValidateMap("arguments", req.Arguments); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"error": err.Error(),
 		})
 		return
@@ -89,7 +413,7 @@ func (s *Server) handleMCPCall(w http.ResponseWriter, r *http.Request) {
 	res, err := s.mcp.CallTool(r.Context(), strings.TrimSpace(req.SessionID), req.Tool, req.Arguments)
 	if err != nil {
 		w.WriteHeader(http.StatusBadGateway)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"error": err.Error(),
 		})
 		return
@@ -185,6 +509,220 @@ func (s *Server) handleSkillsBody(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+type skillActionRequest struct {
+	ID string `json:"id"`
+}
+
+func (s *Server) handleSkillsEnable(w http.ResponseWriter, r *http.Request) {
+	req := skillActionRequest{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "invalid json body"})
+		return
+	}
+	id := strings.TrimSpace(req.ID)
+
+	validator := validation.NewValidator()
+	if err := validator.ValidateID("id", id); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+		return
+	}
+
+	reg := s.skills
+	if reg == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "skills registry not available"})
+		return
+	}
+	if _, ok := reg.Get(id); !ok {
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "not found"})
+		return
+	}
+
+	configPath := skills.EnabledConfigPath()
+	enabledCfg, err := skills.LoadEnabledConfig(configPath)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+		return
+	}
+
+	enabledCfg.EnabledSkills[id] = true
+	if err := skills.SaveEnabledConfig(configPath, enabledCfg); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+		return
+	}
+
+	reg.Enable(id)
+
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
+}
+
+func (s *Server) handleSkillsDisable(w http.ResponseWriter, r *http.Request) {
+	req := skillActionRequest{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "invalid json body"})
+		return
+	}
+	id := strings.TrimSpace(req.ID)
+
+	validator := validation.NewValidator()
+	if err := validator.ValidateID("id", id); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+		return
+	}
+
+	reg := s.skills
+	if reg == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "skills registry not available"})
+		return
+	}
+	if _, ok := reg.Get(id); !ok {
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "not found"})
+		return
+	}
+
+	configPath := skills.EnabledConfigPath()
+	enabledCfg, err := skills.LoadEnabledConfig(configPath)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+		return
+	}
+
+	delete(enabledCfg.EnabledSkills, id)
+	if err := skills.SaveEnabledConfig(configPath, enabledCfg); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+		return
+	}
+
+	reg.Disable(id)
+
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
+}
+
+func (s *Server) handleSkillsInstall(w http.ResponseWriter, r *http.Request) {
+	req := skillActionRequest{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "invalid json body"})
+		return
+	}
+	id := strings.TrimSpace(req.ID)
+	if id == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "id is required"})
+		return
+	}
+
+	reg := s.skills
+	if reg == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "skills registry not available"})
+		return
+	}
+
+	if existing, ok := reg.Get(id); ok {
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "skill": existing})
+		return
+	}
+
+	if strings.HasPrefix(id, "http://") || strings.HasPrefix(id, "https://") {
+		opts := skills.DefaultOptions()
+		res, err := skills.InstallFromURL(r.Context(), id, opts)
+		if err != nil {
+			w.WriteHeader(http.StatusBadGateway)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+			return
+		}
+
+		reg.Upsert(res.Skill)
+
+		configPath := skills.EnabledConfigPath()
+		enabledCfg, err := skills.LoadEnabledConfig(configPath)
+		if err == nil {
+			enabledCfg.EnabledSkills[res.Skill.ID] = true
+			_ = skills.SaveEnabledConfig(configPath, enabledCfg)
+			reg.Enable(res.Skill.ID)
+		}
+
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "skill": res.Skill})
+		return
+	}
+
+	validator := validation.NewValidator()
+	if err := validator.ValidateID("id", id); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+		return
+	}
+
+	w.WriteHeader(http.StatusNotFound)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "not found"})
+}
+
+func (s *Server) handleSkillsUninstall(w http.ResponseWriter, r *http.Request) {
+	req := skillActionRequest{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "invalid json body"})
+		return
+	}
+	id := strings.TrimSpace(req.ID)
+
+	validator := validation.NewValidator()
+	if err := validator.ValidateID("id", id); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+		return
+	}
+
+	reg := s.skills
+	if reg == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "skills registry not available"})
+		return
+	}
+	skill, ok := reg.Get(id)
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "not found"})
+		return
+	}
+
+	if skill.Source != skills.SourceRemote && skill.Source != skills.SourceManaged {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "cannot uninstall non-managed skill"})
+		return
+	}
+
+	opts := skills.DefaultOptions()
+	if err := skills.UninstallSkill(id, opts); err != nil {
+		w.WriteHeader(http.StatusBadGateway)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+		return
+	}
+
+	reg.Delete(id)
+
+	configPath := skills.EnabledConfigPath()
+	enabledCfg, err := skills.LoadEnabledConfig(configPath)
+	if err == nil {
+		delete(enabledCfg.EnabledSkills, id)
+		_ = skills.SaveEnabledConfig(configPath, enabledCfg)
+	}
+
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
+}
+
 // handleProvidersList returns the list of available LLM providers.
 func (s *Server) handleProvidersList(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -275,6 +813,149 @@ func (s *Server) handleProviderModels(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(map[string]string{"error": "provider not found"})
 	}
+}
+
+func (s *Server) handleProviderKeyStatus(w http.ResponseWriter, r *http.Request) {
+	providerID := strings.TrimSpace(chi.URLParam(r, "id"))
+
+	validator := validation.NewValidator()
+	if err := validator.ValidateID("id", providerID); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	if !s.providerExists(providerID) {
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "provider not found"})
+		return
+	}
+
+	if s.keychain == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{"error": "keychain not available"})
+		return
+	}
+
+	key, err := s.keychain.GetProviderKey(providerID)
+	if err != nil && !isKeyNotFound(err) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to read key"})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"provider_id": providerID,
+		"configured":  strings.TrimSpace(key) != "",
+	})
+}
+
+func (s *Server) handleProviderKeySet(w http.ResponseWriter, r *http.Request) {
+	providerID := strings.TrimSpace(chi.URLParam(r, "id"))
+
+	validator := validation.NewValidator()
+	if err := validator.ValidateID("id", providerID); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	if !s.providerExists(providerID) {
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "provider not found"})
+		return
+	}
+
+	if s.keychain == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{"error": "keychain not available"})
+		return
+	}
+
+	var req struct {
+		APIKey string `json:"api_key"`
+		Key    string `json:"key"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request body"})
+		return
+	}
+
+	key := strings.TrimSpace(req.APIKey)
+	if key == "" {
+		key = strings.TrimSpace(req.Key)
+	}
+	if err := validator.ValidateRequired("api_key", key); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	if err := s.keychain.SetProviderKey(providerID, key); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to store key"})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"ok":          true,
+		"provider_id": providerID,
+	})
+}
+
+func (s *Server) handleProviderKeyDelete(w http.ResponseWriter, r *http.Request) {
+	providerID := strings.TrimSpace(chi.URLParam(r, "id"))
+
+	validator := validation.NewValidator()
+	if err := validator.ValidateID("id", providerID); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	if !s.providerExists(providerID) {
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "provider not found"})
+		return
+	}
+
+	if s.keychain == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{"error": "keychain not available"})
+		return
+	}
+
+	if err := s.keychain.DeleteProviderKey(providerID); err != nil && !isKeyNotFound(err) {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to delete key"})
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) providerExists(providerID string) bool {
+	if s.catalog != nil {
+		_, ok := s.catalog.Providers[providerID]
+		return ok
+	}
+
+	switch providerID {
+	case "openai", "anthropic", "google", "ollama":
+		return true
+	default:
+		return false
+	}
+}
+
+func isKeyNotFound(err error) bool {
+	if errors.Is(err, keyring.ErrNotFound) {
+		return true
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "not found")
 }
 
 // handleModelsList returns the list of all available LLM models.
@@ -437,5 +1118,161 @@ func (s *Server) handleSessionFork(w http.ResponseWriter, r *http.Request) {
 		"id":                newSessionID,
 		"source_session_id": req.SourceSessionID,
 		"new_session_id":    newSessionID,
+	})
+}
+
+// === Memory API Handlers ===
+
+// handleMemoryList returns a list of memory entries
+func (s *Server) handleMemoryList(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if s.ragMemory == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{"error": "memory system not available"})
+		return
+	}
+
+	memType := r.URL.Query().Get("type")
+	date := r.URL.Query().Get("date")
+	limit := 100
+
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if n, err := strconv.Atoi(l); err == nil && n > 0 {
+			limit = n
+		}
+	}
+
+	opts := memory.SearchOptions{
+		Type:  memory.MemoryType(memType),
+		Date:  date,
+		Limit: limit,
+	}
+
+	entries, err := s.ragMemory.List(opts)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"entries": entries,
+		"count":   len(entries),
+	})
+}
+
+// handleMemoryWrite writes a new memory entry
+func (s *Server) handleMemoryWrite(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if s.ragMemory == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{"error": "memory system not available"})
+		return
+	}
+
+	var req struct {
+		Type    string                `json:"type"`
+		Content string                `json:"content"`
+		Date    string                `json:"date,omitempty"`
+		Sources []memory.MemorySource `json:"sources,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request body"})
+		return
+	}
+
+	if req.Content == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "content is required"})
+		return
+	}
+
+	var entryID string
+	var err error
+
+	switch req.Type {
+	case "daily":
+		entryID, err = s.ragMemory.WriteDaily(req.Content, req.Sources)
+	case "longterm":
+		entryID, err = s.ragMemory.WriteLongterm(req.Content, req.Sources)
+	default:
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid type, must be 'daily' or 'longterm'"})
+		return
+	}
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"id":      entryID,
+		"type":    req.Type,
+		"content": req.Content,
+	})
+}
+
+// handleMemorySearch searches memory entries
+func (s *Server) handleMemorySearch(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if s.ragMemory == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{"error": "memory system not available"})
+		return
+	}
+
+	var req struct {
+		Query         string `json:"query"`
+		Type          string `json:"type,omitempty"`
+		Limit         int    `json:"limit,omitempty"`
+		IncludeFTS    bool   `json:"include_fts,omitempty"`
+		IncludeVector bool   `json:"include_vector,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request body"})
+		return
+	}
+
+	if req.Query == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "query is required"})
+		return
+	}
+
+	if req.Limit <= 0 {
+		req.Limit = 10
+	}
+	if req.Limit > 100 {
+		req.Limit = 100
+	}
+
+	opts := memory.SearchOptions{
+		Type:          memory.MemoryType(req.Type),
+		Limit:         req.Limit,
+		IncludeFTS:    req.IncludeFTS || true,
+		IncludeVector: req.IncludeVector,
+	}
+
+	results, err := s.ragMemory.Search(r.Context(), req.Query, opts)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"query":   req.Query,
+		"results": results,
+		"count":   len(results),
 	})
 }

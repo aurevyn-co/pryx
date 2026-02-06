@@ -11,6 +11,7 @@ export interface AppConfig {
   model_name?: string;
   openai_key?: string;
   anthropic_key?: string;
+  google_key?: string;
   ollama_endpoint?: string;
   telegram_token?: string;
   telegram_enabled?: boolean;
@@ -46,7 +47,7 @@ export interface ConfigService {
 
 export const ConfigService = Context.GenericTag<ConfigService>("@pryx/tui/ConfigService");
 
-const makeConfigService = Effect.gen(function* () {
+const makeConfigService = Effect.sync(() => {
   const load = Effect.gen(function* () {
     const result = yield* Effect.try({
       try: () => {

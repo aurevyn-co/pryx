@@ -10,7 +10,7 @@
 
 > **Sovereign AI agent with local-first control center**
 
-Pryx is a second-generation AI agent platform that combines the power of local-first control with the polish of a modern desktop application. Replace fragile CLI + config-file assistants with a first-class UI, secure permission gating, and transparent observability—without sacrificing data sovereignty.
+Pryx is a second-generation autonomous agent platform: local-first, sovereign, and secure. It is a unified control center available via TUI, CLI, local web, channels, and Pryx Cloud, with explicit approvals for sensitive actions and clear observability without sacrificing data sovereignty or privacy.
 
 ---
 
@@ -67,6 +67,9 @@ winget install pryx
 - **Slack** - Connect to Slack channels and DMs
 - **Webhooks** - Integrate with any HTTP endpoint
 
+### Any MCP & Skills
+- integration with any MCP and Skills as you needs
+
 ### 🔌 84+ AI Providers
 Dynamic integration via [models.dev](https://models.dev) supporting:
 - OpenAI, Anthropic, Google, xAI
@@ -82,10 +85,11 @@ Full list: `pryx provider list --available`
 - **Human-in-the-Loop Approvals** - Explicit approval for sensitive operations
 - **Comprehensive Audit Logging** - Every action traceable
 
-### 🎛️ Rich Terminal UI
-- **Provider Management** - Add, configure, and test providers
-- **Channel Configuration** - Set up Telegram, Discord, Slack
+### 🎛️ Rich Terminal UI via CLI - TUI - Desktop Apps - Any Channel You Want
+- **Provider Management** - Add, configure, and test providers of any compatible AI models
+- **Channel Configuration** - Set up Telegram, Discord, Slack, Webhooks, and more
 - **MCP Tool Management** - Discover and manage Model Context Protocol servers
+- **Skill Management** - Add, configure, and test skills of any compatible MCP tools
 - **Session Explorer** - Browse and resume conversations
 - **Settings & Configuration** - All settings in one place
 
@@ -94,6 +98,8 @@ Full list: `pryx provider list --available`
 - **Policy Engine** - Define approval rules for sensitive operations
 - **Skills System** - Extensible capabilities via MCP tools
 - **Natural Language Parser** - Intent recognition and command parsing
+- **Context Management** - Maintain conversation context for multi-turn interactions
+- **Cron Job Scheduler** - Schedule tasks with cron expressions
 
 ### 📊 Observability
 - **Cost Tracking** - Monitor token usage and costs across all providers
@@ -105,6 +111,10 @@ Full list: `pryx provider list --available`
 - **Pryx Mesh** - Secure sync across devices
 - **Device Pairing** - QR code or 6-digit code pairing
 - **WebSocket Mesh** - Real-time coordination without cloud dependency
+
+### Memory
+- **Long-Term Memory** - Store and retrieve information over sessions
+- **Short-Term Memory** - Contextual understanding for current conversations
 
 ---
 
@@ -244,49 +254,66 @@ pryx provider test openai
 Pryx uses a **polyglot architecture** designed for performance, security, and extensibility:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         User Interface                      │
-│  ┌─────────────┐  ┌─────────────┐  ┌──────────────────┐  │
-│  │ TUI (Solid) │  │   Host      │  │   Web App        │  │
-│  │ TypeScript  │  │ (Rust/Tauri)│  │   (Planned)      │  │
-│  └─────────────┘  └─────────────┘  └──────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                        Desktop Host (Rust + Tauri)                   │
+│  Port: 42424                                                         │
+│  • HTTP server (axum)                                                │
+│  • WebSocket for real-time TUI communication                         │
+│  • Local web UI admin panel (apps/local-web/)                        │
+│  • Go runtime sidecar management                                    │
+│  • Native dialogs & system tray                                      │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                    Sidecar (Go Runtime)
                               │
                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                     Runtime (Go)                          │
-│  ┌──────────┐ ┌──────────┐ ┌─────────┐ ┌──────────────┐ │
-│  │  Agent   │ │ Channels │ │  Vault  │ │     MCP      │ │
-│  │ Runtime  │ │Manager   │ │         │ │ Integration  │ │
-│  └──────────┘ └──────────┘ └─────────┘ └──────────────┘ │
-│                                                               │
-│  HTTP API + WebSocket + Event Bus                              │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                     Runtime (Go)                                     │
+│  • Agent execution & orchestration                                   │
+│  • HTTP API + WebSocket server                                      │
+│  • 84+ AI providers (models.dev)                                    │
+│  • Channels (Telegram, Discord, Slack, Webhooks)                     │
+│  • MCP integration                                                   │
+│  • Memory & RAG                                                      │
+│  • Vault (Argon2id encryption)                                      │
+└─────────────────────────────────────────────────────────────────────┘
                               │
                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      Data Storage                          │
-│  ┌──────────┐ ┌──────────┐ ┌─────────────┐              │
-│  │   DB     │ │Keychain  │ │ File System │              │
-│  │(SQLite)  │ │ (OS)     │ │             │              │
-│  └──────────┘ └──────────┘ └─────────────┘              │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                      Data Storage                                    │
+│  • SQLite database                                                   │
+│  • OS Keychain (credentials)                                         │
+│  • File system (sessions, logs)                                     │
+└─────────────────────────────────────────────────────────────────────┘
 ```
+
+### Local Web Admin UI
+
+Access the local admin panel at **http://localhost:42424** when running in desktop mode:
+
+- **Dashboard** - Overview of agent status, recent sessions, and cost tracking
+- **Providers** - Configure AI providers (OpenAI, Anthropic, etc.)
+- **Channels** - Set up Telegram, Discord, Slack integrations
+- **MCP Tools** - Manage Model Context Protocol servers
+- **Sessions** - Browse and resume conversations
+- **Settings** - Configure preferences and permissions
 
 ### Key Design Principles
 
 1. **Local-First by Default** - All data stays on your device unless explicitly enabled for sync
 2. **Sovereign Security** - Keys stored in OS keychain, not plaintext files
 3. **Sidecar Architecture** - UI and runtime are separate processes for crash isolation
-4. **Extensible via MCP** - Add tools without rebuilding the host
-5. **Observable** - Every action is traceable with comprehensive audit logs
+4. **Port 42424** - Unified port for all desktop host services (HTTP, WebSocket, static files)
+5. **Extensible via MCP** - Add tools without rebuilding the host
+6. **Observable** - Every action is traceable with comprehensive audit logs
 
 ### Technology Stack
 
 | Component | Technology | Purpose |
 |-----------|------------|---------|
-| **Host** | Rust + Tauri v2 | Desktop wrapper, native dialogs, system tray |
-| **Runtime** | Go 1.24+ | Agent execution, HTTP API, WebSocket, channels |
+| **Host** | Rust + Tauri v2 | Desktop wrapper, HTTP/WebSocket server (port 42424), native dialogs |
+| **Runtime** | Go 1.24+ | Agent execution, AI providers, channels, MCP integration |
+| **Local Web** | React + TypeScript + Vite | Admin UI served by host on port 42424 |
 | **TUI** | TypeScript + Solid + OpenTUI | Terminal interface, keyboard-driven workflow |
 | **Vault** | Argon2id + OS Keychain | Secure credential storage with scope-based access |
 | **Channels** | Go native clients | Telegram, Discord, Slack, webhook integrations |
@@ -340,42 +367,47 @@ pryx doctor
 **Symptom:** TUI shows "Disconnected" or "Runtime Error"
 
 **Solutions:**
-1. Check if runtime is running:
-   ```bash
-   curl http://localhost:3000/health
-   ```
+1. Check if host is running:
+    ```bash
+    curl http://localhost:42424/health
+    ```
 
-2. Start runtime manually:
-   ```bash
-   pryx runtime
-   ```
+2. Start desktop host (automatically starts runtime sidecar):
+    ```bash
+    pryx
+    ```
 
 3. Check port file:
-   ```bash
-   cat ~/.pryx/runtime.port
-   ```
+    ```bash
+    cat ~/.pryx/runtime.port
+    ```
 
-4. Use explicit port:
-   ```bash
-   export PRYX_WS_URL=ws://localhost:3000/ws
-   pryx
-   ```
+4. Use explicit WebSocket URL:
+    ```bash
+    export PRYX_WS_URL=ws://localhost:42424/ws
+    pryx
+    ```
 
-### Port Already in Use
+### Port Already in Use (42424)
 
-**Symptom:** "Address already in use" error
+**Symptom:** "Address already in use" error on port 42424
 
 **Solutions:**
 1. Find the process:
-   ```bash
-   lsof -i :3000
-   ```
+    ```bash
+    lsof -i :42424
+    ```
 
-2. Kill the process or use different port:
-   ```bash
-   export PRYX_RUNTIME_PORT=8080
-   pryx runtime
-   ```
+2. Kill the process:
+    ```bash
+    kill <PID>
+    ```
+
+3. Or configure different port:
+    ```bash
+    export PRYX_HOST_PORT=42425
+    pryx
+    ```
 
 ### Provider Connection Failed
 
@@ -526,7 +558,7 @@ make check
 - **[Architecture](docs/architecture/)** - Technical architecture and design
 - **[API Reference](docs/api/)** - Runtime HTTP API documentation
 - **[Security](docs/security/)** - Security audit and best practices
-- **[Testing](docs/TESTING.md)** - Test strategy and coverage
+- **[Testing](docs/testing/TESTING.md)** - Test strategy and coverage
 - **[Build System](BUILD_SYSTEM.md)** - Build and tooling guide
 
 ---
@@ -583,6 +615,6 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-**Made with ❤️ by the Pryx Team**
+**Made with ❤️ by the [irfndi/pryx](https://github.com/irfndi/pryx) & Pryx Community**
 
 *Take control of your AI. Be sovereign.*

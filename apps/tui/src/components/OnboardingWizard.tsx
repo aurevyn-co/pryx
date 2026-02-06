@@ -1,4 +1,3 @@
-import { Box, Text, Input } from "@opentui/core";
 import { createSignal, Show, Switch, Match } from "solid-js";
 import { Effect } from "effect";
 import { useEffectService } from "../lib/hooks";
@@ -16,20 +15,17 @@ interface ProviderConfig {
   apiKey: string;
 }
 
-interface IntegrationConfig {
-  botToken: string;
-}
-
 export default function OnboardingWizard(props: { onComplete: () => void }) {
   const ws = useEffectService(WebSocketService);
   const [step, setStep] = createSignal<Step>(1);
   const [workspace, setWorkspace] = createSignal<WorkspaceConfig>({ name: "", path: "" });
   const [provider, setProvider] = createSignal<ProviderConfig>({ provider: "", apiKey: "" });
-  const [integration, setIntegration] = createSignal<IntegrationConfig>({ botToken: "" });
   const [input, setInput] = createSignal("");
   const [field, setField] = createSignal<"name" | "path" | "provider" | "apiKey" | "botToken">(
     "name"
   );
+
+  const numericStep = () => (step() === "done" ? 3 : (step() as number));
 
   const handleSubmit = (value: string) => {
     const currentStep = step();
@@ -55,7 +51,6 @@ export default function OnboardingWizard(props: { onComplete: () => void }) {
         setField("botToken");
       }
     } else if (currentStep === 3) {
-      setIntegration({ botToken: value });
       // Save configuration
       if (service) {
         Effect.runFork(
@@ -92,67 +87,69 @@ export default function OnboardingWizard(props: { onComplete: () => void }) {
   };
 
   return (
-    <Box flexDirection="column" flexGrow={1}>
-      <Box marginBottom={1}>
-        <Text bold color="cyan">
+    <box flexDirection="column" flexGrow={1}>
+      <box marginBottom={1}>
+        <text bold fg="cyan">
           Onboarding Wizard
-        </Text>
-        <Text color="gray"> - Step {step() === "done" ? "✓" : step()} of 3</Text>
-      </Box>
+        </text>
+        <text fg="gray"> - Step {step() === "done" ? "✓" : step()} of 3</text>
+      </box>
 
-      <Box flexDirection="row" marginBottom={1}>
-        <Text color={step() === 1 ? "cyan" : step() === "done" || step() > 1 ? "green" : "gray"}>
+      <box flexDirection="row" marginBottom={1}>
+        <text
+          fg={step() === 1 ? "cyan" : step() === "done" || numericStep() > 1 ? "green" : "gray"}
+        >
           ● Workspace
-        </Text>
-        <Text color="gray"> → </Text>
-        <Text color={step() === 2 ? "cyan" : step() === "done" || step() > 2 ? "green" : "gray"}>
+        </text>
+        <text fg="gray"> → </text>
+        <text
+          fg={step() === 2 ? "cyan" : step() === "done" || numericStep() > 2 ? "green" : "gray"}
+        >
           ● Provider
-        </Text>
-        <Text color="gray"> → </Text>
-        <Text color={step() === 3 ? "cyan" : step() === "done" ? "green" : "gray"}>
-          ● Integration
-        </Text>
-      </Box>
+        </text>
+        <text fg="gray"> → </text>
+        <text fg={step() === 3 ? "cyan" : step() === "done" ? "green" : "gray"}>● Integration</text>
+      </box>
 
-      <Box flexDirection="column" flexGrow={1} borderStyle="round" padding={1}>
+      <box flexDirection="column" flexGrow={1} borderStyle="single" padding={1}>
         <Switch>
           <Match when={step() === 1}>
-            <Text bold>Workspace Setup</Text>
-            <Text color="gray">
+            <text bold>Workspace Setup</text>
+            <text fg="gray">
               {field() === "name"
                 ? "Enter a name for your workspace"
                 : "Enter the path to your workspace"}
-            </Text>
+            </text>
           </Match>
           <Match when={step() === 2}>
-            <Text bold>AI Provider Setup</Text>
-            <Text color="gray">
+            <text bold>AI Provider Setup</text>
+            <text fg="gray">
               {field() === "provider" ? "Choose your AI provider" : "Enter your API key"}
-            </Text>
+            </text>
           </Match>
           <Match when={step() === 3}>
-            <Text bold>Integration Setup</Text>
-            <Text color="gray">Enter your Telegram bot token</Text>
+            <text bold>Integration Setup</text>
+            <text fg="gray">Enter your Telegram bot token</text>
           </Match>
           <Match when={step() === "done"}>
-            <Text bold color="green">
+            <text bold fg="green">
               ✓ Setup Complete!
-            </Text>
-            <Text color="gray">Redirecting to main interface...</Text>
+            </text>
+            <text fg="gray">Redirecting to main interface...</text>
           </Match>
         </Switch>
 
         <Show when={step() !== "done"}>
-          <Box marginTop={1}>
-            <Input
+          <box marginTop={1}>
+            <input
               placeholder={getPlaceholder()}
               value={input()}
               onChange={setInput}
               onSubmit={handleSubmit}
             />
-          </Box>
+          </box>
         </Show>
-      </Box>
-    </Box>
+      </box>
+    </box>
   );
 }

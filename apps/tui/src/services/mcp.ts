@@ -1,4 +1,6 @@
 // MCP Service for HTTP API calls
+import { getRuntimeHttpUrl } from "./skills-api";
+
 export interface McpServer {
   id: string;
   name: string;
@@ -42,12 +44,10 @@ export interface ValidationResult {
   errors: string[];
 }
 
-const API_BASE = "http://localhost:3000";
-
 export class McpService {
   async getServers(): Promise<McpServer[]> {
     try {
-      const response = await fetch(`${API_BASE}/mcp/discovery/custom`);
+      const response = await fetch(`${getRuntimeHttpUrl()}/mcp/discovery/custom`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -60,7 +60,7 @@ export class McpService {
 
   async getCuratedServers(): Promise<CuratedServer[]> {
     try {
-      const response = await fetch(`${API_BASE}/mcp/discovery/curated`);
+      const response = await fetch(`${getRuntimeHttpUrl()}/mcp/discovery/curated`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -72,7 +72,7 @@ export class McpService {
   }
 
   async addServer(server: { name: string; url: string; transport: string }): Promise<McpServer> {
-    const response = await fetch(`${API_BASE}/mcp/discovery/custom`, {
+    const response = await fetch(`${getRuntimeHttpUrl()}/mcp/discovery/custom`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -89,7 +89,7 @@ export class McpService {
   }
 
   async addCuratedServer(serverId: string): Promise<McpServer> {
-    const response = await fetch(`${API_BASE}/mcp/discovery/custom`, {
+    const response = await fetch(`${getRuntimeHttpUrl()}/mcp/discovery/custom`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -108,7 +108,7 @@ export class McpService {
   }
 
   async deleteServer(serverId: string): Promise<void> {
-    const response = await fetch(`${API_BASE}/mcp/discovery/custom/${serverId}`, {
+    const response = await fetch(`${getRuntimeHttpUrl()}/mcp/discovery/custom/${serverId}`, {
       method: "DELETE",
     });
 
@@ -119,7 +119,7 @@ export class McpService {
   }
 
   async toggleServer(serverId: string, enabled: boolean): Promise<void> {
-    const response = await fetch(`${API_BASE}/mcp/discovery/custom/${serverId}/toggle`, {
+    const response = await fetch(`${getRuntimeHttpUrl()}/mcp/discovery/custom/${serverId}/toggle`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -134,7 +134,7 @@ export class McpService {
   }
 
   async validateUrl(url: string, transport: string): Promise<ValidationResult> {
-    const response = await fetch(`${API_BASE}/mcp/discovery/validate`, {
+    const response = await fetch(`${getRuntimeHttpUrl()}/mcp/discovery/validate`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -150,14 +150,21 @@ export class McpService {
     return await response.json();
   }
 
-  async testTool(serverId: string, toolName: string, parameters: Record<string, any>): Promise<any> {
-    const response = await fetch(`${API_BASE}/mcp/servers/${serverId}/tools/${toolName}/test`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(parameters),
-    });
+  async testTool(
+    serverId: string,
+    toolName: string,
+    parameters: Record<string, any>
+  ): Promise<any> {
+    const response = await fetch(
+      `${getRuntimeHttpUrl()}/mcp/servers/${serverId}/tools/${toolName}/test`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(parameters),
+      }
+    );
 
     if (!response.ok) {
       const error = await response.text();

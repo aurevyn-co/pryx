@@ -2,6 +2,8 @@ package mcp
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -60,11 +62,20 @@ func TestScreenProvider_Capture_InvalidRegion(t *testing.T) {
 
 	result, err := provider.CallTool(ctx, "capture", args)
 	if err != nil {
+		// Skip if no capture tool is available (e.g., in CI)
+		if strings.Contains(err.Error(), "failed to create capture command") {
+			t.Skip("Screen capture tool not available")
+		}
 		t.Fatalf("CallTool failed: %v", err)
 	}
 
 	// Should succeed with full screen capture (region="")
 	if result.IsError {
+		// Skip if the error is about missing capture tool
+		content := fmt.Sprintf("%v", result.Content)
+		if strings.Contains(content, "failed to create capture command") {
+			t.Skip("Screen capture tool not available")
+		}
 		t.Errorf("Expected success, got error: %v", result.Content)
 	}
 }

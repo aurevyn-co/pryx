@@ -11,14 +11,22 @@ import (
 
 // Default message limits
 const (
+	// DefaultMaxMessagesPerSession is the default limit for messages per session.
 	DefaultMaxMessagesPerSession = 1000
-	MaxAllowedMessages           = 10000
+	// MaxAllowedMessages is the absolute hard limit for messages per session.
+	MaxAllowedMessages = 10000
 )
 
 // Store provides database access with message limits
 type Store struct {
 	DB          *sql.DB
 	maxMessages int
+}
+
+func NewFromDB(db *sql.DB) *Store {
+	s := &Store{DB: db}
+	s.maxMessages = s.loadMaxMessages()
+	return s
 }
 
 // New creates a new Store with the given database path
@@ -28,10 +36,17 @@ func New(dbPath string) (*Store, error) {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
-	// Configure connection pool for better performance
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(25)
-	db.SetConnMaxLifetime(5 * 60 * 1000 * 1000000) // 5 minutes
+	// Configure connection pool
+	// For in-memory databases, use single connection to ensure all operations use the same database
+	// For file-based databases, use connection pooling for better performance
+	if dbPath == ":memory:" {
+		db.SetMaxOpenConns(1)
+		db.SetMaxIdleConns(1)
+	} else {
+		db.SetMaxOpenConns(25)
+		db.SetMaxIdleConns(25)
+		db.SetConnMaxLifetime(5 * 60 * 1000 * 1000000) // 5 minutes
+	}
 
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)

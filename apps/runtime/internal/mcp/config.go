@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type ServersConfig struct {
@@ -58,8 +59,25 @@ func LoadServersConfigFromFirstExisting(paths []string) (*ServersConfig, string,
 		if cfg.Servers == nil {
 			cfg.Servers = map[string]ServerConfig{}
 		}
+		normalizeServerTransports(cfg)
 		return cfg, p, nil
 	}
 
 	return &ServersConfig{Servers: map[string]ServerConfig{}}, "", nil
+}
+
+func normalizeServerTransports(cfg *ServersConfig) {
+	for name, server := range cfg.Servers {
+		transport := strings.TrimSpace(server.Transport)
+		if transport == "" {
+			if server.URL != "" {
+				server.Transport = "http"
+			} else if len(server.Command) > 0 {
+				server.Transport = "stdio"
+			}
+		} else if transport == "stdio" && server.URL != "" && len(server.Command) == 0 {
+			server.Transport = "http"
+		}
+		cfg.Servers[name] = server
+	}
 }

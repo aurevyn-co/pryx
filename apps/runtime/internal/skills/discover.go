@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -104,6 +105,12 @@ func Discover(ctx context.Context, opts Options) (*Registry, error) {
 	r := NewRegistry()
 	var errs []error
 
+	enabledCfg, cfgErr := LoadEnabledConfig(EnabledConfigPath())
+	if cfgErr != nil {
+		errs = append(errs, cfgErr)
+		enabledCfg = &EnabledConfig{EnabledSkills: map[string]bool{}}
+	}
+
 	sources := []struct {
 		source Source
 		root   string
@@ -129,10 +136,55 @@ func Discover(ctx context.Context, opts Options) (*Registry, error) {
 		}
 	}
 
+	applySkillState(r, enabledCfg.EnabledSkills)
+
 	if len(errs) > 0 {
 		return r, MultiError{Errors: errs}
 	}
 	return r, nil
+}
+
+func applySkillState(reg *Registry, enabled map[string]bool) {
+	for _, s := range reg.List() {
+		s.Name = s.Frontmatter.Name
+		s.Description = s.Frontmatter.Description
+		if s.Title == "" {
+			if strings.TrimSpace(s.Frontmatter.Name) != "" {
+				s.Title = s.Frontmatter.Name
+			} else {
+				s.Title = s.ID
+			}
+		}
+
+		req := s.Frontmatter.Metadata.Pryx.Requires
+		eligible := true
+		for _, bin := range req.Bins {
+			bin = strings.TrimSpace(bin)
+			if bin == "" {
+				continue
+			}
+			if _, err := exec.LookPath(bin); err != nil {
+				eligible = false
+				break
+			}
+		}
+		if eligible {
+			for _, env := range req.Env {
+				env = strings.TrimSpace(env)
+				if env == "" {
+					continue
+				}
+				if _, ok := os.LookupEnv(env); !ok {
+					eligible = false
+					break
+				}
+			}
+		}
+
+		s.Eligible = eligible
+		s.Enabled = enabled[strings.TrimSpace(s.ID)]
+		reg.Upsert(s)
+	}
 }
 
 func findSkillFiles(ctx context.Context, root string) ([]string, error) {
@@ -210,33 +262,25 @@ func loadSkillsFromPaths(ctx context.Context, source Source, paths []string, max
 }
 
 func loadSkillFromFile(source Source, path string) (Skill, error) {
-	f, err := os.Open(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return Skill{}, err
 	}
-	defer f.Close()
-
-	fm, err := parseFrontmatterOnly(f)
+	fm, body, err := parseSkillFile(data)
 	if err != nil {
 		return Skill{}, err
 	}
 	id := fm.Name
+	cachedBody := strings.TrimRight(body, "\r\n")
 
 	return Skill{
-		ID:          id,
-		Source:      source,
-		Path:        path,
-		Frontmatter: fm,
+		ID:           id,
+		Source:       source,
+		Path:         path,
+		Frontmatter:  fm,
+		SystemPrompt: strings.TrimSpace(cachedBody),
 		bodyLoader: func() (string, error) {
-			b, err := os.ReadFile(path)
-			if err != nil {
-				return "", err
-			}
-			_, body, err := parseSkillFile(b)
-			if err != nil {
-				return "", err
-			}
-			return body, nil
+			return cachedBody, nil
 		},
 	}, nil
 }

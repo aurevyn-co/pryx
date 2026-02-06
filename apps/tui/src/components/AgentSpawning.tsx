@@ -1,7 +1,7 @@
 import { createSignal, For, Show, onMount } from "solid-js";
 import { useKeyboard } from "@opentui/solid";
-import { useEffectService, AppRuntime } from "../lib/hooks";
 import { palette } from "../theme";
+import { getRuntimeHttpUrl } from "../services/skills-api";
 
 type AgentStatus = "running" | "stopped" | "idle" | "error";
 type AgentType = "chat" | "task" | "code" | "analysis";
@@ -25,57 +25,88 @@ interface CreateAgentRequest {
   tools?: string[];
 }
 
-export default function AgentSpawning() {
-  const keyboard = useKeyboard();
+interface AgentSpawningProps {
+  onClose: () => void;
+}
+
+export default function AgentSpawning(props: AgentSpawningProps) {
   const [agents, setAgents] = createSignal<Agent[]>([]);
   const [selectedIndex, setSelectedIndex] = createSignal(0);
   const [showCreateModal, setShowCreateModal] = createSignal(false);
   const [newAgentName, setNewAgentName] = createSignal("");
   const [newAgentType, setNewAgentType] = createSignal<AgentType>("chat");
   const [newAgentPrompt, setNewAgentPrompt] = createSignal("");
-  const [newAgentSession, setNewAgentSession] = createSignal<string | null>(null);
+  const [newAgentSession] = createSignal<string | null>(null);
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal("");
 
   onMount(() => {
     loadAgents();
-    setupKeyboard();
     startPolling();
   });
 
-  const setupKeyboard = () => {
-    keyboard.bind("c", () => {
-      setShowCreateModal(true);
-      setNewAgentName("");
-      setNewAgentPrompt("");
-    });
-    keyboard.bind("s", () => stopAgent());
-    keyboard.bind("k", () => killAgent());
-    keyboard.bind("v", () => viewAgent());
-    keyboard.bind("a", () => attachToSession());
-    keyboard.bind("r", () => restartAgent());
-    keyboard.bind("l", () => viewLogs());
-      keyboard.bind("q", () => {
-        props.onClose();
-      });
-    keyboard.bind("esc", () => {
-      if (showCreateModal()) {
-        setShowCreateModal(false);
-      }
-    });
+  const getErrorMessage = (err: unknown): string => {
+    return err instanceof Error ? err.message : String(err);
   };
+
+  useKeyboard(evt => {
+    if (showCreateModal()) {
+      if (evt.name === "escape") {
+        evt.preventDefault?.();
+        setShowCreateModal(false);
+        return;
+      }
+    }
+
+    switch (evt.name) {
+      case "c":
+        evt.preventDefault?.();
+        setShowCreateModal(true);
+        setNewAgentName("");
+        setNewAgentPrompt("");
+        return;
+      case "s":
+        evt.preventDefault?.();
+        stopAgent();
+        return;
+      case "k":
+        evt.preventDefault?.();
+        killAgent();
+        return;
+      case "v":
+        evt.preventDefault?.();
+        viewAgent();
+        return;
+      case "a":
+        evt.preventDefault?.();
+        attachToSession();
+        return;
+      case "r":
+        evt.preventDefault?.();
+        restartAgent();
+        return;
+      case "l":
+        evt.preventDefault?.();
+        viewLogs();
+        return;
+      case "q":
+        evt.preventDefault?.();
+        props.onClose();
+        return;
+    }
+  });
 
   const loadAgents = async () => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:3000/api/agents");
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/agents`);
       if (!response.ok) {
         throw new Error("Failed to load agents");
       }
       const data = await response.json();
       setAgents(data.agents || []);
     } catch (err) {
-      setError(`Failed to load agents: ${err.message}`);
+      setError(`Failed to load agents: ${getErrorMessage(err)}`);
     } finally {
       setLoading(false);
     }
@@ -101,7 +132,7 @@ export default function AgentSpawning() {
     };
 
     try {
-      const response = await fetch("http://localhost:3000/api/agents", {
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/agents`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -116,7 +147,7 @@ export default function AgentSpawning() {
       setShowCreateModal(false);
       loadAgents();
     } catch (err) {
-      setError(`Failed to create agent: ${err.message}`);
+      setError(`Failed to create agent: ${getErrorMessage(err)}`);
     }
   };
 
@@ -125,12 +156,9 @@ export default function AgentSpawning() {
     if (!agent) return;
 
     try {
-      const response = await fetch(
-        `http://localhost:3000/api/agents/${agent.id}/stop`,
-        {
-          method: "POST",
-        }
-      );
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/agents/${agent.id}/stop`, {
+        method: "POST",
+      });
 
       if (!response.ok) {
         throw new Error("Failed to stop agent");
@@ -138,7 +166,7 @@ export default function AgentSpawning() {
 
       loadAgents();
     } catch (err) {
-      setError(`Failed to stop agent: ${err.message}`);
+      setError(`Failed to stop agent: ${getErrorMessage(err)}`);
     }
   };
 
@@ -147,12 +175,9 @@ export default function AgentSpawning() {
     if (!agent) return;
 
     try {
-      const response = await fetch(
-        `http://localhost:3000/api/agents/${agent.id}/kill`,
-        {
-          method: "POST",
-        }
-      );
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/agents/${agent.id}/kill`, {
+        method: "POST",
+      });
 
       if (!response.ok) {
         throw new Error("Failed to kill agent");
@@ -160,7 +185,7 @@ export default function AgentSpawning() {
 
       loadAgents();
     } catch (err) {
-      setError(`Failed to kill agent: ${err.message}`);
+      setError(`Failed to kill agent: ${getErrorMessage(err)}`);
     }
   };
 
@@ -169,12 +194,9 @@ export default function AgentSpawning() {
     if (!agent) return;
 
     try {
-      const response = await fetch(
-        `http://localhost:3000/api/agents/${agent.id}/restart`,
-        {
-          method: "POST",
-        }
-      );
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/agents/${agent.id}/restart`, {
+        method: "POST",
+      });
 
       if (!response.ok) {
         throw new Error("Failed to restart agent");
@@ -182,7 +204,7 @@ export default function AgentSpawning() {
 
       loadAgents();
     } catch (err) {
-      setError(`Failed to restart agent: ${err.message}`);
+      setError(`Failed to restart agent: ${getErrorMessage(err)}`);
     }
   };
 
@@ -247,7 +269,7 @@ export default function AgentSpawning() {
   };
 
   const getAgentCount = (status: AgentStatus) => {
-    return agents().filter((a) => a.status === status).length;
+    return agents().filter(a => a.status === status).length;
   };
 
   return (
@@ -255,17 +277,19 @@ export default function AgentSpawning() {
       <Box
         flexDirection="row"
         padding={1}
-        backgroundColor={palette.primary}
-        color={palette.background}
+        backgroundColor={palette.accent}
+        color={palette.bgPrimary}
       >
         <Text bold>🤖 Agent Spawning</Text>
         <Box flexGrow={1} />
         <Text>
           <Text bold>[C]</Text>reate <Text bold>[S]</Text>top <Text bold>[K]</Text>ill{" "}
-          <Text bold>[R]</Text>estart <Text bold>[V]</Text>iew{" "}
-          <Text bold>[A]</Text>ttach <Text bold>[L]</Text>ogs
+          <Text bold>[R]</Text>estart <Text bold>[V]</Text>iew <Text bold>[A]</Text>ttach{" "}
+          <Text bold>[L]</Text>ogs
         </Text>
-        <Text>Quit: <Text bold>[Q]</Text></Text>
+        <Text>
+          Quit: <Text bold>[Q]</Text>
+        </Text>
       </Box>
 
       <Show when={loading()}>
@@ -276,17 +300,13 @@ export default function AgentSpawning() {
 
       <Show when={error()}>
         <Box padding={1} backgroundColor={palette.error}>
-          <Text color={palette.background}>{error()}</Text>
+          <Text color={palette.bgPrimary}>{error()}</Text>
         </Box>
       </Show>
 
       <Show when={!loading() && !error()}>
         <Box flexDirection="column" padding={1}>
-          <Box
-            flexDirection="row"
-            padding={1}
-            backgroundColor={palette.bgSecondary}
-          >
+          <Box flexDirection="row" padding={1} backgroundColor={palette.bgSecondary}>
             <Box flexGrow={1}>
               <Text bold>Total Agents</Text>
               <Text fontSize={2}>{agents().length}</Text>
@@ -360,47 +380,29 @@ export default function AgentSpawning() {
                   <Button onClick={createAgent}>Create</Button>
                 </Box>
                 <Box flexGrow={1}>
-                  <Button onClick={() => setShowCreateModal(false)}>
-                    Cancel
-                  </Button>
+                  <Button onClick={() => setShowCreateModal(false)}>Cancel</Button>
                 </Box>
               </Box>
             </Box>
           </Show>
 
-          <Box padding={1} marginTop={1} backgroundColor={palette.background}>
+          <Box padding={1} marginTop={1} backgroundColor={palette.bgPrimary}>
             <Text bold>Active Agents</Text>
           </Box>
 
-          <Box
-            flexDirection="column"
-            flexGrow={1}
-            padding={1}
-            backgroundColor={palette.background}
-          >
+          <Box flexDirection="column" flexGrow={1} padding={1} backgroundColor={palette.bgPrimary}>
             <For each={agents()}>
               {(agent, index) => (
                 <Box
                   flexDirection="row"
                   padding={0.5}
-                  backgroundColor={
-                    index() === selectedIndex()
-                      ? palette.bgSelected
-                      : undefined
-                  }
-                  color={
-                    index() === selectedIndex()
-                      ? palette.text
-                      : undefined
-                  }
+                  backgroundColor={index() === selectedIndex() ? palette.bgSelected : undefined}
+                  color={index() === selectedIndex() ? palette.text : undefined}
                   onClick={() => setSelectedIndex(index())}
                 >
                   <Text width={25}>{agent.name}</Text>
                   <Text width={15}>{getAgentTypeLabel(agent.type)}</Text>
-                  <Text
-                    width={15}
-                    color={getStatusColor(agent.status)}
-                  >
+                  <Text width={15} color={getStatusColor(agent.status)}>
                     {getStatusLabel(agent.status)}
                   </Text>
                   <Text width={20}>{agent.created}</Text>
@@ -411,24 +413,18 @@ export default function AgentSpawning() {
 
             <Show when={agents().length === 0}>
               <Box padding={2} textAlign="center">
-                <Text color={palette.dim}>
-                  No agents running. Press [C] to create one.
-                </Text>
+                <Text color={palette.dim}>No agents running. Press [C] to create one.</Text>
               </Box>
             </Show>
           </Box>
 
-          <Box
-            flexDirection="row"
-            padding={1}
-            marginTop={1}
-            backgroundColor={palette.bgSecondary}
-          >
-            <Text>Create: <Text bold>[C]</Text></Text>
+          <Box flexDirection="row" padding={1} marginTop={1} backgroundColor={palette.bgSecondary}>
+            <Text>
+              Create: <Text bold>[C]</Text>
+            </Text>
             <Box flexGrow={1} />
             <Text>
-              Stop: <Text bold>[S]</Text> Kill: <Text bold>[K]</Text> Restart:{" "}
-              <Text bold>[R]</Text>
+              Stop: <Text bold>[S]</Text> Kill: <Text bold>[K]</Text> Restart: <Text bold>[R]</Text>
             </Text>
           </Box>
         </Box>
@@ -439,27 +435,34 @@ export default function AgentSpawning() {
 
 const Box: any = (props: any) => props.children;
 const Text: any = (props: any) => {
-  const content = typeof props.children === "string" ? props.children : props.children?.join?.("") || "";
+  const content =
+    typeof props.children === "string" ? props.children : props.children?.join?.("") || "";
   return <span style={props}>{content}</span>;
 };
-const TextInput: any = (props: any) => (
-  <input
-    type={props.multiline ? "textarea" : "text"}
-    value={props.value}
-    onInput={props.onInput}
-    placeholder={props.placeholder}
-    style={{
-      width: "100%",
-      padding: "0.5",
-      backgroundColor: palette.bgSecondary,
-      border: `1px solid ${palette.border}`,
-      color: palette.text,
-      ...props.style,
-    }}
-  />
-);
+const NativeInput: any = "input";
+const NativeTextarea: any = "textarea";
+const NativeSelect: any = "select";
+const TextInput: any = (props: any) => {
+  const Component = props.multiline ? NativeTextarea : NativeInput;
+  return (
+    <Component
+      {...(props.multiline ? {} : { type: "text" })}
+      value={props.value}
+      onInput={props.onInput}
+      placeholder={props.placeholder}
+      style={{
+        width: "100%",
+        padding: "0.5",
+        backgroundColor: palette.bgSecondary,
+        border: `1px solid ${palette.border}`,
+        color: palette.text,
+        ...props.style,
+      }}
+    />
+  );
+};
 const Select: any = (props: any) => (
-  <select
+  <NativeSelect
     value={props.value}
     onChange={props.onChange}
     style={{
@@ -472,15 +475,15 @@ const Select: any = (props: any) => (
     }}
   >
     {props.children}
-  </select>
+  </NativeSelect>
 );
 const Button: any = (props: any) => (
   <button
     onClick={props.onClick}
     style={{
       padding: "0.5 1",
-      backgroundColor: palette.primary,
-      color: palette.background,
+      backgroundColor: palette.accent,
+      color: palette.bgPrimary,
       border: "none",
       cursor: "pointer",
       ...props.style,

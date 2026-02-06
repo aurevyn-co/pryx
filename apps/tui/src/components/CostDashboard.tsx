@@ -1,8 +1,8 @@
 import { createSignal, For, Show, onMount } from "solid-js";
 import { useKeyboard } from "@opentui/solid";
-import { useEffectService, AppRuntime } from "../lib/hooks";
-import { loadConfig, saveConfig } from "../services/config";
+import { loadConfig } from "../services/config";
 import { palette } from "../theme";
+import { getRuntimeHttpUrl } from "../services/skills-api";
 
 type CostPeriod = "daily" | "weekly" | "monthly";
 type SortOrder = "date" | "cost" | "tokens";
@@ -28,39 +28,62 @@ interface CostDashboardProps {
 }
 
 export default function CostDashboard(props: CostDashboardProps) {
-  const keyboard = useKeyboard();
   const [period, setPeriod] = createSignal<CostPeriod>("daily");
   const [sortOrder, setSortOrder] = createSignal<SortOrder>("date");
   const [costs, setCosts] = createSignal<CostEntry[]>([]);
   const [totalCost, setTotalCost] = createSignal(0);
   const [totalTokens, setTotalTokens] = createSignal(0);
   const [budget, setBudget] = createSignal<Budget | null>(null);
-  const [selectedIndex, setSelectedIndex] = createSignal(0);
+  const [selectedIndex, _setSelectedIndex] = createSignal(0);
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal("");
 
   onMount(() => {
     loadCostData();
     loadBudget();
-    setupKeyboard();
   });
 
-  const setupKeyboard = () => {
-    keyboard.bind("1", () => setPeriod("daily"));
-    keyboard.bind("2", () => setPeriod("weekly"));
-    keyboard.bind("3", () => setPeriod("monthly"));
-    keyboard.bind("s", () => toggleSort());
-    keyboard.bind("b", () => showBudgetSettings());
-    keyboard.bind("o", () => showOptimizations());
-      keyboard.bind("q", () => {
-        props.onClose();
-      });
+  const getErrorMessage = (err: unknown): string => {
+    return err instanceof Error ? err.message : String(err);
   };
+
+  useKeyboard(evt => {
+    switch (evt.name) {
+      case "1":
+        evt.preventDefault?.();
+        setPeriod("daily");
+        return;
+      case "2":
+        evt.preventDefault?.();
+        setPeriod("weekly");
+        return;
+      case "3":
+        evt.preventDefault?.();
+        setPeriod("monthly");
+        return;
+      case "s":
+        evt.preventDefault?.();
+        toggleSort();
+        return;
+      case "b":
+        evt.preventDefault?.();
+        showBudgetSettings();
+        return;
+      case "o":
+        evt.preventDefault?.();
+        showOptimizations();
+        return;
+      case "q":
+        evt.preventDefault?.();
+        props.onClose();
+        return;
+    }
+  });
 
   const loadCostData = async () => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:3000/api/cost");
+      const response = await fetch(`${getRuntimeHttpUrl()}/api/cost`);
       if (!response.ok) {
         throw new Error("Failed to load cost data");
       }
@@ -69,7 +92,7 @@ export default function CostDashboard(props: CostDashboardProps) {
       setTotalCost(data.totalCost || 0);
       setTotalTokens(data.totalTokens || 0);
     } catch (err) {
-      setError(`Failed to load cost data: ${err.message}`);
+      setError(`Failed to load cost data: ${getErrorMessage(err)}`);
     } finally {
       setLoading(false);
     }
@@ -127,8 +150,8 @@ export default function CostDashboard(props: CostDashboardProps) {
     return tokens.toString();
   };
 
-  const getBudgetUsage = () => {
-    if (!budget()) return 0;
+  const getBudgetUsage = (): string => {
+    if (!budget()) return "0.0";
     return ((budget()!.current / budget()!.limit) * 100).toFixed(1);
   };
 
@@ -141,20 +164,16 @@ export default function CostDashboard(props: CostDashboardProps) {
 
   return (
     <Box flexDirection="column" width="100%" height="100%">
-      <Box
-        flexDirection="row"
-        padding={1}
-        backgroundColor={palette.primary}
-        color={palette.background}
-      >
+      <Box flexDirection="row" padding={1} backgroundColor={palette.bgPrimary} color={palette.text}>
         <Text bold>💰 Cost Dashboard</Text>
         <Box flexGrow={1} />
         <Text>
-          Sort: <Text bold>[S]</Text> |{" "}
-          Period: <Text bold>[1]</Text> Daily <Text bold>[2]</Text> Weekly <Text bold>[3]</Text>{" "}
-          Monthly
+          Sort: <Text bold>[S]</Text> | Period: <Text bold>[1]</Text> Daily <Text bold>[2]</Text>{" "}
+          Weekly <Text bold>[3]</Text> Monthly
         </Text>
-        <Text>Quit: <Text bold>[Q]</Text></Text>
+        <Text>
+          Quit: <Text bold>[Q]</Text>
+        </Text>
       </Box>
 
       <Show when={loading()}>
@@ -165,17 +184,13 @@ export default function CostDashboard(props: CostDashboardProps) {
 
       <Show when={error()}>
         <Box padding={2} backgroundColor={palette.error}>
-          <Text color={palette.background}>{error()}</Text>
+          <Text color={palette.bgPrimary}>{error()}</Text>
         </Box>
       </Show>
 
       <Show when={!loading() && !error()}>
         <Box flexDirection="column" padding={1}>
-          <Box
-            flexDirection="row"
-            padding={1}
-            backgroundColor={palette.secondary}
-          >
+          <Box flexDirection="row" padding={1} backgroundColor={palette.bgSecondary}>
             <Box flexGrow={1}>
               <Text bold>Total Cost</Text>
               <Text fontSize={2}>{formatCurrency(totalCost())}</Text>
@@ -195,45 +210,52 @@ export default function CostDashboard(props: CostDashboardProps) {
           </Box>
 
           <Show when={budget() && budget()!.enabled}>
-            <Box
-              padding={1}
-              marginTop={1}
-              backgroundColor={palette.background}
-            >
+            <Box padding={1} marginTop={1} backgroundColor={palette.bgPrimary}>
               <Text bold>Budget Status</Text>
               <Box flexDirection="row" alignItems="center" marginTop={1}>
                 <Text width={15}>Usage:</Text>
-                <Text color={getBudgetStatus() === "critical" ? palette.error : getBudgetStatus() === "warning" ? palette.warning : palette.success}>
+                <Text
+                  color={
+                    getBudgetStatus() === "critical"
+                      ? palette.error
+                      : getBudgetStatus() === "warning"
+                        ? palette.warning
+                        : palette.success
+                  }
+                >
                   {getBudgetUsage()}%
                 </Text>
                 <Box flexGrow={1} />
-                <Text>{formatCurrency(budget()!.current)} / {formatCurrency(budget()!.limit)}</Text>
+                <Text>
+                  {formatCurrency(budget()!.current)} / {formatCurrency(budget()!.limit)}
+                </Text>
               </Box>
               <Box flexDirection="row" alignItems="center" marginTop={1}>
                 <Text width={15}>Remaining:</Text>
                 <Text bold>{formatCurrency(budget()!.limit - budget()!.current)}</Text>
                 <Box flexGrow={1} />
-                <Text>Manage Budget: <Text bold>[B]</Text></Text>
+                <Text>
+                  Manage Budget: <Text bold>[B]</Text>
+                </Text>
               </Box>
             </Box>
           </Show>
 
-          <Box padding={1} marginTop={1} backgroundColor={palette.background}>
+          <Box padding={1} marginTop={1} backgroundColor={palette.bgPrimary}>
             <Text bold>Cost Breakdown</Text>
           </Box>
 
-          <Box
-            flexDirection="column"
-            flexGrow={1}
-            padding={1}
-            backgroundColor={palette.background}
-          >
+          <Box flexDirection="column" flexGrow={1} padding={1} backgroundColor={palette.bgPrimary}>
             <Box flexDirection="row" padding={0.5}>
               <Text width={15}>Date</Text>
               <Text width={20}>Provider</Text>
               <Text width={15}>Model</Text>
-              <Text width={10} textAlign="right">Tokens</Text>
-              <Text width={10} textAlign="right">Cost</Text>
+              <Text width={10} textAlign="right">
+                Tokens
+              </Text>
+              <Text width={10} textAlign="right">
+                Cost
+              </Text>
             </Box>
 
             <Box flexDirection="column">
@@ -242,14 +264,7 @@ export default function CostDashboard(props: CostDashboardProps) {
                   <Box
                     flexDirection="row"
                     padding={0.5}
-                    backgroundColor={
-                      index() === selectedIndex() ? palette.primary : undefined
-                    }
-                    color={
-                      index() === selectedIndex()
-                        ? palette.background
-                        : undefined
-                    }
+                    backgroundColor={index() === selectedIndex() ? palette.bgSelected : undefined}
                   >
                     <Text width={15}>{entry.date}</Text>
                     <Text width={20}>{entry.provider}</Text>
@@ -266,15 +281,14 @@ export default function CostDashboard(props: CostDashboardProps) {
             </Box>
           </Box>
 
-          <Box
-            flexDirection="row"
-            padding={1}
-            marginTop={1}
-            backgroundColor={palette.secondary}
-          >
-            <Text>Show Budget: <Text bold>[B]</Text></Text>
+          <Box flexDirection="row" padding={1} marginTop={1} backgroundColor={palette.bgSecondary}>
+            <Text>
+              Show Budget: <Text bold>[B]</Text>
+            </Text>
             <Box flexGrow={1} />
-            <Text>Optimizations: <Text bold>[O]</Text></Text>
+            <Text>
+              Optimizations: <Text bold>[O]</Text>
+            </Text>
           </Box>
         </Box>
       </Show>
@@ -284,6 +298,7 @@ export default function CostDashboard(props: CostDashboardProps) {
 
 const Box: any = (props: any) => props.children;
 const Text: any = (props: any) => {
-  const content = typeof props.children === "string" ? props.children : props.children?.join?.("") || "";
+  const content =
+    typeof props.children === "string" ? props.children : props.children?.join?.("") || "";
   return <span style={props}>{content}</span>;
 };

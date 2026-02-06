@@ -7,7 +7,7 @@ interface KeyboardShortcutsProps {
 }
 
 export default function KeyboardShortcuts(props: KeyboardShortcutsProps) {
-  const [selectedCategory, setSelectedCategory] = createSignal<string | null>(null);
+  const [selectedCategory, _setSelectedCategory] = createSignal<string | null>(null);
 
   useKeyboard(evt => {
     switch (evt.name) {

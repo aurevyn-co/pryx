@@ -102,6 +102,20 @@ func (b *Builder) buildFull(metadata Metadata) (string, error) {
 		parts = append(parts, "")
 	}
 
+	if len(metadata.AvailableAgents) > 0 {
+		parts = append(parts, "=== OTHER AI AGENTS ===")
+		parts = append(parts, "You can communicate and collaborate with these agents:")
+		for _, agent := range metadata.AvailableAgents {
+			parts = append(parts, fmt.Sprintf("- %s", agent))
+		}
+		parts = append(parts, "")
+	}
+
+	if metadata.MemoryContext != "" {
+		parts = append(parts, metadata.MemoryContext)
+		parts = append(parts, "")
+	}
+
 	parts = append(parts, "=== CONSTRAINTS ===")
 	parts = append(parts, getDefaultConstraints())
 
@@ -143,7 +157,9 @@ type Metadata struct {
 	SessionID       string
 	AvailableTools  []string
 	AvailableSkills []string
+	AvailableAgents []string
 	Confidence      ConfidenceLevel
+	MemoryContext   string
 }
 
 type ConfidenceLevel int

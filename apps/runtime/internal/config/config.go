@@ -5,9 +5,10 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
-	"pryx-core/internal/channels/slack"
 )
 
 // Config holds all configuration settings for the Pryx runtime.
@@ -16,8 +17,18 @@ type Config struct {
 	ListenAddr string `yaml:"listen_addr"`
 	// DatabasePath is the path to the SQLite database file.
 	DatabasePath string `yaml:"database_path"`
+	// SkillsPath is the directory where skills are installed.
+	SkillsPath string `yaml:"skills_path"`
+	// CachePath is the directory for cached data.
+	CachePath string `yaml:"cache_path"`
 	// CloudAPIUrl is the URL of the Pryx Cloud API.
 	CloudAPIUrl string `yaml:"cloud_api_url"`
+
+	// Agent Detection
+	// AgentDetectEnabled enables automatic detection of external agents.
+	AgentDetectEnabled bool `yaml:"agent_detect_enabled"`
+	// AgentDetectInterval is how often to scan for agents.
+	AgentDetectInterval time.Duration `yaml:"agent_detect_interval"`
 
 	// AI Configuration
 	// ModelProvider is the LLM provider to use (openai, anthropic, ollama, glm).
@@ -26,6 +37,9 @@ type Config struct {
 	ModelName string `yaml:"model_name"`
 	// OllamaEndpoint is the URL of the Ollama server (when using Ollama provider).
 	OllamaEndpoint string `yaml:"ollama_endpoint"`
+	// ConfiguredProviders is the list of providers that have been explicitly configured.
+	// This tracks providers added via 'provider add' even without API keys (e.g., Ollama).
+	ConfiguredProviders []string `yaml:"configured_providers"`
 
 	// Channels
 	// TelegramToken is the bot token for Telegram integration.
@@ -45,6 +59,28 @@ type Config struct {
 	WebSocketBufferSize int `yaml:"websocket_buffer_size"`
 	// EnableMemoryProfiling enables memory usage monitoring.
 	EnableMemoryProfiling bool `yaml:"enable_memory_profiling"`
+
+	// RAG Memory System
+	// MemoryEnabled enables the RAG memory system.
+	MemoryEnabled bool `yaml:"memory_enabled"`
+	// MemoryAutoFlush enables automatic memory flushing before context compaction.
+	MemoryAutoFlush bool `yaml:"memory_auto_flush"`
+	// MemoryFlushThresholdTokens triggers auto-flush when token count approaches this threshold.
+	MemoryFlushThresholdTokens int `yaml:"memory_flush_threshold_tokens"`
+
+	// Security Configuration
+	// AllowedOrigins is a list of allowed CORS origins. Use specific origins in production.
+	// Defaults include localhost for development.
+	AllowedOrigins []string `yaml:"allowed_origins"`
+	// WebSocketAllowedOrigins is a list of allowed WebSocket origins.
+	// If empty, defaults to AllowedOrigins.
+	WebSocketAllowedOrigins []string `yaml:"websocket_allowed_origins"`
+	// MaxWebSocketConnections limits concurrent WebSocket connections (0 = unlimited).
+	MaxWebSocketConnections int `yaml:"max_websocket_connections"`
+	// MaxWebSocketMessageSize sets the maximum message size in bytes (default: 10MB).
+	MaxWebSocketMessageSize int64 `yaml:"max_websocket_message_size"`
+	// WebSocketRateLimitPerMinute sets max connections per minute per IP (default: 60).
+	WebSocketRateLimitPerMinute int `yaml:"websocket_rate_limit_per_minute"`
 }
 
 // ProviderKeyNames maps provider IDs to their keychain key names.
@@ -65,25 +101,45 @@ var ProviderKeyNames = map[string]string{
 // DefaultPath returns the default configuration file path.
 // The config is stored in ~/.pryx/config.yaml.
 func DefaultPath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".pryx", "config.yaml")
+	return filepath.Join(defaultPryxDir(), "config.yaml")
+}
+
+func defaultPryxDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil || strings.TrimSpace(home) == "" {
+		return ".pryx"
+	}
+	return filepath.Join(home, ".pryx")
 }
 
 // Load loads configuration from the default file and environment variables.
 // Environment variables take precedence over file configuration.
 // Returns a Config with default values if no configuration file exists.
 func Load() *Config {
+	pryxDir := defaultPryxDir()
+
 	cfg := &Config{
-		ListenAddr:      ":0", // Use :0 for dynamic port allocation
-		DatabasePath:    "pryx.db",
-		CloudAPIUrl:     "https://pryx.dev/api",
-		ModelProvider:   "ollama",
-		ModelName:       "llama3",
-		OllamaEndpoint:  "http://localhost:11434",
-		TelegramEnabled: false,
-		SlackEnabled:    false,
-		SlackAppToken:   "",
-		SlackBotToken:   "",
+		ListenAddr:                  ":0", // Use :0 for dynamic port allocation
+		DatabasePath:                filepath.Join(pryxDir, "pryx.db"),
+		SkillsPath:                  filepath.Join(pryxDir, "skills"),
+		CachePath:                   filepath.Join(pryxDir, "cache"),
+		CloudAPIUrl:                 "https://pryx.dev/api",
+		ModelProvider:               "ollama",
+		ModelName:                   "llama3",
+		OllamaEndpoint:              "http://localhost:11434",
+		TelegramEnabled:             false,
+		SlackEnabled:                false,
+		SlackAppToken:               "",
+		SlackBotToken:               "",
+		AgentDetectEnabled:          false,
+		AgentDetectInterval:         30 * time.Second,
+		MemoryEnabled:               true,
+		MemoryAutoFlush:             true,
+		MemoryFlushThresholdTokens:  100000,
+		AllowedOrigins:              []string{}, // Defaults to localhost via middleware logic
+		MaxWebSocketConnections:     1000,
+		MaxWebSocketMessageSize:     10 * 1024 * 1024, // 10MB
+		WebSocketRateLimitPerMinute: 60,
 	}
 
 	// Try loading from default file
@@ -112,6 +168,14 @@ func Load() *Config {
 	}
 	if v := os.Getenv("PRYX_SLACK_ENABLED"); v != "" {
 		cfg.SlackEnabled = true
+	}
+
+	_ = os.MkdirAll(pryxDir, 0o755)
+	if strings.TrimSpace(cfg.SkillsPath) != "" {
+		_ = os.MkdirAll(cfg.SkillsPath, 0o755)
+	}
+	if strings.TrimSpace(cfg.CachePath) != "" {
+		_ = os.MkdirAll(cfg.CachePath, 0o755)
 	}
 
 	return cfg

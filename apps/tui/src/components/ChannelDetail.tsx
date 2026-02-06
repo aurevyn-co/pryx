@@ -1,4 +1,4 @@
-import { createSignal, createEffect, For, Show, onMount } from "solid-js";
+import { createSignal, For, Show, onMount } from "solid-js";
 import { useKeyboard } from "@opentui/solid";
 import { palette } from "../theme";
 import type { Channel, ChannelActivity, HealthStatus } from "../types/channels";
@@ -71,7 +71,7 @@ export default function ChannelDetail(props: ChannelDetailProps) {
       });
       setHealth(healthData);
       setActivities(activityData);
-    } catch (e) {
+    } catch {
       setError("Failed to load channel data");
     } finally {
       setLoading(false);
@@ -83,13 +83,11 @@ export default function ChannelDetail(props: ChannelDetailProps) {
     try {
       await toggleChannel(channel()!.id, !channel()!.enabled);
       setSuccess(
-        channel()!.enabled
-          ? `✓ ${channel()!.name} disabled`
-          : `✓ ${channel()!.name} enabled`
+        channel()!.enabled ? `✓ ${channel()!.name} disabled` : `✓ ${channel()!.name} enabled`
       );
       await loadChannelData();
       setTimeout(() => setSuccess(""), 2000);
-    } catch (e) {
+    } catch {
       setError("Failed to toggle channel");
     }
   };
@@ -105,7 +103,7 @@ export default function ChannelDetail(props: ChannelDetailProps) {
       });
       setViewMode("test_result");
       await loadChannelData();
-    } catch (e) {
+    } catch {
       setError("Failed to test connection");
     } finally {
       setLoading(false);
@@ -122,7 +120,7 @@ export default function ChannelDetail(props: ChannelDetailProps) {
       setViewMode("view");
       await loadChannelData();
       setTimeout(() => setSuccess(""), 2000);
-    } catch (e) {
+    } catch {
       setError("Failed to save changes");
     } finally {
       setLoading(false);
@@ -135,13 +133,13 @@ export default function ChannelDetail(props: ChannelDetailProps) {
     try {
       await deleteChannel(props.channelId);
       props.onDelete();
-    } catch (e) {
+    } catch {
       setError("Failed to delete channel");
       setLoading(false);
     }
   };
 
-  useKeyboard((evt) => {
+  useKeyboard(evt => {
     if (viewMode() === "view") {
       switch (evt.name) {
         case "escape":
@@ -153,13 +151,13 @@ export default function ChannelDetail(props: ChannelDetailProps) {
         case "left":
         case "arrowleft": {
           evt.preventDefault();
-          setFocusedTab((i) => Math.max(0, i - 1));
+          setFocusedTab(i => Math.max(0, i - 1));
           break;
         }
         case "right":
         case "arrowright": {
           evt.preventDefault();
-          setFocusedTab((i) => Math.min(tabs.length - 1, i + 1));
+          setFocusedTab(i => Math.min(tabs.length - 1, i + 1));
           break;
         }
         case "e": {
@@ -272,8 +270,7 @@ export default function ChannelDetail(props: ChannelDetailProps) {
       </box>
 
       <Show when={health()}>
-        <box marginTop={1} borderStyle="single" borderColor={palette.border} padding={1}
-        >
+        <box marginTop={1} borderStyle="single" borderColor={palette.border} padding={1}>
           <box flexDirection="row" marginBottom={1}>
             <text fg={palette.accent}>Health Status</text>
           </box>
@@ -339,13 +336,8 @@ export default function ChannelDetail(props: ChannelDetailProps) {
         <text fg={palette.dim}>No recent activity</text>
       </Show>
       <For each={activities()}>
-        {(activity) => (
-          <box
-            flexDirection="row"
-            borderStyle="single"
-            borderColor={palette.border}
-            padding={1}
-          >
+        {activity => (
+          <box flexDirection="row" borderStyle="single" borderColor={palette.border} padding={1}>
             <box width={20}>
               <text fg={palette.dim}>{formatDate(activity.timestamp)}</text>
             </box>
@@ -355,8 +347,8 @@ export default function ChannelDetail(props: ChannelDetailProps) {
                   activity.type === "error"
                     ? palette.error
                     : activity.type === "message_received"
-                    ? palette.success
-                    : palette.text
+                      ? palette.success
+                      : palette.text
                 }
               >
                 {activity.type}
@@ -446,19 +438,11 @@ export default function ChannelDetail(props: ChannelDetailProps) {
             {(tab, index) => (
               <box
                 borderStyle={focusedTab() === index() ? "double" : "single"}
-                borderColor={
-                  focusedTab() === index() ? palette.accent : palette.border
-                }
-                padding={{ left: 1, right: 1 }}
+                borderColor={focusedTab() === index() ? palette.accent : palette.border}
+                padding={1}
                 marginRight={1}
               >
-                <text
-                  fg={
-                    focusedTab() === index() ? palette.accent : palette.dim
-                  }
-                >
-                  {tab}
-                </text>
+                <text fg={focusedTab() === index() ? palette.accent : palette.dim}>{tab}</text>
               </box>
             )}
           </For>
@@ -488,13 +472,10 @@ export default function ChannelDetail(props: ChannelDetailProps) {
 
       {/* Delete Confirmation */}
       <Show when={viewMode() === "delete_confirm"}>
-        <box
-          flexDirection="column"
-          flexGrow={1}
-          alignItems="center"
-          justifyContent="center"
-        >
-          <text fg={palette.error} marginBottom={1}>⚠ Delete Channel?</text>
+        <box flexDirection="column" flexGrow={1} alignItems="center" justifyContent="center">
+          <text fg={palette.error} marginBottom={1}>
+            ⚠ Delete Channel?
+          </text>
           <text fg={palette.text} marginBottom={1}>
             Are you sure you want to remove {channel()?.name}?
           </text>
@@ -514,12 +495,7 @@ export default function ChannelDetail(props: ChannelDetailProps) {
 
       {/* Test Result */}
       <Show when={viewMode() === "test_result" && testResult()}>
-        <box
-          flexDirection="column"
-          flexGrow={1}
-          alignItems="center"
-          justifyContent="center"
-        >
+        <box flexDirection="column" flexGrow={1} alignItems="center" justifyContent="center">
           <Show when={testResult()?.success}>
             <text fg={palette.success} marginBottom={1}>
               ✓ Connection Test Passed
@@ -530,7 +506,9 @@ export default function ChannelDetail(props: ChannelDetailProps) {
               ✗ Connection Test Failed
             </text>
           </Show>
-          <text fg={palette.text} marginBottom={2}>{testResult()?.message}</text>
+          <text fg={palette.text} marginBottom={2}>
+            {testResult()?.message}
+          </text>
           <text fg={palette.dim}>Press Enter or Esc to continue</text>
         </box>
       </Show>

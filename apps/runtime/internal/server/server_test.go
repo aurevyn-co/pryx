@@ -11,17 +11,31 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"pryx-core/internal/config"
 	"pryx-core/internal/keychain"
+	"pryx-core/internal/skills"
 	"pryx-core/internal/store"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type testEnv interface {
+	Helper()
+	Setenv(key, value string)
+	TempDir() string
+}
+
+func newTestKeychain(t testEnv) *keychain.Keychain {
+	t.Helper()
+	t.Setenv("PRYX_KEYCHAIN_FILE", filepath.Join(t.TempDir(), "keychain.json"))
+	return keychain.New("test")
+}
 
 func TestNewServer(t *testing.T) {
 	cfg := &config.Config{
@@ -33,7 +47,7 @@ func TestNewServer(t *testing.T) {
 	require.NoError(t, err)
 	defer s.Close()
 
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -48,7 +62,7 @@ func TestServer_Routes(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -61,6 +75,10 @@ func TestServer_Routes(t *testing.T) {
 		{"health GET", "GET", "/health", http.StatusOK},
 		{"skills GET", "GET", "/skills", http.StatusOK},
 		{"skills info GET", "GET", "/skills/test-id", http.StatusNotFound},
+		{"skills enable POST", "POST", "/skills/enable", http.StatusBadRequest},
+		{"skills disable POST", "POST", "/skills/disable", http.StatusBadRequest},
+		{"skills install POST", "POST", "/skills/install", http.StatusBadRequest},
+		{"skills uninstall POST", "POST", "/skills/uninstall", http.StatusBadRequest},
 		{"mcp tools GET", "GET", "/mcp/tools", http.StatusOK},
 		{"mcp call POST no body", "POST", "/mcp/tools/call", http.StatusBadRequest},
 	}
@@ -82,11 +100,104 @@ func TestServer_Routes(t *testing.T) {
 	}
 }
 
+func TestHandleSkillsEnableDisableRoundTrip(t *testing.T) {
+	cfg := &config.Config{ListenAddr: ":0"}
+	st, _ := store.New(":memory:")
+	defer st.Close()
+	kc := newTestKeychain(t)
+
+	t.Setenv("PRYX_SKILLS_CONFIG_PATH", filepath.Join(t.TempDir(), "skills.yaml"))
+
+	server := New(cfg, st.DB, kc)
+	server.skills = skills.NewRegistry()
+	server.skills.Upsert(skills.Skill{ID: "test-skill"})
+
+	{
+		reqBody := `{"id":"test-skill"}`
+		req := httptest.NewRequest("POST", "/skills/enable", strings.NewReader(reqBody))
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	}
+
+	{
+		s, ok := server.skills.Get("test-skill")
+		require.True(t, ok)
+		assert.True(t, s.Enabled)
+	}
+
+	{
+		reqBody := `{"id":"test-skill"}`
+		req := httptest.NewRequest("POST", "/skills/disable", strings.NewReader(reqBody))
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	}
+
+	{
+		s, ok := server.skills.Get("test-skill")
+		require.True(t, ok)
+		assert.False(t, s.Enabled)
+	}
+}
+
+func TestHandleSkillsInstallFromURLAndUninstall(t *testing.T) {
+	cfg := &config.Config{ListenAddr: ":0"}
+	st, _ := store.New(":memory:")
+	defer st.Close()
+	kc := newTestKeychain(t)
+
+	managedRoot := t.TempDir()
+	t.Setenv("PRYX_MANAGED_SKILLS_DIR", managedRoot)
+	t.Setenv("PRYX_SKILLS_CONFIG_PATH", filepath.Join(t.TempDir(), "skills.yaml"))
+
+	skillDoc := []byte(`---
+name: installed-skill
+description: from url
+---
+# Installed skill`)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(skillDoc)
+	}))
+	defer ts.Close()
+
+	server := New(cfg, st.DB, kc)
+	server.skills = skills.NewRegistry()
+
+	{
+		reqBody := `{"id":"` + ts.URL + `"}`
+		req := httptest.NewRequest("POST", "/skills/install", strings.NewReader(reqBody))
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	}
+
+	{
+		s, ok := server.skills.Get("installed-skill")
+		require.True(t, ok)
+		assert.Equal(t, skills.SourceRemote, s.Source)
+	}
+
+	{
+		reqBody := `{"id":"installed-skill"}`
+		req := httptest.NewRequest("POST", "/skills/uninstall", strings.NewReader(reqBody))
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	}
+
+	{
+		_, ok := server.skills.Get("installed-skill")
+		assert.False(t, ok)
+	}
+}
+
 func TestHandleHealth(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -96,14 +207,17 @@ func TestHandleHealth(t *testing.T) {
 	server.handleHealth(rec, req)
 
 	assert.Equal(t, http.StatusOK, rec.Code)
-	assert.Equal(t, "OK", rec.Body.String())
+	var response map[string]interface{}
+	err := json.Unmarshal(rec.Body.Bytes(), &response)
+	require.NoError(t, err)
+	assert.Equal(t, "ok", response["status"])
 }
 
 func TestHandleSkillsList(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -124,7 +238,7 @@ func TestHandleSkillsInfo_MissingID(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -144,7 +258,7 @@ func TestHandleSkillsInfo_NotFound(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -163,7 +277,7 @@ func TestHandleMCPTools(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -185,7 +299,7 @@ func TestHandleMCPCall_InvalidJSON(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -201,7 +315,7 @@ func TestHandleMCPCall_MissingTool(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -220,28 +334,353 @@ func TestHandleMCPCall_MissingTool(t *testing.T) {
 }
 
 func TestCorsMiddleware(t *testing.T) {
-	cfg := &config.Config{ListenAddr: ":0"}
+	cfg := &config.Config{
+		ListenAddr:     ":0",
+		AllowedOrigins: []string{"https://example.com"},
+	}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
+	// Test preflight with allowed origin
 	req := httptest.NewRequest("OPTIONS", "/health", nil)
+	req.Header.Set("Origin", "https://example.com")
 	rec := httptest.NewRecorder()
 
 	server.router.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusOK, rec.Code)
-	assert.Equal(t, "*", rec.Header().Get("Access-Control-Allow-Origin"))
+	assert.Equal(t, "https://example.com", rec.Header().Get("Access-Control-Allow-Origin"))
+	assert.Equal(t, "true", rec.Header().Get("Access-Control-Allow-Credentials"))
 	assert.Contains(t, rec.Header().Get("Access-Control-Allow-Methods"), "GET")
+}
+
+func TestHandleCloudLogin_HappyPath(t *testing.T) {
+	var mu sync.Mutex
+	var codeChallengeMethod string
+	var codeChallenge string
+	var verifier string
+	deviceCode := "device-123"
+
+	cloud := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/auth/device/code":
+			var req map[string]string
+			_ = json.NewDecoder(r.Body).Decode(&req)
+			mu.Lock()
+			codeChallengeMethod = req["code_challenge_method"]
+			codeChallenge = req["code_challenge"]
+			mu.Unlock()
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"device_code":               deviceCode,
+				"user_code":                 "USER-CODE",
+				"verification_uri":          "https://example.com/verify",
+				"expires_in":                60,
+				"interval":                  1,
+				"verification_uri_complete": "https://example.com/verify?code=USER-CODE",
+			})
+		case "/auth/device/token":
+			var req map[string]string
+			_ = json.NewDecoder(r.Body).Decode(&req)
+			mu.Lock()
+			verifier = req["code_verifier"]
+			mu.Unlock()
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"access_token": "token-abc",
+				"expires_in":   3600,
+				"token_type":   "bearer",
+			})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer cloud.Close()
+
+	cfg := &config.Config{ListenAddr: ":0", CloudAPIUrl: cloud.URL}
+	s, _ := store.New(":memory:")
+	defer s.Close()
+	kc := newTestKeychain(t)
+
+	server := New(cfg, s.DB, kc)
+
+	{
+		req := httptest.NewRequest("POST", "/api/v1/cloud/login/start", nil)
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusOK, rec.Code)
+
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		assert.Equal(t, deviceCode, body["device_code"])
+	}
+
+	{
+		req := httptest.NewRequest(
+			"POST",
+			"/api/v1/cloud/login/poll",
+			strings.NewReader(`{"device_code":"device-123","interval":1,"expires_in":5}`),
+		)
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusOK, rec.Code)
+
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		assert.Equal(t, true, body["ok"])
+	}
+
+	stored, err := kc.Get("cloud_access_token")
+	require.NoError(t, err)
+	assert.Equal(t, "token-abc", stored)
+
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, "S256", codeChallengeMethod)
+	assert.NotEmpty(t, codeChallenge)
+	assert.NotEmpty(t, verifier)
+}
+
+func TestHandleCloudLogin_RetryAfterTimeoutKeepsPKCE(t *testing.T) {
+	var mu sync.Mutex
+	var verifiers []string
+	allowToken := false
+	deviceCode := "device-999"
+
+	cloud := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/auth/device/code":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"device_code":      deviceCode,
+				"user_code":        "USER-CODE",
+				"verification_uri": "https://example.com/verify",
+				"expires_in":       60,
+				"interval":         1,
+			})
+		case "/auth/device/token":
+			var req map[string]string
+			_ = json.NewDecoder(r.Body).Decode(&req)
+			mu.Lock()
+			verifiers = append(verifiers, req["code_verifier"])
+			shouldAllow := allowToken
+			mu.Unlock()
+
+			if !shouldAllow {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(map[string]any{"error": "authorization_pending"})
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"access_token": "token-final",
+				"expires_in":   3600,
+				"token_type":   "bearer",
+			})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer cloud.Close()
+
+	cfg := &config.Config{ListenAddr: ":0", CloudAPIUrl: cloud.URL}
+	s, _ := store.New(":memory:")
+	defer s.Close()
+	kc := newTestKeychain(t)
+	server := New(cfg, s.DB, kc)
+
+	{
+		req := httptest.NewRequest("POST", "/api/v1/cloud/login/start", nil)
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusOK, rec.Code)
+	}
+
+	{
+		req := httptest.NewRequest(
+			"POST",
+			"/api/v1/cloud/login/poll",
+			strings.NewReader(`{"device_code":"device-999","interval":1,"expires_in":1}`),
+		)
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusRequestTimeout, rec.Code)
+	}
+
+	mu.Lock()
+	allowToken = true
+	mu.Unlock()
+
+	{
+		req := httptest.NewRequest(
+			"POST",
+			"/api/v1/cloud/login/poll",
+			strings.NewReader(`{"device_code":"device-999","interval":1,"expires_in":5}`),
+		)
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusOK, rec.Code)
+
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		assert.Equal(t, true, body["ok"])
+	}
+
+	stored, err := kc.Get("cloud_access_token")
+	require.NoError(t, err)
+	assert.Equal(t, "token-final", stored)
+
+	mu.Lock()
+	defer mu.Unlock()
+	require.GreaterOrEqual(t, len(verifiers), 2)
+	assert.NotEmpty(t, verifiers[0])
+	assert.NotEmpty(t, verifiers[len(verifiers)-1])
+	assert.Equal(t, verifiers[0], verifiers[len(verifiers)-1])
+}
+
+func TestHandleProviderKey_RoundTrip(t *testing.T) {
+	cfg := &config.Config{ListenAddr: ":0"}
+	s, _ := store.New(":memory:")
+	defer s.Close()
+	kc := newTestKeychain(t)
+
+	server := New(cfg, s.DB, kc)
+
+	{
+		req := httptest.NewRequest("GET", "/api/v1/providers/openai/key", nil)
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		assert.Equal(t, false, body["configured"])
+	}
+
+	{
+		req := httptest.NewRequest("POST", "/api/v1/providers/openai/key", strings.NewReader(`{"api_key":"sk-test"}`))
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		assert.Equal(t, true, body["ok"])
+	}
+
+	{
+		req := httptest.NewRequest("GET", "/api/v1/providers/openai/key", nil)
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		assert.Equal(t, true, body["configured"])
+	}
+
+	{
+		req := httptest.NewRequest("DELETE", "/api/v1/providers/openai/key", nil)
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusNoContent, rec.Code)
+	}
+
+	{
+		req := httptest.NewRequest("GET", "/api/v1/providers/openai/key", nil)
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		assert.Equal(t, false, body["configured"])
+	}
+}
+
+func TestHandleProviderKeySet_InvalidBody(t *testing.T) {
+	cfg := &config.Config{ListenAddr: ":0"}
+	s, _ := store.New(":memory:")
+	defer s.Close()
+	kc := newTestKeychain(t)
+
+	server := New(cfg, s.DB, kc)
+
+	{
+		req := httptest.NewRequest("POST", "/api/v1/providers/openai/key", strings.NewReader("not json"))
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	}
+
+	{
+		req := httptest.NewRequest("POST", "/api/v1/providers/openai/key", strings.NewReader(`{"api_key":""}`))
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	}
+}
+
+func TestHandleProviderKey_InvalidProviderID(t *testing.T) {
+	cfg := &config.Config{ListenAddr: ":0"}
+	s, _ := store.New(":memory:")
+	defer s.Close()
+	kc := newTestKeychain(t)
+
+	server := New(cfg, s.DB, kc)
+
+	{
+		req := httptest.NewRequest("GET", "/api/v1/providers/bad%20id/key", nil)
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	}
+
+	{
+		req := httptest.NewRequest("POST", "/api/v1/providers/bad%20id/key", strings.NewReader(`{"api_key":"x"}`))
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	}
+
+	{
+		req := httptest.NewRequest("DELETE", "/api/v1/providers/bad%20id/key", nil)
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	}
+}
+
+func TestHandleProviderKey_KeychainUnavailable(t *testing.T) {
+	cfg := &config.Config{ListenAddr: ":0"}
+	s, _ := store.New(":memory:")
+	defer s.Close()
+
+	server := New(cfg, s.DB, nil)
+
+	req := httptest.NewRequest("GET", "/api/v1/providers/openai/key", nil)
+	rec := httptest.NewRecorder()
+	server.router.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
 }
 
 func TestServer_Bus(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -254,7 +693,7 @@ func TestServer_Handler(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -266,7 +705,7 @@ func TestServer_Serve(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -311,7 +750,7 @@ func TestServer_Shutdown(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -334,7 +773,7 @@ func TestServer_Shutdown_NotStarted(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -350,7 +789,7 @@ func TestServer_DynamicPortAllocation(t *testing.T) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(t)
 
 	server := New(cfg, s.DB, kc)
 
@@ -385,7 +824,7 @@ func BenchmarkHandleHealth(b *testing.B) {
 	cfg := &config.Config{ListenAddr: ":0"}
 	s, _ := store.New(":memory:")
 	defer s.Close()
-	kc := keychain.New("test")
+	kc := newTestKeychain(b)
 
 	server := New(cfg, s.DB, kc)
 

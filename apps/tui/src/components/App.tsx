@@ -1,14 +1,13 @@
-import { createSignal, createEffect, onMount, onCleanup, Switch, Match, Show } from "solid-js";
+import { createSignal, createEffect, onMount, Switch, Match, Show } from "solid-js";
 import { useRenderer, useKeyboard } from "@opentui/solid";
 import { useEffectService, AppRuntime } from "../lib/hooks";
-import { WebSocketService } from "../services/ws";
+import { Effect } from "effect";
 import { HealthCheckService } from "../services/health-check";
 import { loadConfig } from "../services/config";
 import AppHeader from "./AppHeader";
 import Chat from "./Chat";
 import SessionExplorer from "./SessionExplorer";
 import Settings from "./Settings";
-import Channels from "./Channels";
 import ChannelManager from "./ChannelManager";
 import Skills from "./Skills";
 import SearchableCommandPalette, { Command } from "./SearchableCommandPalette";
@@ -22,13 +21,22 @@ import PolicyApprovals from "./PolicyApprovals";
 import MeshStatus from "./MeshStatus";
 import { palette } from "../theme";
 
-type View = "chat" | "sessions" | "settings" | "channels" | "skills" | "mcp" | "cost" | "agents" | "policies" | "mesh";
+type View =
+  | "chat"
+  | "sessions"
+  | "settings"
+  | "channels"
+  | "skills"
+  | "mcp"
+  | "cost"
+  | "agents"
+  | "policies"
+  | "mesh";
 
 export default function App() {
   const renderer = useRenderer();
   renderer.disableStdoutInterception();
 
-  const ws = useEffectService(WebSocketService);
   const healthCheck = useEffectService(HealthCheckService);
   const [view, setView] = createSignal<View>("chat");
   const [showCommands, setShowCommands] = createSignal(false);
@@ -40,12 +48,37 @@ export default function App() {
 
   onMount(() => {
     const config = loadConfig();
-    const hasValidProvider =
-      config.model_provider &&
-      (config.openai_key || config.anthropic_key || config.glm_key || config.ollama_endpoint);
-    if (!hasValidProvider) {
+    const providerId = (config.model_provider ?? "").toString().trim();
+    if (!providerId) {
       setSetupRequired(true);
+      return;
     }
+
+    const service = healthCheck();
+    if (!service) {
+      setSetupRequired(true);
+      return;
+    }
+
+    AppRuntime.runFork(
+      service.checkHealth.pipe(
+        Effect.tap(result =>
+          Effect.sync(() => {
+            if (result.status !== "ok") {
+              setSetupRequired(true);
+              return;
+            }
+            const providers = result.providers ?? [];
+            setSetupRequired(!providers.includes(providerId));
+          })
+        ),
+        Effect.catchAll(() =>
+          Effect.sync(() => {
+            setSetupRequired(true);
+          })
+        )
+      )
+    );
   });
 
   const handleSetupComplete = () => {
@@ -64,7 +97,7 @@ export default function App() {
     const pollInterval = 5000;
 
     AppRuntime.runFork(
-      service.pollHealth(pollInterval, (result) => {
+      service.pollHealth(pollInterval, result => {
         if (result.status === "ok") {
           if (result.providers && result.providers.length > 0) {
             setHasProvider(true);
@@ -267,7 +300,18 @@ export default function App() {
     },
   ];
 
-  const views: View[] = ["chat", "sessions", "channels", "skills", "settings", "mcp"];
+  const views: View[] = [
+    "chat",
+    "sessions",
+    "channels",
+    "skills",
+    "settings",
+    "mcp",
+    "cost",
+    "agents",
+    "policies",
+    "mesh",
+  ];
 
   useKeyboard(evt => {
     if (showHelp() || showCommands() || showProviderManager()) {
@@ -295,9 +339,20 @@ export default function App() {
       case "3":
       case "4":
       case "5":
-      case "6": {
+      case "6":
+      case "7":
+      case "8":
+      case "9": {
         evt.preventDefault();
         const idx = parseInt(evt.name) - 1;
+        if (idx < views.length) {
+          setView(views[idx]);
+        }
+        break;
+      }
+      case "0": {
+        evt.preventDefault();
+        const idx = 9; // 0 maps to 10th item (index 9)
         if (idx < views.length) {
           setView(views[idx]);
         }
@@ -329,61 +384,61 @@ export default function App() {
         <box flexDirection="row" padding={1} gap={2}>
           {/* View switcher with mouse support */}
           <box flexDirection="row" gap={1}>
-            <text 
+            <text
               fg={view() === "chat" ? palette.accent : palette.dim}
               bg={view() === "chat" ? palette.bgSelected : undefined}
             >
               1.Chat
             </text>
-            <text 
+            <text
               fg={view() === "sessions" ? palette.accent : palette.dim}
               bg={view() === "sessions" ? palette.bgSelected : undefined}
             >
               2.Sessions
             </text>
-            <text 
+            <text
               fg={view() === "channels" ? palette.accent : palette.dim}
               bg={view() === "channels" ? palette.bgSelected : undefined}
             >
               3.Channels
             </text>
-            <text 
+            <text
               fg={view() === "skills" ? palette.accent : palette.dim}
               bg={view() === "skills" ? palette.bgSelected : undefined}
             >
               4.Skills
             </text>
-            <text 
+            <text
               fg={view() === "settings" ? palette.accent : palette.dim}
               bg={view() === "settings" ? palette.bgSelected : undefined}
             >
               5.Settings
             </text>
-            <text 
+            <text
               fg={view() === "mcp" ? palette.accent : palette.dim}
               bg={view() === "mcp" ? palette.bgSelected : undefined}
             >
               6.MCP
             </text>
-            <text 
+            <text
               fg={view() === "cost" ? palette.accent : palette.dim}
               bg={view() === "cost" ? palette.bgSelected : undefined}
             >
               7.Cost
             </text>
-            <text 
+            <text
               fg={view() === "agents" ? palette.accent : palette.dim}
               bg={view() === "agents" ? palette.bgSelected : undefined}
             >
               8.Agents
             </text>
-            <text 
+            <text
               fg={view() === "policies" ? palette.accent : palette.dim}
               bg={view() === "policies" ? palette.bgSelected : undefined}
             >
               9.Policies
             </text>
-            <text 
+            <text
               fg={view() === "mesh" ? palette.accent : palette.dim}
               bg={view() === "mesh" ? palette.bgSelected : undefined}
             >
@@ -403,8 +458,8 @@ export default function App() {
         <box flexGrow={1} padding={1}>
           <Switch>
             <Match when={view() === "chat"}>
-              <Chat 
-                disabled={showCommands() || showHelp() || showProviderManager()} 
+              <Chat
+                disabled={showCommands() || showHelp() || showProviderManager()}
                 onConnectCommand={() => setShowProviderManager(true)}
               />
             </Match>
@@ -432,7 +487,7 @@ export default function App() {
             <Match when={view() === "policies"}>
               <PolicyApprovals onClose={() => setView("chat")} />
             </Match>
-            <Match when={view() === "mesh">
+            <Match when={view() === "mesh"}>
               <MeshStatus onClose={() => setView("chat")} />
             </Match>
           </Switch>
