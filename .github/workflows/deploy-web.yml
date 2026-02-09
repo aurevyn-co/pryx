@@ -5,15 +5,15 @@ on:
     branches:
       - main
     paths:
-      - 'apps/web/**'
-      - '.github/workflows/deploy-web.yml'
-      - 'wrangler.toml'
+      - "apps/web/**"
+      - ".github/workflows/deploy-web.yml"
+      - "wrangler.toml"
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to deploy to'
+        description: "Environment to deploy to"
         required: true
-        default: 'production'
+        default: "production"
         type: choice
         options:
           - production
@@ -21,7 +21,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: warp-ubuntu-latest
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: apps/web
@@ -33,7 +33,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: '1.3.8'
+          bun-version: "1.3.8"
 
       - name: Cache Bun dependencies
         uses: WarpBuilds/cache@v1
@@ -41,9 +41,9 @@ jobs:
           path: |
             ~/.bun/install/cache
             node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('apps/web/bun.lockb', 'apps/web/package.json') }}
+          key: bun-${{ hashFiles("apps/web/bun.lockb", "apps/web/package.json") }}
           restore-keys: |
-            ${{ runner.os }}-bun-
+            bun-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -59,12 +59,12 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/web
-          command: deploy --env=${{ github.event.inputs.environment || 'production' }}
+          command: deploy --env=${{ github.event.inputs.environment || "production" }}
         env:
           NODE_ENV: production
 
   test:
-    runs-on: warp-ubuntu-latest
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: apps/web
@@ -76,7 +76,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: '1.3.8'
+          bun-version: "1.3.8"
 
       - name: Cache Bun dependencies
         uses: WarpBuilds/cache@v1
@@ -84,9 +84,9 @@ jobs:
           path: |
             ~/.bun/install/cache
             node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('apps/web/bun.lockb', 'apps/web/package.json') }}
+          key: bun-${{ hashFiles("apps/web/bun.lockb", "apps/web/package.json") }}
           restore-keys: |
-            ${{ runner.os }}-bun-
+            bun-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -98,4 +98,4 @@ jobs:
         run: bun run test:e2e
         env:
           PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
-        if: github.event_name == 'push'
+        if: github.event_name == "push"
