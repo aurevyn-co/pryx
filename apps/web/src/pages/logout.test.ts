@@ -83,7 +83,15 @@ describe('Logout Endpoint', () => {
             const response = await GET({ url } as any);
 
             expect(response.status).toBe(302);
-            expect(response.headers.get('Location')).toBe('https://evil.com/steal');
+            expect(response.headers.get('Location')).toBe('/auth');
+        });
+
+        it('should reject protocol-relative next parameter', async () => {
+            const url = createMockUrl({ next: '//evil.com/phish' });
+            const response = await GET({ url } as any);
+
+            expect(response.status).toBe(302);
+            expect(response.headers.get('Location')).toBe('/auth');
         });
 
         it('should handle deeply nested paths', async () => {

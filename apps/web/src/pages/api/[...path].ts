@@ -2,6 +2,11 @@ import { Hono } from 'hono';
 import type { APIRoute } from 'astro';
 import adminApi from '../../server/admin-api';
 
+interface TelemetryAuthEnv {
+    ADMIN_API_KEY?: string;
+    TELEMETRY_API_KEY?: string;
+}
+
 /**
  * Unified API route for Pryx Cloud using Hono
  * Ported from vanilla Response logic for better scalability
@@ -65,6 +70,33 @@ function sanitizeTelemetryEvent(event: Record<string, unknown>): TelemetryEvent 
 
     clean.received_at = Date.now();
     return clean;
+}
+
+function getBearerToken(headerValue: string | undefined): string | null {
+    if (!headerValue) return null;
+    if (!headerValue.startsWith('Bearer ')) return null;
+    const token = headerValue.slice('Bearer '.length).trim();
+    return token || null;
+}
+
+function ensureTelemetryAuthorization(c: any): Response | null {
+    const env = (c.env ?? {}) as TelemetryAuthEnv;
+    const expectedToken = env.TELEMETRY_API_KEY || env.ADMIN_API_KEY;
+
+    if (!expectedToken) {
+        return c.json({ error: 'telemetry_auth_unconfigured' }, 503);
+    }
+
+    const token = getBearerToken(c.req.header('Authorization'));
+    if (!token) {
+        return c.json({ error: 'unauthorized' }, 401);
+    }
+
+    if (token !== expectedToken) {
+        return c.json({ error: 'forbidden' }, 403);
+    }
+
+    return null;
 }
 
 // --- Middleware ---
@@ -200,6 +232,9 @@ apiApp.post('/auth/token/refresh', async (c) => {
 
 // --- Telemetry Routes ---
 apiApp.post('/telemetry/ingest', async (c) => {
+    const authFailure = ensureTelemetryAuthorization(c);
+    if (authFailure) return authFailure;
+
     try {
         const body = await c.req.json();
         const events = Array.isArray(body) ? body : [body];
@@ -237,6 +272,9 @@ apiApp.post('/telemetry/ingest', async (c) => {
 });
 
 apiApp.get('/telemetry/query', async (c) => {
+    const authFailure = ensureTelemetryAuthorization(c);
+    if (authFailure) return authFailure;
+
     if (!c.env?.TELEMETRY) {
         return c.json({ error: 'telemetry_store_unavailable' }, 503);
     }
@@ -355,11 +393,16 @@ export const ALL: APIRoute = async (ctx) => {
         sessions: !!env.SESSIONS
     });
 
-    // Pass bindings through execution context for Hono
+    // Pass minimal execution context required by Hono.
     const executionCtx = {
-        ...ctx,
-        env: env
+        waitUntil: (promise: Promise<unknown>) => {
+            const waitUntil = (ctx as any).waitUntil;
+            if (typeof waitUntil === 'function') {
+                waitUntil(promise);
+            }
+        },
+        passThroughOnException: () => {},
     };
 
-    return apiApp.fetch(ctx.request, env, executionCtx);
+    return apiApp.fetch(ctx.request, env, executionCtx as any);
 };

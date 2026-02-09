@@ -1,7 +1,24 @@
 import type { APIRoute } from 'astro';
 
+function sanitizeRedirectPath(rawNext: string | null): string {
+    const candidate = rawNext && rawNext.trim() ? rawNext.trim() : '/auth';
+    if (!candidate.startsWith('/') || candidate.startsWith('//')) {
+        return '/auth';
+    }
+
+    try {
+        const parsed = new URL(candidate, 'https://pryx.dev');
+        if (parsed.origin !== 'https://pryx.dev') {
+            return '/auth';
+        }
+        return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    } catch {
+        return '/auth';
+    }
+}
+
 export const GET: APIRoute = async ({ url }) => {
-    const next = url.searchParams.get('next') || '/auth';
+    const next = sanitizeRedirectPath(url.searchParams.get('next'));
 
     const headers = new Headers({
         Location: next,

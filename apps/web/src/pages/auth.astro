@@ -1,8 +1,10 @@
 ---
 import Layout from '../layouts/Layout.astro';
 
-const next = Astro.url.searchParams.get('next') || '/dashboard';
-const requestedRole = Astro.url.searchParams.get('role') === 'superadmin' ? 'superadmin' : 'user';
+const nextParam = Astro.url.searchParams.get('next');
+const next = nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//')
+    ? nextParam
+    : '/dashboard';
 ---
 
 <Layout title="Sign In | Pryx Cloud">
@@ -10,21 +12,15 @@ const requestedRole = Astro.url.searchParams.get('role') === 'superadmin' ? 'sup
         <section class="auth-card">
             <h1>Sign In to Pryx Cloud</h1>
             <p>
-                Use your API token to access protected routes. For superadmin access, choose the
-                superadmin role and provide a valid admin token.
+                Use your API token to access protected routes. Superadmin access is derived from
+                superadmin tokens only.
             </p>
 
             <form id="auth-form">
                 <input type="hidden" id="next" value={next} />
 
-                <label for="role">Role</label>
-                <select id="role" required>
-                    <option value="user" selected={requestedRole === 'user'}>User</option>
-                    <option value="superadmin" selected={requestedRole === 'superadmin'}>Superadmin</option>
-                </select>
-
                 <label for="token">Access Token</label>
-                <input id="token" name="token" type="password" required placeholder="user:user-123 or admin token" />
+                <input id="token" name="token" type="password" required placeholder="user:user-123 or superadmin:<token>" />
 
                 <button type="submit">Sign In</button>
             </form>
@@ -36,15 +32,29 @@ const requestedRole = Astro.url.searchParams.get('role') === 'superadmin' ? 'sup
 
     <script>
         const form = document.getElementById('auth-form');
-        const roleInput = document.getElementById('role');
         const tokenInput = document.getElementById('token');
         const nextInput = document.getElementById('next');
         const errorOutput = document.getElementById('auth-error');
 
+        function sanitizeClientRedirect(candidate, fallback) {
+            if (!candidate || !candidate.startsWith('/') || candidate.startsWith('//')) {
+                return fallback;
+            }
+
+            try {
+                const parsed = new URL(candidate, window.location.origin);
+                if (parsed.origin !== window.location.origin) {
+                    return fallback;
+                }
+                return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+            } catch {
+                return fallback;
+            }
+        }
+
         form?.addEventListener('submit', (event) => {
             event.preventDefault();
 
-            const role = roleInput instanceof HTMLSelectElement ? roleInput.value : 'user';
             const token = tokenInput instanceof HTMLInputElement ? tokenInput.value.trim() : '';
             const nextRoute = nextInput instanceof HTMLInputElement ? nextInput.value : '/dashboard';
 
@@ -53,10 +63,17 @@ const requestedRole = Astro.url.searchParams.get('role') === 'superadmin' ? 'sup
                 return;
             }
 
-            document.cookie = `auth_token=${encodeURIComponent(token)}; Path=/; Max-Age=86400; SameSite=Lax`;
-            document.cookie = `auth_role=${role}; Path=/; Max-Age=86400; SameSite=Lax`;
+            const isSecure = window.location.protocol === 'https:';
+            const secureFlag = isSecure ? '; Secure' : '';
+            const isSuperadminToken = token.startsWith('superadmin:') || token === 'localhost';
+            const derivedRole = isSuperadminToken ? 'superadmin' : 'user';
 
-            const destination = role === 'superadmin' ? '/superadmin' : nextRoute;
+            document.cookie = `auth_token=${encodeURIComponent(token)}; Path=/; Max-Age=86400; SameSite=Lax${secureFlag}`;
+            document.cookie = `auth_role=${encodeURIComponent(derivedRole)}; Path=/; Max-Age=86400; SameSite=Lax${secureFlag}`;
+
+            const destination = isSuperadminToken
+                ? '/superadmin'
+                : sanitizeClientRedirect(nextRoute, '/dashboard');
             window.location.href = destination;
         });
     </script>

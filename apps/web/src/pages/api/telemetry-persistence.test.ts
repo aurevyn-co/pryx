@@ -30,6 +30,7 @@ class FakeKvNamespace {
 function createEnv() {
     return {
         TELEMETRY: new FakeKvNamespace(),
+        ADMIN_API_KEY: 'telemetry-secret',
     };
 }
 
@@ -40,7 +41,10 @@ describe('telemetry persistence pipeline', () => {
             'http://localhost/api/telemetry/ingest',
             {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: 'Bearer telemetry-secret',
+                },
                 body: JSON.stringify({
                     correlation_id: 'corr-1',
                     level: 'error',
@@ -73,7 +77,10 @@ describe('telemetry persistence pipeline', () => {
             'http://localhost/api/telemetry/ingest',
             {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: 'Bearer telemetry-secret',
+                },
                 body: JSON.stringify([
                     { correlation_id: 'corr-2', level: 'info', category: 'runtime', session_id: 'a' },
                     { correlation_id: 'corr-3', level: 'error', category: 'runtime', session_id: 'b' },
@@ -84,7 +91,11 @@ describe('telemetry persistence pipeline', () => {
 
         const queryResponse = await apiApp.request(
             'http://localhost/api/telemetry/query?level=error&limit=10',
-            undefined,
+            {
+                headers: {
+                    Authorization: 'Bearer telemetry-secret',
+                },
+            },
             env as never,
         );
 
