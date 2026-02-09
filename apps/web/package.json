@@ -10,6 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:smoke:install": "./scripts/smoke-install-endpoint.sh",
+    "test:smoke:deploy": "./scripts/post-deploy-checks.sh",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed"
   },
@@ -28,6 +30,7 @@
     "@vitest/coverage-v8": "^4.0.18",
     "jsdom": "^27.4.0",
     "@testing-library/react": "^14.0.0",
+    "@testing-library/jest-dom": "^6.4.0",
     "playwright": "^1.58.0",
     "@playwright/test": "^1.58.0",
     "@vitejs/plugin-react": "^4.5.2"
