@@ -5,6 +5,7 @@
  */
 
 import { MCPServerConfig } from './types.js';
+import { join } from 'node:path';
 
 /**
  * Interface representing a curated MCP server
@@ -302,8 +303,7 @@ export class MCPServerDiscovery {
    * @returns The default database path
    */
   private _getDefaultDatabasePath(): string {
-    const path = require('path');
-    return path.join(__dirname, '..', 'data', 'curated-servers.json');
+    return join(__dirname, '..', 'data', 'curated-servers.json');
   }
 }
 
