@@ -20,7 +20,7 @@ jobs:
   # Go Runtime Tests
   test-runtime:
     name: Runtime Tests (Go)
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -60,7 +60,7 @@ jobs:
   # Rust Host Tests
   test-host:
     name: Host Tests (Rust)
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -98,7 +98,7 @@ jobs:
   # Lint checks
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -147,12 +147,14 @@ jobs:
   # Build verification
   build:
     name: Build Verification
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runs-on }}
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
+            runs-on: warp-ubuntu-latest
           - os: macos-latest
+            runs-on: warp-macos-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -195,7 +197,7 @@ jobs:
   # E2E Tests (only on main branch)
   test-e2e:
     name: E2E Tests
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest
     if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'e2e')
     needs: [test-runtime, test-host, build]
     steps:
@@ -217,7 +219,7 @@ jobs:
   # Coverage summary
   coverage:
     name: Coverage Report
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest
     needs: [test-runtime, test-host, lint]
     steps:
       - uses: actions/checkout@v4

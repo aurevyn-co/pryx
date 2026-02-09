@@ -21,7 +21,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest
     defaults:
       run:
         working-directory: apps/web
@@ -64,7 +64,7 @@ jobs:
           NODE_ENV: production
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest
     defaults:
       run:
         working-directory: apps/web
