@@ -16,6 +16,39 @@ import { cors } from 'hono/cors';
  */
 type Layer = 'user' | 'superadmin' | 'localhost';
 
+interface AuthEnv {
+  ADMIN_API_KEY?: string;
+  LOCALHOST_ADMIN_KEY?: string;
+  ENVIRONMENT?: string;
+}
+
+interface D1RunResult {
+  success: boolean;
+}
+
+interface D1AllResult<T> {
+  results: T[];
+}
+
+interface D1PreparedStatement {
+  bind(...values: Array<string | number | null>): D1PreparedStatement;
+  all<T>(): Promise<D1AllResult<T>>;
+  first<T>(): Promise<T | null>;
+  run(): Promise<D1RunResult>;
+}
+
+interface D1Database {
+  prepare(query: string): D1PreparedStatement;
+}
+
+interface AdminApiEnv extends AuthEnv {
+  DB?: D1Database;
+  TELEMETRY?: {
+    list(options?: { limit?: number; prefix?: string }): Promise<{ keys: Array<{ name: string }> }>;
+    get(key: string): Promise<string | null>;
+  };
+}
+
 /**
  * Layer context containing authentication and authorization information
  */
@@ -23,13 +56,6 @@ interface LayerContext {
   layer: Layer;
   userId?: string;
   isLocalhost: boolean;
-}
-
-/**
- * Extended context with layer information attached
- */
-interface AdminContext extends LayerContext {
-  env: any;
 }
 
 // ============================================================================
@@ -43,36 +69,34 @@ interface AdminContext extends LayerContext {
  * - Bearer superadmin:admin-key → Superadmin layer
  * - Bearer localhost or no header → Localhost layer
  */
-function extractLayer(authHeader: string | null, env: Record<string, string | undefined>): LayerContext {
-  // Check for localhost bypass via environment variable
-  const localhostKey = env.LOCALHOST_ADMIN_KEY || process.env.LOCALHOST_ADMIN_KEY;
+function isNonProduction(env: AuthEnv): boolean {
+  return env.ENVIRONMENT !== 'production';
+}
 
-  if (!authHeader) {
-    // No auth header means localhost layer (local control panel)
+function extractLayer(authHeader: string | null, env: AuthEnv): LayerContext | null {
+  const localhostKey = env.LOCALHOST_ADMIN_KEY;
+  const adminKey = env.ADMIN_API_KEY;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.replace('Bearer ', '').trim() : null;
+
+  if (!token) {
+    return isNonProduction(env) ? { layer: 'localhost', isLocalhost: true } : null;
+  }
+
+  if ((localhostKey && token === localhostKey) || (token === 'localhost' && isNonProduction(env))) {
     return { layer: 'localhost', isLocalhost: true };
   }
 
-  const token = authHeader.replace('Bearer ', '').trim();
-
-  // Check for localhost bypass key
-  if (token === localhostKey || token === 'localhost') {
-    return { layer: 'localhost', isLocalhost: true };
+  if ((adminKey && token === adminKey) || (adminKey && token === `superadmin:${adminKey}`)) {
+    return { layer: 'superadmin', userId: 'superadmin', isLocalhost: false };
   }
 
-  // Check for superadmin token
-  if (token.startsWith('superadmin:')) {
-    const adminId = token.replace('superadmin:', '');
-    return { layer: 'superadmin', userId: adminId, isLocalhost: false };
-  }
-
-  // Check for regular user token
   if (token.startsWith('user:')) {
-    const userId = token.replace('user:', '');
+    const userId = token.replace('user:', '').trim();
+    if (!userId) return null;
     return { layer: 'user', userId, isLocalhost: false };
   }
 
-  // Fallback: treat as user with token as userId
-  return { layer: 'user', userId: token, isLocalhost: false };
+  return null;
 }
 
 /**
@@ -81,12 +105,14 @@ function extractLayer(authHeader: string | null, env: Record<string, string | un
  */
 function requireLayer(...requiredLayers: Layer[]) {
   return async (c: any, next: () => Promise<void>) => {
-    const authHeader = c.req.header('Authorization');
-    const env = c.env as Record<string, string | undefined>;
-    const layerContext = extractLayer(authHeader, env);
+    const layerContext = (c as any).get('layerContext') as LayerContext | null;
 
-    // Store layer context in request for downstream handlers
-    (c as any).req.layerContext = layerContext;
+    if (!layerContext) {
+      return c.json({
+        error: 'Unauthorized',
+        message: 'Missing or invalid credentials.',
+      }, 401);
+    }
 
     // Check if user's layer is allowed
     if (!requiredLayers.includes(layerContext.layer)) {
@@ -131,6 +157,41 @@ function getLayerFilters(layerContext: LayerContext): { userId?: string; global?
   }
 }
 
+function getDb(c: any): D1Database | null {
+  const env = (c.env ?? {}) as AdminApiEnv;
+  return env.DB ?? null;
+}
+
+function getIsoNow(): string {
+  return new Date().toISOString();
+}
+
+function toNullableString(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  return String(value);
+}
+
+async function logAdminAction(c: any, actionType: string, targetType: string, targetId: string, payload: Record<string, unknown> = {}) {
+  const db = getDb(c);
+  if (!db) return;
+
+  const layerContext = (c as any).get('layerContext') as LayerContext | null;
+  await db.prepare(`
+    INSERT INTO admin_actions (action_type, target_type, target_id, actor_layer, actor_id, payload_json, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `)
+    .bind(
+      actionType,
+      targetType,
+      targetId,
+      layerContext?.layer ?? 'unknown',
+      layerContext?.userId ?? null,
+      JSON.stringify(payload),
+      getIsoNow(),
+    )
+    .run();
+}
+
 // Admin API router
 const adminApi = new Hono<{ Bindings: any }>();
 
@@ -141,31 +202,22 @@ adminApi.use('/*', cors({
   allowHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// Middleware to verify admin authentication
+// Middleware to resolve auth context once per request
 adminApi.use('/*', async (c, next) => {
   const authHeader = c.req.header('Authorization');
+  const env = (c.env ?? {}) as AuthEnv;
+  const layerContext = extractLayer(authHeader, env);
 
-  // TODO: Implement proper admin authentication
-  // For now, check for admin API key
-  const env = c.env as Record<string, string | undefined>;
-  const adminKey = env.ADMIN_API_KEY || process.env.ADMIN_API_KEY;
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return c.json({ error: 'Unauthorized - Missing bearer token' }, 401);
-  }
-
-  const token = authHeader.replace('Bearer ', '');
-
-  // Validate admin token
-  if (token !== adminKey) {
-    return c.json({ error: 'Unauthorized - Invalid credentials' }, 401);
-  }
+  (c as any).set('layerContext', layerContext);
 
   await next();
 });
 
+// Require a recognized layer token (or localhost in non-production) for all admin routes.
+adminApi.use('/*', requireLayer('superadmin', 'localhost', 'user'));
+
 adminApi.get('/stats', requireLayer('superadmin', 'localhost'), async (c) => {
-  const layerContext = (c as any).req.layerContext as LayerContext;
+  const layerContext = (c as any).get('layerContext') as LayerContext;
   const filters = getLayerFilters(layerContext);
 
   let stats: Record<string, any>;
@@ -239,180 +291,263 @@ adminApi.get('/stats', requireLayer('superadmin', 'localhost'), async (c) => {
 
 // GET /api/admin/users - List users (layer-aware)
 adminApi.get('/users', requireLayer('superadmin', 'localhost', 'user'), async (c) => {
-  const layerContext = (c as any).req.layerContext as LayerContext;
-  const range = c.req.query('range') || '7d';
+  const layerContext = (c as any).get('layerContext') as LayerContext;
   const filters = getLayerFilters(layerContext);
 
-  // Layer-aware user listing
-  let users: Array<Record<string, any>>;
-
-  if (filters.userId && layerContext.layer === 'user') {
-    // Regular user: return only their own user data
-    users = [
-      {
-        id: filters.userId,
-        email: 'user@example.com',
-        createdAt: '2026-01-15T10:30:00Z',
-        lastActive: '2026-02-03T14:22:00Z',
-        deviceCount: 3,
-        sessionCount: 156,
-        totalCost: 45.20,
-        status: 'active',
-      },
-    ];
-  } else {
-    // Superadmin or localhost: return all users
-    users = [
-      {
-        id: 'user-001',
-        email: 'admin@pryx.dev',
-        createdAt: '2026-01-15T10:30:00Z',
-        lastActive: '2026-02-03T14:22:00Z',
-        deviceCount: 3,
-        sessionCount: 156,
-        totalCost: 45.20,
-        status: 'active',
-      },
-      {
-        id: 'user-002',
-        email: 'demo@example.com',
-        createdAt: '2026-01-20T08:15:00Z',
-        lastActive: '2026-02-03T09:45:00Z',
-        deviceCount: 2,
-        sessionCount: 89,
-        totalCost: 12.50,
-        status: 'active',
-      },
-    ];
+  const db = getDb(c);
+  if (!db) {
+    return c.json({ error: 'database_unavailable', message: 'D1 binding DB is required for admin user queries.' }, 503);
   }
+
+  type UserSummaryRow = {
+    id: string;
+    email: string;
+    createdAt: string;
+    lastActive: string;
+    deviceCount: number;
+    sessionCount: number;
+    totalCost: number;
+    status: string;
+  };
+
+  const userFilter = filters.userId ?? null;
+  const result = await db.prepare(`
+    SELECT
+      u.id,
+      u.email,
+      u.created_at AS createdAt,
+      u.last_active AS lastActive,
+      COUNT(DISTINCT d.id) AS deviceCount,
+      COUNT(DISTINCT s.id) AS sessionCount,
+      COALESCE(u.total_cost, 0) AS totalCost,
+      u.status
+    FROM users u
+    LEFT JOIN devices d ON d.user_id = u.id AND d.is_paired = 1
+    LEFT JOIN sessions s ON s.user_id = u.id
+    WHERE (?1 IS NULL OR u.id = ?1)
+    GROUP BY u.id
+    ORDER BY u.created_at DESC
+  `).bind(userFilter).all<UserSummaryRow>();
+
+  const users = result.results.map((row) => ({
+    id: row.id,
+    email: row.email,
+    createdAt: row.createdAt,
+    lastActive: row.lastActive,
+    deviceCount: Number(row.deviceCount ?? 0),
+    sessionCount: Number(row.sessionCount ?? 0),
+    totalCost: Number(row.totalCost ?? 0),
+    status: row.status,
+  }));
 
   return c.json(users);
 });
 
 // GET /api/admin/users/:id - Get detailed user info
-adminApi.get('/users/:id', async (c) => {
+adminApi.get('/users/:id', requireLayer('superadmin', 'localhost', 'user'), async (c) => {
   const userId = c.req.param('id');
+  const layerContext = (c as any).get('layerContext') as LayerContext;
 
-  // TODO: Fetch from D1 database
-  const user = {
-    id: userId,
-    email: 'user@example.com',
-    createdAt: '2026-01-15T10:30:00Z',
-    lastActive: '2026-02-03T14:22:00Z',
-    deviceCount: 3,
-    sessionCount: 156,
-    totalCost: 45.20,
-    status: 'active',
-    devices: [
-      {
-        id: 'dev-001',
-        name: 'MacBook Pro',
-        platform: 'macos',
-        version: '1.0.0',
-        status: 'online',
-      },
-    ],
-    providers: ['openai', 'anthropic'],
-    channels: ['telegram'],
+  if (layerContext.layer === 'user' && layerContext.userId !== userId) {
+    return c.json({ error: 'Forbidden', message: 'Users can only access their own profile.' }, 403);
+  }
+
+  const db = getDb(c);
+  if (!db) {
+    return c.json({ error: 'database_unavailable', message: 'D1 binding DB is required for admin user queries.' }, 503);
+  }
+
+  type UserDetailRow = {
+    id: string;
+    email: string;
+    createdAt: string;
+    lastActive: string;
+    deviceCount: number;
+    sessionCount: number;
+    totalCost: number;
+    status: string;
   };
 
-  return c.json(user);
+  const user = await db.prepare(`
+    SELECT
+      u.id,
+      u.email,
+      u.created_at AS createdAt,
+      u.last_active AS lastActive,
+      (SELECT COUNT(1) FROM devices d WHERE d.user_id = u.id AND d.is_paired = 1) AS deviceCount,
+      (SELECT COUNT(1) FROM sessions s WHERE s.user_id = u.id) AS sessionCount,
+      COALESCE(u.total_cost, 0) AS totalCost,
+      u.status
+    FROM users u
+    WHERE u.id = ?
+  `).bind(userId).first<UserDetailRow>();
+
+  if (!user) {
+    return c.json({ error: 'not_found' }, 404);
+  }
+
+  type DeviceRow = {
+    id: string;
+    name: string;
+    platform: string;
+    version: string;
+    status: string;
+  };
+
+  const devices = await db.prepare(`
+    SELECT id, name, platform, version, status
+    FROM devices
+    WHERE user_id = ? AND is_paired = 1
+    ORDER BY last_seen DESC
+  `).bind(userId).all<DeviceRow>();
+
+  return c.json({
+    id: user.id,
+    email: user.email,
+    createdAt: user.createdAt,
+    lastActive: user.lastActive,
+    deviceCount: Number(user.deviceCount ?? 0),
+    sessionCount: Number(user.sessionCount ?? 0),
+    totalCost: Number(user.totalCost ?? 0),
+    status: user.status,
+    devices: devices.results,
+    providers: [],
+    channels: [],
+  });
 });
 
 // PUT /api/admin/users/:id - Update user (suspend/activate)
-adminApi.put('/users/:id', async (c) => {
+adminApi.put('/users/:id', requireLayer('superadmin', 'localhost'), async (c) => {
   const userId = c.req.param('id');
-  const body = await c.req.json();
+  const body = await c.req.json().catch(() => ({}));
+  const nextStatus = toNullableString((body as { status?: unknown }).status);
 
-  // TODO: Update user status in database
+  const isSupportedStatus = nextStatus === 'active' || nextStatus === 'inactive' || nextStatus === 'suspended';
+  if (!nextStatus || !isSupportedStatus) {
+    return c.json({ error: 'invalid_status' }, 400);
+  }
+
+  const db = getDb(c);
+  if (!db) {
+    return c.json({ error: 'database_unavailable', message: 'D1 binding DB is required for admin user updates.' }, 503);
+  }
+
+  const existing = await db.prepare('SELECT id FROM users WHERE id = ?').bind(userId).first<{ id: string }>();
+  if (!existing) {
+    return c.json({ error: 'not_found' }, 404);
+  }
+
+  const updatedAt = getIsoNow();
+  await db.prepare('UPDATE users SET status = ?, last_active = ? WHERE id = ?').bind(nextStatus, updatedAt, userId).run();
+  await logAdminAction(c, 'user.status.updated', 'user', userId, { status: nextStatus });
+
   return c.json({
     id: userId,
-    status: body.status,
-    updatedAt: new Date().toISOString(),
+    status: nextStatus,
+    updatedAt,
   });
 });
 
 // GET /api/admin/devices - List devices (layer-aware)
 adminApi.get('/devices', requireLayer('superadmin', 'localhost', 'user'), async (c) => {
-  const layerContext = (c as any).req.layerContext as LayerContext;
+  const layerContext = (c as any).get('layerContext') as LayerContext;
   const filters = getLayerFilters(layerContext);
 
-  // Layer-aware device listing
-  let devices: Array<Record<string, any>>;
-
-  if (filters.userId && layerContext.layer === 'user') {
-    // Regular user: return only their own devices
-    devices = [
-      {
-        id: 'dev-001',
-        userId: filters.userId,
-        userEmail: 'user@example.com',
-        name: 'MacBook Pro',
-        platform: 'macos',
-        version: '1.0.0',
-        status: 'online',
-        lastSeen: '2026-02-03T14:22:00Z',
-        ipAddress: '192.168.1.100',
-      },
-    ];
-  } else {
-    // Superadmin or localhost: return all devices
-    devices = [
-      {
-        id: 'dev-001',
-        userId: 'user-001',
-        userEmail: 'admin@pryx.dev',
-        name: 'MacBook Pro',
-        platform: 'macos',
-        version: '1.0.0',
-        status: 'online',
-        lastSeen: '2026-02-03T14:22:00Z',
-        ipAddress: '192.168.1.100',
-      },
-      {
-        id: 'dev-002',
-        userId: 'user-001',
-        userEmail: 'admin@pryx.dev',
-        name: 'iPhone 15',
-        platform: 'ios',
-        version: '1.0.0',
-        status: 'offline',
-        lastSeen: '2026-02-03T10:15:00Z',
-        ipAddress: null,
-      },
-    ];
+  const db = getDb(c);
+  if (!db) {
+    return c.json({ error: 'database_unavailable', message: 'D1 binding DB is required for admin device queries.' }, 503);
   }
 
-  return c.json(devices);
+  type DeviceFleetRow = {
+    id: string;
+    userId: string;
+    userEmail: string;
+    name: string;
+    platform: string;
+    version: string;
+    status: string;
+    lastSeen: string;
+    ipAddress: string | null;
+  };
+
+  const userFilter = filters.userId ?? null;
+  const result = await db.prepare(`
+    SELECT
+      d.id,
+      d.user_id AS userId,
+      u.email AS userEmail,
+      d.name,
+      d.platform,
+      d.version,
+      d.status,
+      d.last_seen AS lastSeen,
+      d.ip_address AS ipAddress
+    FROM devices d
+    INNER JOIN users u ON u.id = d.user_id
+    WHERE d.is_paired = 1
+      AND (?1 IS NULL OR d.user_id = ?1)
+    ORDER BY d.last_seen DESC
+  `).bind(userFilter).all<DeviceFleetRow>();
+
+  return c.json(result.results.map((row) => ({
+    ...row,
+    ipAddress: row.ipAddress ?? undefined,
+  })));
 });
 
 // POST /api/admin/devices/:id/sync - Force sync a device
-adminApi.post('/devices/:id/sync', async (c) => {
+adminApi.post('/devices/:id/sync', requireLayer('superadmin', 'localhost'), async (c) => {
   const deviceId = c.req.param('id');
 
-  // TODO: Trigger device sync
+  const db = getDb(c);
+  if (!db) {
+    return c.json({ error: 'database_unavailable', message: 'D1 binding DB is required for device updates.' }, 503);
+  }
+
+  const existing = await db.prepare('SELECT id FROM devices WHERE id = ? AND is_paired = 1').bind(deviceId).first<{ id: string }>();
+  if (!existing) {
+    return c.json({ error: 'not_found' }, 404);
+  }
+
+  const timestamp = getIsoNow();
+  await db.prepare('UPDATE devices SET status = ?, last_seen = ? WHERE id = ?').bind('syncing', timestamp, deviceId).run();
+  await logAdminAction(c, 'device.sync.requested', 'device', deviceId, { status: 'syncing' });
+
   return c.json({
     id: deviceId,
     syncStatus: 'initiated',
-    timestamp: new Date().toISOString(),
+    timestamp,
   });
 });
 
 // POST /api/admin/devices/:id/unpair - Unpair a device
-adminApi.post('/devices/:id/unpair', async (c) => {
+adminApi.post('/devices/:id/unpair', requireLayer('superadmin', 'localhost'), async (c) => {
   const deviceId = c.req.param('id');
 
-  // TODO: Unpair device in database
+  const db = getDb(c);
+  if (!db) {
+    return c.json({ error: 'database_unavailable', message: 'D1 binding DB is required for device updates.' }, 503);
+  }
+
+  const existing = await db.prepare('SELECT id FROM devices WHERE id = ? AND is_paired = 1').bind(deviceId).first<{ id: string }>();
+  if (!existing) {
+    return c.json({ error: 'not_found' }, 404);
+  }
+
+  const timestamp = getIsoNow();
+  await db.prepare('UPDATE devices SET is_paired = 0, status = ?, last_seen = ? WHERE id = ?').bind('offline', timestamp, deviceId).run();
+  await logAdminAction(c, 'device.unpaired', 'device', deviceId);
+
   return c.json({
     id: deviceId,
     status: 'unpaired',
-    timestamp: new Date().toISOString(),
+    timestamp,
   });
 });
 
 // GET /api/admin/costs - Cost analytics (layer-aware)
 adminApi.get('/costs', requireLayer('superadmin', 'localhost', 'user'), async (c) => {
-  const layerContext = (c as any).req.layerContext as LayerContext;
+  const layerContext = (c as any).get('layerContext') as LayerContext;
   const range = c.req.query('range') || '7d';
   const filters = getLayerFilters(layerContext);
 
@@ -457,7 +592,7 @@ adminApi.get('/costs', requireLayer('superadmin', 'localhost', 'user'), async (c
   return c.json(costs);
 });
 
-adminApi.get('/health', async (c) => {
+adminApi.get('/health', requireLayer('superadmin', 'localhost'), async (c) => {
   const startTime = Date.now();
   let dbStatus = 'connected';
   let errorRate = 0;
@@ -516,33 +651,50 @@ adminApi.get('/health', async (c) => {
   }
 });
 
-adminApi.get('/telemetry', async (c) => {
-  const limit = parseInt(c.req.query('limit') || '50');
+adminApi.get('/telemetry', requireLayer('superadmin', 'localhost'), async (c) => {
+  const limit = Math.min(parseInt(c.req.query('limit') || '100', 10), 1000);
   const level = c.req.query('level');
+  const category = c.req.query('category');
+  const deviceId = c.req.query('device_id');
+  const sessionId = c.req.query('session_id');
+  const start = parseInt(c.req.query('start') || '0', 10) || 0;
+  const end = parseInt(c.req.query('end') || `${Date.now()}`, 10) || Date.now();
 
   try {
+    if (!c.env?.TELEMETRY) {
+      return c.json({ error: 'telemetry_store_unavailable' }, 503);
+    }
+
     const list = await c.env.TELEMETRY.list({
       limit,
       prefix: 'telemetry:',
     });
 
-    const events = [];
+    const events: Array<Record<string, unknown>> = [];
     for (const key of list.keys) {
       try {
         const value = await c.env.TELEMETRY.get(key.name);
         if (value) {
-          const event = JSON.parse(value);
-          if (!level || event.level === level) {
-            events.push(event);
-          }
+          const event = JSON.parse(value) as Record<string, unknown>;
+          const receivedAt = Number(event.received_at || 0);
+          if (receivedAt < start || receivedAt > end) continue;
+          if (level && event.level !== level) continue;
+          if (category && event.category !== category) continue;
+          if (deviceId && event.device_id !== deviceId) continue;
+          if (sessionId && event.session_id !== sessionId) continue;
+
+          events.push(event);
         }
       } catch (e) {
         console.error('Failed to parse telemetry event:', e);
       }
     }
 
+    events.sort((a, b) => Number(b.received_at || 0) - Number(a.received_at || 0));
+
     return c.json({
       count: events.length,
+      retentionDays: 7,
       events: events.slice(0, limit),
     });
   } catch (e) {
@@ -581,13 +733,13 @@ adminApi.put('/telemetry/config', requireLayer('superadmin', 'localhost'), async
     batchSize: body.batchSize ?? 100,
     flushInterval: body.flushInterval ?? 5000,
     updatedAt: new Date().toISOString(),
-    updatedBy: (c as any).req.layerContext?.userId || 'localhost',
+    updatedBy: ((c as any).get('layerContext') as LayerContext | null)?.userId || 'localhost',
   };
 
   return c.json(config);
 });
 
-adminApi.get('/logs', async (c) => {
+adminApi.get('/logs', requireLayer('superadmin', 'localhost'), async (c) => {
   const level = c.req.query('level') || 'info';
   const limit = parseInt(c.req.query('limit') || '100');
 
