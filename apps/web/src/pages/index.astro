@@ -55,15 +55,15 @@ import Layout from '../layouts/Layout.astro';
 						<p>pryx-agent-local -- bash</p>
 					</div>
 					<div class="terminal-body">
-						<p><span class="prompt">user@pryx:~$</span> pryx init</p>
-						<p class="dim">[info] local vault ready</p>
-						<p class="dim">[info] policy engine loaded</p>
-						<p><span class="prompt">user@pryx:~$</span> pryx run agent --task "triage incidents"</p>
-						<p class="dim">agent: analyzing telemetry stream...</p>
-						<div class="approval-box">
+						<p class="terminal-line is-hidden" data-terminal-line><span class="prompt">user@pryx:~$</span> pryx init</p>
+						<p class="terminal-line dim is-hidden" data-terminal-line>[info] local vault ready</p>
+						<p class="terminal-line dim is-hidden" data-terminal-line>[info] policy engine loaded</p>
+						<p class="terminal-line is-hidden" data-terminal-line><span class="prompt">user@pryx:~$</span> pryx run agent --task "triage incidents"</p>
+						<p class="terminal-line dim is-hidden" data-terminal-line>agent: analyzing telemetry stream...</p>
+						<div class="approval-box is-hidden" data-approval-box>
 							<p>approval required</p>
 							<p class="dim">action: network request to provider endpoint</p>
-							<p><span class="approve">allow?</span> [Y/n]</p>
+							<p><span class="approve">allow?</span> [Y/n] <span class="terminal-cursor" aria-hidden="true"></span></p>
 						</div>
 					</div>
 				</div>
@@ -253,6 +253,38 @@ import Layout from '../layouts/Layout.astro';
 			}
 		});
 	});
+
+	const terminalLines = Array.from(document.querySelectorAll('[data-terminal-line]'));
+	const approvalBox = document.querySelector('[data-approval-box]');
+
+	if (terminalLines.length > 0 && approvalBox) {
+		const lineDelayMs = 760;
+		const revealDelayMs = 420;
+		const holdAfterApprovalMs = 1450;
+		const loopPauseMs = 550;
+		let lineIndex = 0;
+
+		const showSequence = () => {
+			if (lineIndex < terminalLines.length) {
+				terminalLines[lineIndex].classList.remove('is-hidden');
+				lineIndex += 1;
+				setTimeout(showSequence, lineDelayMs);
+				return;
+			}
+
+			approvalBox.classList.remove('is-hidden');
+			setTimeout(resetSequence, holdAfterApprovalMs);
+		};
+
+		const resetSequence = () => {
+			terminalLines.forEach((line) => line.classList.add('is-hidden'));
+			approvalBox.classList.add('is-hidden');
+			lineIndex = 0;
+			setTimeout(showSequence, loopPauseMs);
+		};
+
+		setTimeout(showSequence, revealDelayMs);
+	}
 </script>
 
 <style>
@@ -542,6 +574,21 @@ import Layout from '../layouts/Layout.astro';
 		margin: 0 0 0.45rem;
 	}
 
+	.terminal-line {
+		overflow: hidden;
+		max-height: 2rem;
+		opacity: 1;
+		transform: translateY(0);
+		transition: max-height 0.24s ease, opacity 0.24s ease, transform 0.24s ease, margin-bottom 0.24s ease;
+	}
+
+	.terminal-line.is-hidden {
+		max-height: 0;
+		opacity: 0;
+		transform: translateY(4px);
+		margin-bottom: 0;
+	}
+
 	.prompt {
 		color: #84e8c5;
 	}
@@ -556,10 +603,52 @@ import Layout from '../layouts/Layout.astro';
 		border-radius: 0.66rem;
 		background: rgba(42, 18, 24, 0.42);
 		border: 1px solid rgba(249, 199, 79, 0.42);
+		overflow: hidden;
+		max-height: 8rem;
+		opacity: 1;
+		transform: translateY(0);
+		transition:
+			max-height 0.26s ease,
+			opacity 0.22s ease,
+			transform 0.22s ease,
+			margin-top 0.26s ease,
+			padding-top 0.26s ease,
+			padding-bottom 0.26s ease,
+			border-width 0.26s ease;
+	}
+
+	.approval-box.is-hidden {
+		max-height: 0;
+		opacity: 0;
+		transform: translateY(4px);
+		margin-top: 0;
+		padding-top: 0;
+		padding-bottom: 0;
+		border-width: 0;
 	}
 
 	.approval-box .approve {
 		color: var(--warn);
+	}
+
+	.terminal-cursor {
+		display: inline-block;
+		width: 0.5ch;
+		height: 1em;
+		margin-left: 0.16rem;
+		vertical-align: -0.14em;
+		background: var(--warn);
+		animation: terminal-blink 1s step-end infinite;
+	}
+
+	@keyframes terminal-blink {
+		0%,
+		100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0;
+		}
 	}
 
 	.capabilities {
