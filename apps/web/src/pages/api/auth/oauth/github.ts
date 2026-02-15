@@ -1,11 +1,12 @@
 import type { APIRoute } from 'astro';
 
-export const GET: APIRoute = async ({ locals, redirect }) => {
+export const GET: APIRoute = async ({ url, locals, redirect }) => {
     const env = locals.runtime.env;
     const clientId = env.GITHUB_CLIENT_ID as string;
     
     const state = crypto.randomUUID();
-    const callbackUrl = 'https://pryx.dev/api/auth/oauth/github/callback';
+    const host = url.host;
+    const callbackUrl = `https://${host}/api/auth/oauth/github/callback`;
     const githubAuthUrl = new URL('https://github.com/login/oauth/authorize');
     githubAuthUrl.searchParams.set('client_id', clientId);
     githubAuthUrl.searchParams.set('redirect_uri', callbackUrl);
