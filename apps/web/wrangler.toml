@@ -48,6 +48,26 @@ database_name = "pryx-db"
 database_id = "690fa544-1e7a-4acc-a4d1-8b899a057029"
 preview_database_id = "690fa544-1e7a-4acc-a4d1-8b899a057029"
 
+[[env.production.kv_namespaces]]
+binding = "DEVICE_CODES"
+id = "1e85f99a90fc487ea99e10753f7abd72"
+
+[[env.production.kv_namespaces]]
+binding = "TOKENS"
+id = "d7c2e95e549842ce83ab6d9a4848fa95"
+
+[[env.production.kv_namespaces]]
+binding = "SESSIONS"
+id = "580c90f74ca941ea91a460afc63d9474"
+
+[[env.production.kv_namespaces]]
+binding = "SESSION"
+id = "580c90f74ca941ea91a460afc63d9474"
+
+[[env.production.kv_namespaces]]
+binding = "TELEMETRY"
+id = "abca511f3d144dfd8f3dd4ba4b21fecd"
+
 [[env.production.routes]]
 pattern = "pryx.dev"
 custom_domain = true
