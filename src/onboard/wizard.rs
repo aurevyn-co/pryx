@@ -149,7 +149,7 @@ pub fn run_wizard() -> Result<Config> {
             );
             println!();
             // Signal to main.rs to call start_channels after wizard returns
-            std::env::set_var("ZEROCLAW_AUTOSTART_CHANNELS", "1");
+            std::env::set_var("PRYX_AUTOSTART_CHANNELS", "1");
         }
     }
 
@@ -204,7 +204,7 @@ pub fn run_channels_repair_wizard() -> Result<Config> {
             );
             println!();
             // Signal to main.rs to call start_channels after wizard returns
-            std::env::set_var("ZEROCLAW_AUTOSTART_CHANNELS", "1");
+            std::env::set_var("PRYX_AUTOSTART_CHANNELS", "1");
         }
     }
 
@@ -393,12 +393,12 @@ pub fn run_quick_setup(
 /// Pick a sensible default model for the given provider.
 fn default_model_for_provider(provider: &str) -> String {
     match provider {
-        "anthropic" => "claude-sonnet-4-20250514".into(),
-        "openai" => "gpt-4o".into(),
+        "anthropic" => "anthropic/claude-sonnet-4-20251928".into(),
+        "openai" => "openai/gpt-4o".into(),
         "ollama" => "llama3.2".into(),
-        "groq" => "llama-3.3-70b-versatile".into(),
-        "deepseek" => "deepseek-chat".into(),
-        _ => "anthropic/claude-sonnet-4-20250514".into(),
+        "groq" => "groq/llama-3.3-70b-versatile".into(),
+        "deepseek" => "deepseek/deepseek-chat".into(),
+        _ => "anthropic/claude-sonnet-4-20251928".into(),
     }
 }
 

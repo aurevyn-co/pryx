@@ -644,7 +644,7 @@ impl Default for Config {
 impl Config {
     pub fn load_or_init() -> Result<Self> {
         // Check for workspace override from environment (Docker support)
-        let pryx_dir = if let Ok(workspace) = std::env::var("ZEROCLAW_WORKSPACE") {
+        let pryx_dir = if let Ok(workspace) = std::env::var("PRYX_WORKSPACE") {
             let ws_path = PathBuf::from(&workspace);
             ws_path
                 .parent()
@@ -686,39 +686,38 @@ impl Config {
     /// Apply environment variable overrides to config.
     ///
     /// Supports:
-    /// - `ZEROCLAW_API_KEY` or `API_KEY` - LLM provider API key
-    /// - `ZEROCLAW_PROVIDER` or `PROVIDER` - Provider name (openrouter, openai, anthropic, ollama)
-    /// - `ZEROCLAW_MODEL` - Model name/ID
-    /// - `ZEROCLAW_WORKSPACE` - Workspace directory path
-    /// - `ZEROCLAW_GATEWAY_PORT` or `PORT` - Gateway server port
-    /// - `ZEROCLAW_GATEWAY_HOST` or `HOST` - Gateway bind address
-    /// - `ZEROCLAW_TEMPERATURE` - Default temperature (0.0-2.0)
+    /// - `PRYX_API_KEY` or `API_KEY` - LLM provider API key
+    /// - `PRYX_PROVIDER` or `PROVIDER` - Provider name (openrouter, openai, anthropic, ollama)
+    /// - `PRYX_MODEL` - Model name/ID
+    /// - `PRYX_WORKSPACE` - Workspace directory path
+    /// - `PRYX_GATEWAY_PORT` or `PORT` - Gateway server port
+    /// - `PRYX_GATEWAY_HOST` or `HOST` - Gateway bind address
+    /// - `PRYX_TEMPERATURE` - Default temperature (0.0-2.0)
     pub fn apply_env_overrides(&mut self) {
-        // API Key: ZEROCLAW_API_KEY or API_KEY
-        if let Ok(key) = std::env::var("ZEROCLAW_API_KEY").or_else(|_| std::env::var("API_KEY")) {
+        // API Key: PRYX_API_KEY or API_KEY
+        if let Ok(key) = std::env::var("PRYX_API_KEY").or_else(|_| std::env::var("API_KEY")) {
             if !key.is_empty() {
                 self.api_key = Some(key);
             }
         }
 
-        // Provider: ZEROCLAW_PROVIDER or PROVIDER
-        if let Ok(provider) =
-            std::env::var("ZEROCLAW_PROVIDER").or_else(|_| std::env::var("PROVIDER"))
+        // Provider: PRYX_PROVIDER or PROVIDER
+        if let Ok(provider) = std::env::var("PRYX_PROVIDER").or_else(|_| std::env::var("PROVIDER"))
         {
             if !provider.is_empty() {
                 self.default_provider = Some(provider);
             }
         }
 
-        // Model: ZEROCLAW_MODEL
-        if let Ok(model) = std::env::var("ZEROCLAW_MODEL") {
+        // Model: PRYX_MODEL
+        if let Ok(model) = std::env::var("PRYX_MODEL") {
             if !model.is_empty() {
                 self.default_model = Some(model);
             }
         }
 
-        // Temperature: ZEROCLAW_TEMPERATURE
-        if let Ok(temp_str) = std::env::var("ZEROCLAW_TEMPERATURE") {
+        // Temperature: PRYX_TEMPERATURE
+        if let Ok(temp_str) = std::env::var("PRYX_TEMPERATURE") {
             if let Ok(temp) = temp_str.parse::<f64>() {
                 if (0.0..=2.0).contains(&temp) {
                     self.default_temperature = temp;
@@ -726,25 +725,23 @@ impl Config {
             }
         }
 
-        // Workspace directory: ZEROCLAW_WORKSPACE
-        if let Ok(workspace) = std::env::var("ZEROCLAW_WORKSPACE") {
+        // Workspace directory: PRYX_WORKSPACE
+        if let Ok(workspace) = std::env::var("PRYX_WORKSPACE") {
             if !workspace.is_empty() {
                 self.workspace_dir = PathBuf::from(workspace);
             }
         }
 
-        // Gateway port: ZEROCLAW_GATEWAY_PORT or PORT
-        if let Ok(port_str) =
-            std::env::var("ZEROCLAW_GATEWAY_PORT").or_else(|_| std::env::var("PORT"))
+        // Gateway port: PRYX_GATEWAY_PORT or PORT
+        if let Ok(port_str) = std::env::var("PRYX_GATEWAY_PORT").or_else(|_| std::env::var("PORT"))
         {
             if let Ok(port) = port_str.parse::<u16>() {
                 self.gateway.port = port;
             }
         }
 
-        // Gateway host: ZEROCLAW_GATEWAY_HOST or HOST
-        if let Ok(host) = std::env::var("ZEROCLAW_GATEWAY_HOST").or_else(|_| std::env::var("HOST"))
-        {
+        // Gateway host: PRYX_GATEWAY_HOST or HOST
+        if let Ok(host) = std::env::var("PRYX_GATEWAY_HOST").or_else(|_| std::env::var("HOST")) {
             if !host.is_empty() {
                 self.gateway.host = host;
             }
@@ -1475,16 +1472,16 @@ default_temperature = 0.7
     #[test]
     fn env_override_api_key() {
         // Primary and fallback tested together to avoid env-var races.
-        std::env::remove_var("ZEROCLAW_API_KEY");
+        std::env::remove_var("PRYX_API_KEY");
         std::env::remove_var("API_KEY");
 
-        // Primary: ZEROCLAW_API_KEY
+        // Primary: PRYX_API_KEY
         let mut config = Config::default();
         assert!(config.api_key.is_none());
-        std::env::set_var("ZEROCLAW_API_KEY", "sk-test-env-key");
+        std::env::set_var("PRYX_API_KEY", "sk-test-env-key");
         config.apply_env_overrides();
         assert_eq!(config.api_key.as_deref(), Some("sk-test-env-key"));
-        std::env::remove_var("ZEROCLAW_API_KEY");
+        std::env::remove_var("PRYX_API_KEY");
 
         // Fallback: API_KEY
         let mut config2 = Config::default();
@@ -1497,15 +1494,15 @@ default_temperature = 0.7
     #[test]
     fn env_override_provider() {
         // Primary, fallback, and empty-value tested together to avoid env-var races.
-        std::env::remove_var("ZEROCLAW_PROVIDER");
+        std::env::remove_var("PRYX_PROVIDER");
         std::env::remove_var("PROVIDER");
 
-        // Primary: ZEROCLAW_PROVIDER
+        // Primary: PRYX_PROVIDER
         let mut config = Config::default();
-        std::env::set_var("ZEROCLAW_PROVIDER", "anthropic");
+        std::env::set_var("PRYX_PROVIDER", "anthropic");
         config.apply_env_overrides();
         assert_eq!(config.default_provider.as_deref(), Some("anthropic"));
-        std::env::remove_var("ZEROCLAW_PROVIDER");
+        std::env::remove_var("PRYX_PROVIDER");
 
         // Fallback: PROVIDER
         let mut config2 = Config::default();
@@ -1517,49 +1514,49 @@ default_temperature = 0.7
         // Empty value should not override
         let mut config3 = Config::default();
         let original_provider = config3.default_provider.clone();
-        std::env::set_var("ZEROCLAW_PROVIDER", "");
+        std::env::set_var("PRYX_PROVIDER", "");
         config3.apply_env_overrides();
         assert_eq!(config3.default_provider, original_provider);
-        std::env::remove_var("ZEROCLAW_PROVIDER");
+        std::env::remove_var("PRYX_PROVIDER");
     }
 
     #[test]
     fn env_override_model() {
         let mut config = Config::default();
 
-        std::env::set_var("ZEROCLAW_MODEL", "gpt-4o");
+        std::env::set_var("PRYX_MODEL", "gpt-4o");
         config.apply_env_overrides();
         assert_eq!(config.default_model.as_deref(), Some("gpt-4o"));
 
         // Clean up
-        std::env::remove_var("ZEROCLAW_MODEL");
+        std::env::remove_var("PRYX_MODEL");
     }
 
     #[test]
     fn env_override_workspace() {
         let mut config = Config::default();
 
-        std::env::set_var("ZEROCLAW_WORKSPACE", "/custom/workspace");
+        std::env::set_var("PRYX_WORKSPACE", "/custom/workspace");
         config.apply_env_overrides();
         assert_eq!(config.workspace_dir, PathBuf::from("/custom/workspace"));
 
         // Clean up
-        std::env::remove_var("ZEROCLAW_WORKSPACE");
+        std::env::remove_var("PRYX_WORKSPACE");
     }
 
     #[test]
     fn env_override_gateway_port() {
         // Port, fallback, and invalid tested together to avoid env-var races.
-        std::env::remove_var("ZEROCLAW_GATEWAY_PORT");
+        std::env::remove_var("PRYX_GATEWAY_PORT");
         std::env::remove_var("PORT");
 
-        // Primary: ZEROCLAW_GATEWAY_PORT
+        // Primary: PRYX_GATEWAY_PORT
         let mut config = Config::default();
         assert_eq!(config.gateway.port, 3000);
-        std::env::set_var("ZEROCLAW_GATEWAY_PORT", "8080");
+        std::env::set_var("PRYX_GATEWAY_PORT", "8080");
         config.apply_env_overrides();
         assert_eq!(config.gateway.port, 8080);
-        std::env::remove_var("ZEROCLAW_GATEWAY_PORT");
+        std::env::remove_var("PRYX_GATEWAY_PORT");
 
         // Fallback: PORT
         let mut config2 = Config::default();
@@ -1580,16 +1577,16 @@ default_temperature = 0.7
     #[test]
     fn env_override_gateway_host() {
         // Primary and fallback tested together to avoid env-var races.
-        std::env::remove_var("ZEROCLAW_GATEWAY_HOST");
+        std::env::remove_var("PRYX_GATEWAY_HOST");
         std::env::remove_var("HOST");
 
-        // Primary: ZEROCLAW_GATEWAY_HOST
+        // Primary: PRYX_GATEWAY_HOST
         let mut config = Config::default();
         assert_eq!(config.gateway.host, "127.0.0.1");
-        std::env::set_var("ZEROCLAW_GATEWAY_HOST", "0.0.0.0");
+        std::env::set_var("PRYX_GATEWAY_HOST", "0.0.0.0");
         config.apply_env_overrides();
         assert_eq!(config.gateway.host, "0.0.0.0");
-        std::env::remove_var("ZEROCLAW_GATEWAY_HOST");
+        std::env::remove_var("PRYX_GATEWAY_HOST");
 
         // Fallback: HOST
         let mut config2 = Config::default();
@@ -1602,25 +1599,25 @@ default_temperature = 0.7
     #[test]
     fn env_override_temperature() {
         // Valid and out-of-range tested together to avoid env-var races.
-        std::env::remove_var("ZEROCLAW_TEMPERATURE");
+        std::env::remove_var("PRYX_TEMPERATURE");
 
         // Valid temperature is applied
         let mut config = Config::default();
-        std::env::set_var("ZEROCLAW_TEMPERATURE", "0.5");
+        std::env::set_var("PRYX_TEMPERATURE", "0.5");
         config.apply_env_overrides();
         assert!((config.default_temperature - 0.5).abs() < f64::EPSILON);
 
         // Out-of-range temperature is ignored
         let mut config2 = Config::default();
         let original_temp = config2.default_temperature;
-        std::env::set_var("ZEROCLAW_TEMPERATURE", "3.0");
+        std::env::set_var("PRYX_TEMPERATURE", "3.0");
         config2.apply_env_overrides();
         assert!(
             (config2.default_temperature - original_temp).abs() < f64::EPSILON,
             "Temperature 3.0 should be ignored (out of range)"
         );
 
-        std::env::remove_var("ZEROCLAW_TEMPERATURE");
+        std::env::remove_var("PRYX_TEMPERATURE");
     }
 
     #[test]

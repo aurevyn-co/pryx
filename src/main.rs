@@ -41,7 +41,7 @@ use config::Config;
 #[derive(Parser, Debug)]
 #[command(name = "pryx")]
 #[command(author = "theonlyhennygod")]
-#[command(version = "0.1.0")]
+#[command(version = "0.0.1")]
 #[command(about = "The fastest, smallest AI assistant.", long_about = None)]
 struct Cli {
     #[command(subcommand)]
@@ -286,7 +286,7 @@ async fn main() -> Result<()> {
             onboard::run_quick_setup(api_key.as_deref(), provider.as_deref(), memory.as_deref())?
         };
         // Auto-start channels if user said yes during wizard
-        if std::env::var("ZEROCLAW_AUTOSTART_CHANNELS").as_deref() == Ok("1") {
+        if std::env::var("PRYX_AUTOSTART_CHANNELS").as_deref() == Ok("1") {
             channels::start_channels(config).await?;
         }
         return Ok(());
