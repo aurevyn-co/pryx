@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="pryx.png" alt="Pryx" width="200" />
+  <img src="pryx-image.png" alt="Pryx" width="200" />
 </p>
 
 <h1 align="center">Pryx 🦀</h1>
