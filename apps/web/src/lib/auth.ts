@@ -134,10 +134,11 @@ export async function getUserByEmail(env: Env, email: string): Promise<User | nu
 export async function createUser(env: Env, email: string, password: string, name?: string): Promise<User> {
     const id = generateId();
     const passwordHash = await hashPassword(password);
+    const createdAt = new Date().toISOString();
 
     await env.DB.prepare(
-        'INSERT INTO users (id, email, password_hash, name) VALUES (?, ?, ?, ?)'
-    ).bind(id, email.toLowerCase(), passwordHash, name || null).run();
+        'INSERT INTO users (id, email, password_hash, name, created_at) VALUES (?, ?, ?, ?, ?)'
+    ).bind(id, email.toLowerCase(), passwordHash, name || null, createdAt).run();
 
     return {
         id,
