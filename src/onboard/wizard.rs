@@ -393,7 +393,6 @@ pub fn run_quick_setup(
 /// Pick a sensible default model for the given provider.
 fn default_model_for_provider(provider: &str) -> String {
     match provider {
-        "anthropic" => "anthropic/claude-sonnet-4-20251928".into(),
         "openai" => "openai/gpt-4o".into(),
         "ollama" => "llama3.2".into(),
         "groq" => "groq/llama-3.3-70b-versatile".into(),
