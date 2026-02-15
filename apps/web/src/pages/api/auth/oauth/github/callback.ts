@@ -79,7 +79,7 @@ export const GET: APIRoute = async ({ url, locals, cookies, redirect }) => {
         } else {
             const newUser = await auth.createUser(env, email, crypto.randomUUID(), githubUser.name || githubUser.login);
             await env.DB.prepare(
-                'INSERT INTO oauth_accounts (id, user_id, provider, provider_user_id) VALUES (?, ?, ?, ?'
+                'INSERT INTO oauth_accounts (id, user_id, provider, provider_user_id) VALUES (?, ?, ?, ?)'
             ).bind(crypto.randomUUID(), newUser.id, 'github', String(githubUser.id)).run();
             userId = newUser.id;
         }
