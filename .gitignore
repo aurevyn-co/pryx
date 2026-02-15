@@ -1,7 +1,7 @@
 # Rust
 /target/
 **/*.rs.bk
-Cargo.lock (if library)
+# Cargo.lock  # (uncomment if library only)
 
 # IDE
 .idea/
