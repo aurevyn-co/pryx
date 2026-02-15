@@ -10,6 +10,8 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "jsxImportSource": "react",
-    "types": ["vitest/globals", "@testing-library/jest-dom"]
+    "target": "ES2022",
+    "moduleResolution": "bundler",
+    "types": ["vitest/globals", "@testing-library/jest-dom", "@cloudflare/workers-types"]
   }
 }
