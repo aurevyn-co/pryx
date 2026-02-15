@@ -293,8 +293,12 @@ mod tests {
 
     #[test]
     fn run_capture_handles_long_output() {
-        let out = run_capture(Command::new("sh").args(["-lc", "printf 'a%.0s' {1..1000}"]))
-            .expect("long output should succeed");
+        // Use a more portable approach for generating long output
+        // {1..1000} brace expansion doesn't work consistently across shells
+        let out = run_capture(
+            Command::new("sh").args(["-lc", "for i in $(seq 1 1000); do printf 'a'; done"]),
+        )
+        .expect("long output should succeed");
         assert_eq!(out.len(), 1000);
     }
 
