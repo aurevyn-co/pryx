@@ -355,7 +355,7 @@ pub fn run_quick_setup(
     println!(
         "  {} Gateway:    {}",
         style("✓").green().bold(),
-        style("pairing required (127.0.0.1:8080)").green()
+        style("pairing required (127.0.0.1:42424)").green()
     );
     println!(
         "  {} Tunnel:     {}",
@@ -1633,7 +1633,7 @@ fn setup_channels() -> Result<ChannelsConfig> {
 
                 let port: String = Input::new()
                     .with_prompt("  Port")
-                    .default("8080".into())
+                    .default("42424".into())
                     .interact_text()?;
 
                 let secret: String = Input::new()
@@ -1642,7 +1642,7 @@ fn setup_channels() -> Result<ChannelsConfig> {
                     .interact_text()?;
 
                 config.webhook = Some(WebhookConfig {
-                    port: port.parse().unwrap_or(8080),
+                    port: port.parse().unwrap_or(42424),
                     secret: if secret.is_empty() {
                         None
                     } else {

@@ -89,7 +89,7 @@ impl Default for IdentityConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GatewayConfig {
-    /// Gateway port (default: 3000)
+    /// Gateway port (default: 42424)
     #[serde(default = "default_gateway_port")]
     pub port: u16,
     /// Gateway host/bind address (default: 127.0.0.1)
@@ -107,7 +107,7 @@ pub struct GatewayConfig {
 }
 
 fn default_gateway_port() -> u16 {
-    3000
+    42424
 }
 
 fn default_gateway_host() -> String {
@@ -1290,7 +1290,7 @@ channel_id = "C123"
     #[test]
     fn checklist_gateway_serde_roundtrip() {
         let g = GatewayConfig {
-            port: 3000,
+            port: 42424,
             host: "127.0.0.1".into(),
             require_pairing: true,
             allow_public_bind: false,
@@ -1552,7 +1552,7 @@ default_temperature = 0.7
 
         // Primary: PRYX_GATEWAY_PORT
         let mut config = Config::default();
-        assert_eq!(config.gateway.port, 3000);
+        assert_eq!(config.gateway.port, 42424);
         std::env::set_var("PRYX_GATEWAY_PORT", "8080");
         config.apply_env_overrides();
         assert_eq!(config.gateway.port, 8080);
@@ -1623,7 +1623,7 @@ default_temperature = 0.7
     #[test]
     fn gateway_config_default_values() {
         let g = GatewayConfig::default();
-        assert_eq!(g.port, 3000);
+        assert_eq!(g.port, 42424);
         assert_eq!(g.host, "127.0.0.1");
         assert!(g.require_pairing);
         assert!(!g.allow_public_bind);

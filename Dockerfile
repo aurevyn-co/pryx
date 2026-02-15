@@ -27,7 +27,7 @@ ENV PRYX_WORKSPACE=/data/workspace
 #   PROVIDER or PRYX_PROVIDER   - LLM provider (default: openrouter)
 #                                     Options: openrouter, openai, anthropic, ollama
 #   PRYX_MODEL                  - Model to use (default: anthropic/claude-sonnet-4-20250514)
-#   PORT or PRYX_GATEWAY_PORT   - Gateway port (default: 3000)
+#   PORT or PRYX_GATEWAY_PORT   - Gateway port (default: 42424)
 #
 # Example:
 #   docker run -e API_KEY=sk-... -e PROVIDER=openrouter pryx/pryx
@@ -35,7 +35,7 @@ ENV PRYX_WORKSPACE=/data/workspace
 # Explicitly set non-root user (distroless:nonroot defaults to 65534, but be explicit)
 USER 65534:65534
 
-EXPOSE 3000
+EXPOSE 42424
 
 ENTRYPOINT ["pryx"]
 CMD ["gateway"]

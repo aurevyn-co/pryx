@@ -109,7 +109,7 @@ enum Commands {
     /// Start the gateway server (webhooks, websockets)
     Gateway {
         /// Port to listen on (use 0 for random available port)
-        #[arg(short, long, default_value = "8080")]
+        #[arg(short, long, default_value = "42424")]
         port: u16,
 
         /// Host to bind to
@@ -120,7 +120,7 @@ enum Commands {
     /// Start long-running autonomous runtime (gateway + channels + heartbeat + scheduler)
     Daemon {
         /// Port to listen on (use 0 for random available port)
-        #[arg(short, long, default_value = "8080")]
+        #[arg(short, long, default_value = "42424")]
         port: u16,
 
         /// Host to bind to

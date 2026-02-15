@@ -53,10 +53,15 @@ ls -lh target/release/pryx
 ## Quick Start
 
 ```bash
-git clone https://github.com/theonlyhennygod/pryx.git
-cd pryx
-cargo build --release
-cargo install --path . --force
+# One-liner install (macOS / Linux) - requires GitHub release
+curl -fsSL https://pryx.dev/install | bash
+
+# OR build from source (no release needed)
+git clone https://github.com/irfndi/pryx.git && cd pryx
+cargo build --release && cargo install --path . --force
+
+# Verify installation
+pryx --version
 
 # Quick setup (no prompts)
 pryx onboard --api-key sk-... --provider openrouter
@@ -74,7 +79,7 @@ pryx agent -m "Hello, Pryx!"
 pryx agent
 
 # Start the gateway (webhook server)
-pryx gateway                # default: 127.0.0.1:8080
+pryx gateway                # default: 127.0.0.1:42424
 pryx gateway --port 0       # random port (security hardened)
 
 # Start full autonomous runtime
@@ -101,7 +106,12 @@ pryx migrate openclaw --dry-run
 pryx migrate openclaw
 ```
 
-> **Dev fallback (no global install):** prefix commands with `cargo run --release --` (example: `cargo run --release -- status`).
+> **Dev fallback (build from source):**
+> ```bash
+> git clone https://github.com/irfndi/pryx.git && cd pryx
+> cargo build --release
+> ./target/release/pryx --help
+> ```
 
 ## Architecture
 
@@ -113,7 +123,7 @@ Every subsystem is a **trait** — swap implementations with a config change, ze
 
 | Subsystem | Trait | Ships with | Extend |
 |-----------|-------|------------|--------|
-| **AI Models** | `Provider` | 22+ providers (OpenRouter, Anthropic, OpenAI, Ollama, Venice, Groq, Mistral, xAI, DeepSeek, Together, Fireworks, Perplexity, Cohere, Bedrock, etc.) | `custom:https://your-api.com` — any OpenAI-compatible API |
+| **AI Models** | `Provider` | 22+ providers (OpenRouter, Anthropic, OpenAI, Ollama, Venice, Groq, Mistral, xAI, DeepSeek, Together, Fireworks, Perplexity, Cohere, Bedrock, etc.) | `custom:https://your-api.com` — any OpenAI-compatible API. 84+ via [models.dev](https://models.dev) integration (MIG-002) |
 | **Channels** | `Channel` | CLI, Telegram, Discord, Slack, iMessage, Matrix, WhatsApp, Webhook | Any messaging API |
 | **Memory** | `Memory` | SQLite with hybrid search (FTS5 + vector cosine similarity), Markdown | Any persistence backend |
 | **Tools** | `Tool` | shell, file_read, file_write, memory_store, memory_recall, memory_forget, browser_open (Brave + allowlist), composio (optional) | Any capability |
@@ -228,7 +238,7 @@ WhatsApp uses Meta's Cloud API with webhooks (push-based, not polling):
 
 4. **Start the gateway with a tunnel:**
    ```bash
-   pryx gateway --port 8080
+   pryx gateway --port 42424
    ```
    WhatsApp requires HTTPS, so use a tunnel (ngrok, Cloudflare, Tailscale Funnel).
 
@@ -376,11 +386,11 @@ See [aieos.org](https://aieos.org) for the full schema and live examples.
 | Command | Description |
 |---------|-------------|
 | `onboard` | Quick setup (default) |
-| `onboard --interactive` | Full interactive 7-step wizard |
-| `onboard --channels-only` | Reconfigure channels/allowlists only (fast repair flow) |
+| `onboard --interactive` | Full interactive wizard |
+| `onboard --channels-only` | Reconfigure channels/allowlists only |
 | `agent -m "..."` | Single message mode |
 | `agent` | Interactive chat mode |
-| `gateway` | Start webhook server (default: `127.0.0.1:8080`) |
+| `gateway` | Start webhook server (default: `127.0.0.1:42424`) |
 | `gateway --port 0` | Random port mode |
 | `daemon` | Start long-running autonomous runtime |
 | `service install/start/stop/status/uninstall` | Manage user-level background service |
@@ -388,6 +398,95 @@ See [aieos.org](https://aieos.org) for the full schema and live examples.
 | `status` | Show full system status |
 | `channel doctor` | Run health checks for configured channels |
 | `integrations info <name>` | Show setup/status details for one integration |
+
+## Channel Integration Guides
+
+### Telegram
+
+1. **Create a Bot**
+   - Chat with [@BotFather](https://t.me/botfather) on Telegram
+   - Send `/newbot` and follow the instructions
+   - Copy the bot token
+
+2. **Configure in Pryx**
+   ```bash
+   pryx onboard --interactive
+   # Select Telegram channel
+   ```
+
+### Discord
+
+1. **Create a Discord Application**
+   - Go to [Discord Developer Portal](https://discord.com/developers/applications)
+   - Click "New Application" → name it
+   - Create a bot in "Bot" tab, copy token
+   - Enable "Message Content Intent"
+
+2. **Invite Bot**
+   - Go to OAuth2 → URL Generator
+   - Select scopes: `bot`, `applications.commands`
+   - Copy URL and open in browser
+
+3. **Configure in Pryx**
+   ```bash
+   pryx onboard --interactive
+   # Select Discord channel
+   ```
+
+### Slack
+
+1. **Create a Slack App**
+   - Go to [Slack API](https://api.slack.com/apps)
+   - Create new app from scratch
+
+2. **Configure Permissions**
+   - Add scopes: `chat:write`, `channels:read`, `im:read`, `im:write`
+
+3. **Enable Events**
+   - Subscribe to: `message.channels`, `message.groups`, `message.im`
+
+4. **Configure in Pryx**
+   ```bash
+   pryx onboard --interactive
+   # Select Slack channel
+   ```
+
+## Troubleshooting
+
+### TUI Not Connecting
+
+```bash
+# Check if gateway is running
+curl http://127.0.0.1:42424/health
+
+# Check status
+pryx status
+```
+
+### Provider Connection Failed
+
+```bash
+# Test provider
+pryx doctor
+
+# Check API key is set
+cat ~/.pryx/config.toml | grep api_key
+```
+
+### Channel Bot Not Responding
+
+**Telegram:**
+1. Verify bot token
+2. Ensure bot has been started (send `/start` to bot)
+3. Check allowlist in config
+
+**Discord:**
+1. Verify bot permissions
+2. Ensure slash commands synced
+
+**Slack:**
+1. Verify event subscriptions
+2. Check bot has required scopes
 
 ## Development
 
