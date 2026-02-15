@@ -1,72 +1,49 @@
-# Pryx .gitignore
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock (if library)
 
-# Build artifacts
-/apps/host/target/
-/apps/runtime/bin/
-# TUI Binaries
-/apps/tui/pryx-tui
-/apps/tui/.*.bun-build
-/apps/tui/dist/
-/apps/tui/node_modules/
-/apps/tui/test-results/
-/apps/tui/playwright-report/
-
-# Dependency lockfiles are committed by default.
-# Uncomment to ignore them (not recommended):
-# Cargo.lock
-# go.sum
-# package-lock.json
-
-# Testing
-/coverage/
-*.coverprofile
-*.prof
-/apps/runtime/internal/store/test_pryx.db
-
-# IDE and editor files
-.vscode/
+# IDE
 .idea/
+.vscode/
 *.swp
 *.swo
 *~
-.DS_Store
 
-# OS files
+# OS
+.DS_Store
 Thumbs.db
-desktop.ini
+
+# Environment
+.env
+.env.local
+*.local
+
+# Database
+*.db
+*.db-journal
 
 # Logs
 *.log
 logs/
 
-# Temporary files
+# Build
+dist/
+build/
+
+# Test
+coverage/
+.nyc_output/
+
+# Temporary
 tmp/
 temp/
 *.tmp
-
-# Environment files
-.env
-.env.local
-.env.*.local
 
 # Secrets (never commit)
 *.pem
 *.key
 secrets/
 
-# Data
-pryx.db
-*.db
-*.db-journal
-
-# Go coverage and test artifacts
-coverage.out
-*.test
-apps/runtime/*.test
-apps/runtime/coverage.out
+# Node (legacy)
 node_modules/
-apps/runtime/cmd/pryx-core/pryx-core
-
-# Build artifacts
-**/dist/
-target/

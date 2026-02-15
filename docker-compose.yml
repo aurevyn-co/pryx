@@ -1,52 +1,48 @@
-version: '3.8'
+# ZeroClaw Docker Compose Example
+# 
+# Quick start:
+#   1. Copy this file and set your API key
+#   2. Run: docker-compose up -d
+#   3. Access gateway at http://localhost:3000
+#
+# For more info: https://github.com/theonlyhennygod/zeroclaw
 
 services:
-  runtime:
-    build:
-      context: ./apps/runtime
-      dockerfile: Dockerfile
+  zeroclaw:
+    image: ghcr.io/theonlyhennygod/zeroclaw:latest
+    # Or build locally:
+    # build: .
+    container_name: zeroclaw
+    restart: unless-stopped
+    
     environment:
-      - PRYX_DATA_DIR=/pryx/data
-      - PRYX_CONFIG_DIR=/pryx/config
-      - PRYX_LOG_LEVEL=debug
+      # Required: Your LLM provider API key
+      - API_KEY=${API_KEY:-}
+      # Or use the prefixed version:
+      # - ZEROCLAW_API_KEY=${ZEROCLAW_API_KEY:-}
+      
+      # Optional: LLM provider (default: openrouter)
+      # Options: openrouter, openai, anthropic, ollama
+      - PROVIDER=${PROVIDER:-openrouter}
+      
+      # Optional: Model override
+      # - ZEROCLAW_MODEL=anthropic/claude-sonnet-4-20250514
+      
     volumes:
-      - ./data:/pryx/data
-      - ./config:/pryx/config
-      - ./logs:/pryx/logs
+      # Persist workspace and config
+      - zeroclaw-data:/data
+      
     ports:
+      # Gateway API port
       - "3000:3000"
-      - "4000:4000"  # Metrics endpoint if exposed
-    command: ["./pryx-core"]
-    restart: unless-stopped
-
-  tui:
-    build:
-      context: ./apps/tui
-    environment:
-      - PRYX_RUNTIME_URL=http://runtime:3000
-      - PRYX_WS_URL=ws://runtime:4000
-    depends_on:
-      - runtime
-    command: ["bun", "dev"]
-    volumes:
-      - ./apps/tui:/app
-    restart: unless-stopped
-
-  host:
-    build:
-      context: ./apps/host
-    environment:
-      - PRYX_RUNTIME_URL=http://runtime:3000
-      - PRYX_WS_URL=ws://runtime:4000
-    depends_on:
-      - runtime
-    command: ["cargo", "tauri", "dev"]
-    volumes:
-      - ./apps/local-web:/local-web
-      - ./data:/pryx/data
-    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "zeroclaw", "doctor"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 volumes:
-  data:
-  config:
-  logs:
+  zeroclaw-data:
