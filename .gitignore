@@ -69,3 +69,4 @@ apps/runtime/cmd/pryx-core/pryx-core
 
 # Build artifacts
 **/dist/
+target/
