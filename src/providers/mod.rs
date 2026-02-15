@@ -11,11 +11,12 @@ pub use traits::Provider;
 
 use compatible::{AuthStyle, OpenAiCompatibleProvider};
 use models_dev::ModelsDevClient;
-use once_cell::sync::Lazy;
 use reliable::ReliableProvider;
+use std::sync::LazyLock;
 use std::sync::Mutex;
 
-static MODELS_DEV: Lazy<Mutex<ModelsDevClient>> = Lazy::new(|| Mutex::new(ModelsDevClient::new()));
+static MODELS_DEV: LazyLock<Mutex<ModelsDevClient>> =
+    LazyLock::new(|| Mutex::new(ModelsDevClient::new()));
 
 /// Factory: create the right provider from config
 #[allow(clippy::too_many_lines)]
