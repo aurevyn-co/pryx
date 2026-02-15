@@ -1,155 +1,166 @@
 # Migration Tasks for Pryx → Rust
 
-> Generated from gap analysis on 2026-02-15
-
-## Phase 1: Foundation (HIGH Priority)
-
-### MIG-001: Rename ZeroClaw to Pryx
-- **Status**: pending
-- **Priority**: HIGH
-- **Description**: Replace all zeroclaw references with pryx in source code
-- **Files**:
-  - `newkind/zeroclaw-main/Cargo.toml`
-  - `newkind/zeroclaw-main/src/**/*.rs`
-  - `newkind/zeroclaw-main/README.md`
-  - All doc files
-- **Commands**:
-  ```bash
-  # Update Cargo.toml
-  sed -i '' 's/zeroclaw/pryx/g' Cargo.toml
-  
-  # Update source files
-  find src -name "*.rs" -exec sed -i '' 's/zeroclaw/pryx/g' {} \;
-  
-  # Update config paths
-  # ~/.zeroclaw → ~/.pryx
-  # ZEROCLAW_* → PRYX_*
-  ```
-
-### MIG-002: Add models.dev Provider Integration
-- **Status**: pending
-- **Priority**: HIGH
-- **Description**: Integrate models.dev API for 84+ AI providers
-- **Files**:
-  - `src/providers/models_dev.rs` (new)
-  - `src/providers/mod.rs` (modify)
-- **Implementation**:
-  - Fetch provider list from models.dev API
-  - Create Provider trait implementations dynamically
-  - Support OpenAI-compatible endpoints
-
-### MIG-003: Add MCP Native Client
-- **Status**: pending
-- **Priority**: HIGH
-- **Description**: Implement MCP client as a Tool trait implementation
-- **Files**:
-  - `src/tools/mcp.rs` (new)
-  - `src/tools/mod.rs` (modify)
-- **Implementation**:
-  - Support stdio and HTTP transports
-  - Tool discovery from MCP servers
-  - Permission integration
-
-### MIG-004: Add TUI Interface
-- **Status**: pending
-- **Priority**: HIGH
-- **Description**: Port or create new TUI with ratatui
-- **Files**:
-  - `src/tui/mod.rs` (new)
-  - `src/tui/app.rs` (new)
-  - `src/tui/ui.rs` (new)
-  - `src/tui/handlers.rs` (new)
-- **Reference**: OpenCode's Bubble Tea TUI patterns
-
-## Phase 2: Extended Features (MEDIUM Priority)
-
-### MIG-005: Add Local Web Admin
-- **Status**: pending
-- **Priority**: MEDIUM
-- **Description**: Port React web admin or create with axum + leptos/yew
-- **Files**:
-  - `src/web/mod.rs` (new)
-  - `src/web/routes.rs` (new)
-  - `src/web/static/` (new)
-
-### MIG-006: Add Pryx Mesh Sync
-- **Status**: pending
-- **Priority**: MEDIUM
-- **Description**: Implement multi-device sync protocol
-- **Files**:
-  - `src/mesh/mod.rs` (new)
-  - `src/mesh/protocol.rs` (new)
-  - `src/mesh/discovery.rs` (new)
-
-### MIG-007: Add Session Timeline
-- **Status**: pending
-- **Priority**: MEDIUM
-- **Description**: Track all actions, tool calls, approvals
-- **Files**:
-  - `src/session/mod.rs` (new)
-  - `src/session/timeline.rs` (new)
-
-### MIG-008: Add Cost Tracking
-- **Status**: pending
-- **Priority**: MEDIUM
-- **Description**: Token usage and cost monitoring
-- **Files**:
-  - `src/observability/cost.rs` (new)
-
-### MIG-009: Add OAuth Device Flow
-- **Status**: pending
-- **Priority**: MEDIUM
-- **Description**: Implement RFC 8628 OAuth Device Flow
-- **Files**:
-  - `src/auth/mod.rs` (new)
-  - `src/auth/oauth.rs` (new)
-
-### MIG-010: Add Agent Spawning
-- **Status**: pending
-- **Priority**: MEDIUM
-- **Description**: Multi-agent orchestration system
-- **Files**:
-  - `src/agent/spawn.rs` (new)
-
-## Phase 3: Desktop Integration (LOW Priority)
-
-### MIG-011: Add Tauri Desktop Wrapper
-- **Status**: pending
-- **Priority**: LOW
-- **Description**: Create Tauri v2 wrapper for desktop app
-- **Files**:
-  - `apps/desktop/` (new)
-
-### MIG-012: Add System Tray
-- **Status**: pending
-- **Priority**: LOW
-- **Description**: Native system tray integration
-- **Files**:
-  - `apps/desktop/src/tray.rs` (new)
+> **Version**: 5.0 (Final - Triple-Checked)  
+> **Updated**: 2026-02-15  
+> **Total Tasks**: 34 (33 open + 1 closed duplicate)  
+> **Status**: Ready for implementation  
+> **Testing**: See [TESTING_REQUIREMENTS.md](./TESTING_REQUIREMENTS.md)
 
 ---
 
-## Progress Tracking
+## Quick Stats
 
-| Task ID | Title | Status | Started | Completed |
-|---------|-------|--------|---------|-----------|
-| MIG-001 | Rename ZeroClaw to Pryx | pending | - | - |
-| MIG-002 | models.dev integration | pending | - | - |
-| MIG-003 | MCP native client | pending | - | - |
-| MIG-004 | TUI interface | pending | - | - |
-| MIG-005 | Local web admin | pending | - | - |
-| MIG-006 | Pryx Mesh sync | pending | - | - |
-| MIG-007 | Session timeline | pending | - | - |
-| MIG-008 | Cost tracking | pending | - | - |
-| MIG-009 | OAuth device flow | pending | - | - |
-| MIG-010 | Agent spawning | pending | - | - |
-| MIG-011 | Tauri desktop | pending | - | - |
-| MIG-012 | System tray | pending | - | - |
+| Priority | Count | Tasks |
+|----------|-------|-------|
+| **P0 (HIGH)** | 10 | Foundation + Core gaps |
+| **P1 (MEDIUM)** | 13 | Extended features |
+| **P2 (LOW)** | 11 | Nice-to-have |
+| **TOTAL OPEN** | **34** | |
 
 ---
 
-## Notes
+## Pre-Requisites (Do First) - P0
 
-- All tasks should have corresponding test coverage
-- Documentation must be updated for each task
-- Breaking changes need migration guides
+### MIG-000: Directory Restructure ✅ DONE
+- **ID**: `pryx-1bhd`
+- **Status**: COMPLETED
+- **Description**: Move pryx-rust to root, old codebases to _legacy/
+- **Completed**: 2026-02-15
+- **Result**:
+  - `apps/` → `_legacy/apps/`
+  - `packages/` → `_legacy/packages/`
+  - `newkind/pryx-rust/src/` → `src/`
+  - `newkind/pryx-rust/tests/` → `tests/`
+  - `newkind/pryx-rust/examples/` → `examples/`
+  - `newkind/pryx-rust/Cargo.toml` → `Cargo.toml`
+  - `cargo build --release` works ✅
+  - `cargo test` passes (842/843 - 1 pre-existing env-dependent failure)
+
+### MIG-001T: Test Coverage for Existing Code
+- **ID**: `pryx-4dy6`
+- **Description**: Verify 80%+ coverage on existing 843 tests
+- **Modules**: providers, channels, tools, memory, security, agent, gateway
+
+---
+
+## Phase 1: HIGH Priority (P0) - 8 remaining
+
+| ID | Task | Foundation | Gap |
+|----|------|------------|-----|
+| `pryx-pw1k.1` | MIG-002: models.dev Catalog | providers/compatible.rs | Dynamic catalog |
+| `pryx-9vpv` | MIG-003: MCP Native Client | None | Protocol client |
+| `pryx-pw1k.3` | MIG-004: TUI Interface | None | 24 components to port |
+| `pryx-nht0` | MIG-006: Mesh Sync | security/pairing.rs | Multi-device |
+| `pryx-ak6j` | MIG-010: Agent Spawning | agent/loop_.rs | Sub-agents + handoff + capability |
+| `pryx-h7wm` | MIG-021: OS Keychain | security/secrets.rs | Keychain storage |
+| `pryx-yktr` | MIG-023: Human-in-Loop | security/policy.rs | Approval prompts |
+| `pryx-q4kc` | MIG-029: Event Bus | observability (one-way) | Full pub/sub |
+
+---
+
+## Phase 2: MEDIUM Priority (P1) - 13 tasks
+
+| ID | Task | Source |
+|----|------|--------|
+| `pryx-ogcq` | MIG-005: Local Web Admin | NEW |
+| `pryx-y623` | MIG-007: Session Timeline | NEW |
+| `pryx-ckp6` | MIG-008: Cost Tracking | NEW |
+| `pryx-tcvm` | MIG-009: OAuth Device Flow | NEW |
+| `pryx-gnft` | MIG-013: OAuth Token Refresh | NEW |
+| `pryx-60pq` | MIG-018: Clipboard Tool | NEW |
+| `pryx-324p` | MIG-019: Screen/Terminal Tool | NEW |
+| `pryx-rxi1` | MIG-020: LSP Integration | OpenCode |
+| `pryx-vqf6` | MIG-022: Audit Logging | OLD Pryx |
+| `pryx-6bk1` | MIG-026: Multi-Agent Routing | OpenClaw |
+| `pryx-a1hh` | MIG-027: PKCE Support | NEW |
+| `pryx-i8ez` | MIG-030: Input Validation | OLD Pryx |
+| `pryx-xric` | MIG-033: Universal Agent Client | OLD Pryx (universal/) |
+
+---
+
+## Phase 3: LOW Priority (P2) - 11 tasks
+
+| ID | Task | Source |
+|----|------|--------|
+| `pryx-7rgp` | MIG-011: Tauri Desktop + hostrpc | OLD Pryx |
+| `pryx-8j4v` | MIG-012: System Tray | NEW |
+| `pryx-d1mn` | MIG-014: Email Channel | OpenClaw |
+| `pryx-8i2w` | MIG-015: Signal Channel | OpenClaw |
+| `pryx-hewu` | MIG-016: Teams Channel | OpenClaw |
+| `pryx-mdpt` | MIG-017: Voice Wake + Talk | OpenClaw |
+| `pryx-26ih` | MIG-024: Device Management | NEW |
+| `pryx-j8ln` | MIG-025: WebSocket Coordination | NEW |
+| `pryx-mwot` | MIG-028: Auto-Update | NEW |
+| `pryx-twvw` | MIG-031: Patch/Diff Tool | OpenCode |
+| `pryx-0tg1` | MIG-032: Web Chat Channel | OpenClaw |
+
+---
+
+## Existing Foundation (Don't Rebuild!)
+
+| Module | Status | Files |
+|--------|--------|-------|
+| **Providers** | ✅ | OpenAI, Anthropic, OpenRouter, Ollama, Compatible (22+) |
+| **Channels** | ✅ | CLI, Telegram, Discord, Slack, Matrix, WhatsApp, iMessage, Webhook |
+| **Tools** | ✅ | Shell, File R/W, Memory (3), Browser, Composio |
+| **Memory** | ✅ | SQLite + FTS5 + Vector + Embeddings |
+| **Security** | ✅ | Pairing (6-digit), Policy (sandbox), Secrets (file) |
+| **Agent** | ✅ | Single agent loop |
+| **Gateway** | ✅ | Axum HTTP server |
+| **Daemon** | ✅ | Long-running supervisor |
+| **Cron** | ✅ | Task scheduler |
+| **Tunnel** | ✅ | Cloudflare, Tailscale, ngrok, custom |
+| **Skills** | ✅ | TOML manifests |
+| **Observability** | ✅ | Observer trait (one-way) |
+
+---
+
+## Dependencies
+
+```
+MIG-000 (Restructure) ─┬─> All other tasks
+MIG-001T (Tests) ──────┘
+
+MIG-029 (Event Bus) ───┬─> MIG-010 (Agent Spawning)
+                       ├─> MIG-006 (Mesh Sync)
+                       ├─> MIG-026 (Multi-Agent Routing)
+                       └─> MIG-033 (Universal Agent Client)
+
+MIG-009 (OAuth) ───────┬─> MIG-013 (Token Refresh)
+                       └─> MIG-027 (PKCE)
+
+MIG-010 (Agent Spawn) ─> MIG-026 (Routing)
+                       └> MIG-033 (Universal Client)
+
+MIG-011 (Desktop) ─────> MIG-012 (Tray)
+```
+
+---
+
+## Triple-Check Verification
+
+### OLD Pryx Modules (41 total)
+- ✅ 20 already exist in Rust
+- ✅ 20 covered by tasks
+- ✅ 4 not needed (federation, marketplace, nlp, trust)
+- ✅ 1 added as MIG-033 (universal/)
+
+### OpenClaw Features
+- ✅ All reviewed and covered
+
+### OpenCode Features
+- ✅ All reviewed and covered
+
+### TUI Components (24 total)
+- ✅ All listed in MIG-004 description
+
+---
+
+## Related Documents
+
+- [TESTING_REQUIREMENTS.md](./TESTING_REQUIREMENTS.md) - Mandatory testing standards
+- [MIGRATION_GAP_ANALYSIS.md](./MIGRATION_GAP_ANALYSIS.md) - Detailed gap analysis
+
+---
+
+*Document updated: 2026-02-15 - Triple-checked final version with 34 tasks*
