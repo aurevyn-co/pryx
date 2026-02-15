@@ -1,6 +1,6 @@
 [package]
 name = "pryx"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
 authors = ["irfndi"]
 license = "MIT"
@@ -48,6 +48,9 @@ sha2 = "0.10"
 
 # Async traits
 async-trait = "0.1"
+
+# Lazy static
+once_cell = "1.19"
 
 # Memory / persistence
 rusqlite = { version = "0.32", features = ["bundled"] }

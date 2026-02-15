@@ -1,4 +1,4 @@
-//! Example: Implementing a custom Provider for ZeroClaw
+//! Example: Implementing a custom Provider for Pryx
 //!
 //! This shows how to add a new LLM backend in ~30 lines of code.
 //! Copy this file, modify the API call, and register in `src/providers/mod.rs`.

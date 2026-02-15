@@ -1,5 +1,6 @@
 pub mod anthropic;
 pub mod compatible;
+pub mod models_dev;
 pub mod ollama;
 pub mod openai;
 pub mod openrouter;
@@ -9,7 +10,12 @@ pub mod traits;
 pub use traits::Provider;
 
 use compatible::{AuthStyle, OpenAiCompatibleProvider};
+use models_dev::ModelsDevClient;
 use reliable::ReliableProvider;
+use std::sync::Mutex;
+use once_cell::sync::Lazy;
+
+static MODELS_DEV: Lazy<Mutex<ModelsDevClient>> = Lazy::new(|| Mutex::new(ModelsDevClient::new()));
 
 /// Factory: create the right provider from config
 #[allow(clippy::too_many_lines)]
@@ -45,14 +51,13 @@ pub fn create_provider(name: &str, api_key: Option<&str>) -> anyhow::Result<Box<
         "opencode" | "opencode-zen" => Ok(Box::new(OpenAiCompatibleProvider::new(
             "OpenCode Zen", "https://api.opencode.ai", api_key, AuthStyle::Bearer,
         ))),
-        "zai" | "z.ai" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Z.AI", "https://api.z.ai", api_key, AuthStyle::Bearer,
-        ))),
+        // zai resolved via models.dev
         "glm" | "zhipu" => Ok(Box::new(OpenAiCompatibleProvider::new(
             "GLM", "https://open.bigmodel.cn/api/paas", api_key, AuthStyle::Bearer,
         ))),
+        // MiniMax (api.minimax.chat)
         "minimax" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "MiniMax", "https://api.minimax.chat", api_key, AuthStyle::Bearer,
+            "MiniMax", "https://api.minimax.chat/v1", api_key, AuthStyle::Bearer,
         ))),
         "bedrock" | "aws-bedrock" => Ok(Box::new(OpenAiCompatibleProvider::new(
             "Amazon Bedrock",
@@ -105,10 +110,73 @@ pub fn create_provider(name: &str, api_key: Option<&str>) -> anyhow::Result<Box<
             )))
         }
 
-        _ => anyhow::bail!(
-            "Unknown provider: {name}. Check README for supported providers or run `pryx onboard --interactive` to reconfigure.\n\
-             Tip: Use \"custom:https://your-api.com\" for any OpenAI-compatible endpoint."
-        ),
+        _ => {
+            if let Ok(mut client) = MODELS_DEV.lock() {
+                match client.fetch_catalog() {
+                    Ok(catalog) => {
+                        if let Some(provider_info) = catalog.get(name) {
+                            if let Some(base_url) = &provider_info.api {
+                                let base_url = base_url.trim_end_matches('/').to_string();
+                                if base_url.contains("api.minimax.io/anthropic") {
+                                    let base_url = "https://platform.minimax.io";
+                                    tracing::info!(provider = name, url = %base_url, "Resolved provider from models.dev");
+                                    return Ok(Box::new(OpenAiCompatibleProvider::new(
+                                        &provider_info.name,
+                                        base_url,
+                                        api_key,
+                                        AuthStyle::Bearer,
+                                    )));
+                                }
+                                if base_url.contains("api.minimaxi.com/anthropic") {
+                                    let base_url = "https://platform.minimaxi.com";
+                                    tracing::info!(provider = name, url = %base_url, "Resolved provider from models.dev");
+                                    return Ok(Box::new(OpenAiCompatibleProvider::new(
+                                        &provider_info.name,
+                                        base_url,
+                                        api_key,
+                                        AuthStyle::Bearer,
+                                    )));
+                                }
+                                if base_url.contains("api.z.ai/api/paas") {
+                                    let base_url = "https://api.z.ai/api/paas/v4";
+                                    tracing::info!(provider = name, url = %base_url, "Resolved provider from models.dev");
+                                    return Ok(Box::new(OpenAiCompatibleProvider::new(
+                                        &provider_info.name,
+                                        base_url,
+                                        api_key,
+                                        AuthStyle::Bearer,
+                                    )));
+                                }
+                                tracing::info!(provider = name, url = %base_url, "Resolved provider from models.dev");
+                                let final_url = if base_url.contains("/v4") || base_url.contains("/v3") || base_url.contains("/api/paas") {
+                                    base_url.clone()
+                                } else if base_url.ends_with("/v1") {
+                                    base_url.trim_end_matches("/v1").to_string()
+                                } else {
+                                    base_url
+                                };
+                                return Ok(Box::new(OpenAiCompatibleProvider::new(
+                                    &provider_info.name,
+                                    &final_url,
+                                    api_key,
+                                    AuthStyle::Bearer,
+                                )));
+                            }
+                            tracing::warn!(provider = name, "Provider has no API endpoint in models.dev");
+                        } else {
+                            tracing::warn!(provider = name, "Provider not found in models.dev catalog");
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!(error = %e, "Failed to fetch models.dev catalog");
+                    }
+                }
+            }
+            anyhow::bail!(
+                "Unknown provider: {name}. Check README for supported providers or run `pryx onboard --interactive` to reconfigure.\n\
+                 Tip: Use \"custom:https://your-api.com\" for any OpenAI-compatible endpoint."
+            )
+        }
     }
 }
 
@@ -213,8 +281,8 @@ mod tests {
 
     #[test]
     fn factory_zai() {
-        assert!(create_provider("zai", Some("key")).is_ok());
-        assert!(create_provider("z.ai", Some("key")).is_ok());
+        let result = create_provider("zai", Some("key"));
+        assert!(result.is_ok());
     }
 
     #[test]
@@ -226,6 +294,26 @@ mod tests {
     #[test]
     fn factory_minimax() {
         assert!(create_provider("minimax", Some("key")).is_ok());
+    }
+
+    // ── models.dev dynamic providers ────────────────────────────
+
+    #[test]
+    fn factory_models_dev_resolves_unknown_provider() {
+        let p = create_provider("minimax-coding-plan", Some("sk-test"));
+        assert!(p.is_ok(), "Expected minimax-coding-plan to resolve from models.dev");
+    }
+
+    #[test]
+    fn factory_models_dev_resolves_anthropic() {
+        let p = create_provider("anthropic", Some("sk-ant-api03-test"));
+        assert!(p.is_ok(), "Expected anthropic to resolve (from hardcoded or models.dev)");
+    }
+
+    #[test]
+    fn factory_models_dev_custom_provider() {
+        let p = create_provider("custom:https://my-api.com", Some("key"));
+        assert!(p.is_ok());
     }
 
     #[test]

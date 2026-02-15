@@ -9,7 +9,7 @@ const CHANNEL_STALE_SECONDS: i64 = 300;
 pub fn run(config: &Config) -> Result<()> {
     let state_file = crate::daemon::state_file_path(config);
     if !state_file.exists() {
-        println!("🩺 ZeroClaw Doctor");
+        println!("🩺 Pryx Doctor");
         println!("  ❌ daemon state file not found: {}", state_file.display());
         println!("  💡 Start daemon with: pryx daemon");
         return Ok(());
@@ -20,7 +20,7 @@ pub fn run(config: &Config) -> Result<()> {
     let snapshot: serde_json::Value = serde_json::from_str(&raw)
         .with_context(|| format!("Failed to parse {}", state_file.display()))?;
 
-    println!("🩺 ZeroClaw Doctor");
+    println!("🩺 Pryx Doctor");
     println!("  State file: {}", state_file.display());
 
     let updated_at = snapshot

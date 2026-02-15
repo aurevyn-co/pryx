@@ -103,7 +103,7 @@ impl Provider for OpenRouterProvider {
             .post("https://openrouter.ai/api/v1/chat/completions")
             .header("Authorization", format!("Bearer {api_key}"))
             .header("HTTP-Referer", "https://github.com/theonlyhennygod/pryx")
-            .header("X-Title", "ZeroClaw")
+            .header("X-Title", "Pryx")
             .json(&request)
             .send()
             .await?;

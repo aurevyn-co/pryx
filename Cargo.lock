@@ -1163,7 +1163,7 @@ dependencies = [
 
 [[package]]
 name = "pryx"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1178,6 +1178,7 @@ dependencies = [
  "futures-util",
  "hostname",
  "http-body-util",
+ "once_cell",
  "reqwest",
  "rusqlite",
  "serde",

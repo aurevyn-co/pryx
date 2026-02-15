@@ -109,7 +109,11 @@ impl Provider for OpenAiCompatibleProvider {
             temperature,
         };
 
-        let url = format!("{}/v1/chat/completions", self.base_url);
+        let url = if self.base_url.contains("/v4") || self.base_url.contains("/v3") || self.base_url.contains("/api/paas") {
+            format!("{}/chat/completions", self.base_url)
+        } else {
+            format!("{}/v1/chat/completions", self.base_url)
+        };
 
         let mut req = self.client.post(&url).json(&request);
 
@@ -191,7 +195,7 @@ mod tests {
             messages: vec![
                 Message {
                     role: "system".to_string(),
-                    content: "You are ZeroClaw".to_string(),
+                    content: "You are Pryx".to_string(),
                 },
                 Message {
                     role: "user".to_string(),
