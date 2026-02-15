@@ -11,9 +11,9 @@ pub use traits::Provider;
 
 use compatible::{AuthStyle, OpenAiCompatibleProvider};
 use models_dev::ModelsDevClient;
+use once_cell::sync::Lazy;
 use reliable::ReliableProvider;
 use std::sync::Mutex;
-use once_cell::sync::Lazy;
 
 static MODELS_DEV: Lazy<Mutex<ModelsDevClient>> = Lazy::new(|| Mutex::new(ModelsDevClient::new()));
 
@@ -31,10 +31,16 @@ pub fn create_provider(name: &str, api_key: Option<&str>) -> anyhow::Result<Box<
 
         // ── OpenAI-compatible providers ──────────────────────
         "venice" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Venice", "https://api.venice.ai", api_key, AuthStyle::Bearer,
+            "Venice",
+            "https://api.venice.ai",
+            api_key,
+            AuthStyle::Bearer,
         ))),
         "vercel" | "vercel-ai" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Vercel AI Gateway", "https://api.vercel.ai", api_key, AuthStyle::Bearer,
+            "Vercel AI Gateway",
+            "https://api.vercel.ai",
+            api_key,
+            AuthStyle::Bearer,
         ))),
         "cloudflare" | "cloudflare-ai" => Ok(Box::new(OpenAiCompatibleProvider::new(
             "Cloudflare AI Gateway",
@@ -43,21 +49,36 @@ pub fn create_provider(name: &str, api_key: Option<&str>) -> anyhow::Result<Box<
             AuthStyle::Bearer,
         ))),
         "moonshot" | "kimi" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Moonshot", "https://api.moonshot.cn", api_key, AuthStyle::Bearer,
+            "Moonshot",
+            "https://api.moonshot.cn",
+            api_key,
+            AuthStyle::Bearer,
         ))),
         "synthetic" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Synthetic", "https://api.synthetic.com", api_key, AuthStyle::Bearer,
+            "Synthetic",
+            "https://api.synthetic.com",
+            api_key,
+            AuthStyle::Bearer,
         ))),
         "opencode" | "opencode-zen" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "OpenCode Zen", "https://api.opencode.ai", api_key, AuthStyle::Bearer,
+            "OpenCode Zen",
+            "https://api.opencode.ai",
+            api_key,
+            AuthStyle::Bearer,
         ))),
         // zai resolved via models.dev
         "glm" | "zhipu" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "GLM", "https://open.bigmodel.cn/api/paas", api_key, AuthStyle::Bearer,
+            "GLM",
+            "https://open.bigmodel.cn/api/paas",
+            api_key,
+            AuthStyle::Bearer,
         ))),
         // MiniMax (api.minimax.chat)
         "minimax" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "MiniMax", "https://api.minimax.chat/v1", api_key, AuthStyle::Bearer,
+            "MiniMax",
+            "https://api.minimax.chat/v1",
+            api_key,
+            AuthStyle::Bearer,
         ))),
         "bedrock" | "aws-bedrock" => Ok(Box::new(OpenAiCompatibleProvider::new(
             "Amazon Bedrock",
@@ -66,33 +87,60 @@ pub fn create_provider(name: &str, api_key: Option<&str>) -> anyhow::Result<Box<
             AuthStyle::Bearer,
         ))),
         "qianfan" | "baidu" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Qianfan", "https://aip.baidubce.com", api_key, AuthStyle::Bearer,
+            "Qianfan",
+            "https://aip.baidubce.com",
+            api_key,
+            AuthStyle::Bearer,
         ))),
 
         // ── Extended ecosystem (community favorites) ─────────
         "groq" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Groq", "https://api.groq.com/openai", api_key, AuthStyle::Bearer,
+            "Groq",
+            "https://api.groq.com/openai",
+            api_key,
+            AuthStyle::Bearer,
         ))),
         "mistral" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Mistral", "https://api.mistral.ai", api_key, AuthStyle::Bearer,
+            "Mistral",
+            "https://api.mistral.ai",
+            api_key,
+            AuthStyle::Bearer,
         ))),
         "xai" | "grok" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "xAI", "https://api.x.ai", api_key, AuthStyle::Bearer,
+            "xAI",
+            "https://api.x.ai",
+            api_key,
+            AuthStyle::Bearer,
         ))),
         "deepseek" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "DeepSeek", "https://api.deepseek.com", api_key, AuthStyle::Bearer,
+            "DeepSeek",
+            "https://api.deepseek.com",
+            api_key,
+            AuthStyle::Bearer,
         ))),
         "together" | "together-ai" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Together AI", "https://api.together.xyz", api_key, AuthStyle::Bearer,
+            "Together AI",
+            "https://api.together.xyz",
+            api_key,
+            AuthStyle::Bearer,
         ))),
         "fireworks" | "fireworks-ai" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Fireworks AI", "https://api.fireworks.ai/inference", api_key, AuthStyle::Bearer,
+            "Fireworks AI",
+            "https://api.fireworks.ai/inference",
+            api_key,
+            AuthStyle::Bearer,
         ))),
         "perplexity" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Perplexity", "https://api.perplexity.ai", api_key, AuthStyle::Bearer,
+            "Perplexity",
+            "https://api.perplexity.ai",
+            api_key,
+            AuthStyle::Bearer,
         ))),
         "cohere" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Cohere", "https://api.cohere.com/compatibility", api_key, AuthStyle::Bearer,
+            "Cohere",
+            "https://api.cohere.com/compatibility",
+            api_key,
+            AuthStyle::Bearer,
         ))),
 
         // ── Bring Your Own Provider (custom URL) ───────────
@@ -100,7 +148,9 @@ pub fn create_provider(name: &str, api_key: Option<&str>) -> anyhow::Result<Box<
         name if name.starts_with("custom:") => {
             let base_url = name.strip_prefix("custom:").unwrap_or("");
             if base_url.is_empty() {
-                anyhow::bail!("Custom provider requires a URL. Format: custom:https://your-api.com");
+                anyhow::bail!(
+                    "Custom provider requires a URL. Format: custom:https://your-api.com"
+                );
             }
             Ok(Box::new(OpenAiCompatibleProvider::new(
                 "Custom",
@@ -148,7 +198,10 @@ pub fn create_provider(name: &str, api_key: Option<&str>) -> anyhow::Result<Box<
                                     )));
                                 }
                                 tracing::info!(provider = name, url = %base_url, "Resolved provider from models.dev");
-                                let final_url = if base_url.contains("/v4") || base_url.contains("/v3") || base_url.contains("/api/paas") {
+                                let final_url = if base_url.contains("/v4")
+                                    || base_url.contains("/v3")
+                                    || base_url.contains("/api/paas")
+                                {
                                     base_url.clone()
                                 } else if base_url.ends_with("/v1") {
                                     base_url.trim_end_matches("/v1").to_string()
@@ -162,9 +215,15 @@ pub fn create_provider(name: &str, api_key: Option<&str>) -> anyhow::Result<Box<
                                     AuthStyle::Bearer,
                                 )));
                             }
-                            tracing::warn!(provider = name, "Provider has no API endpoint in models.dev");
+                            tracing::warn!(
+                                provider = name,
+                                "Provider has no API endpoint in models.dev"
+                            );
                         } else {
-                            tracing::warn!(provider = name, "Provider not found in models.dev catalog");
+                            tracing::warn!(
+                                provider = name,
+                                "Provider not found in models.dev catalog"
+                            );
                         }
                     }
                     Err(e) => {
@@ -301,13 +360,19 @@ mod tests {
     #[test]
     fn factory_models_dev_resolves_unknown_provider() {
         let p = create_provider("minimax-coding-plan", Some("sk-test"));
-        assert!(p.is_ok(), "Expected minimax-coding-plan to resolve from models.dev");
+        assert!(
+            p.is_ok(),
+            "Expected minimax-coding-plan to resolve from models.dev"
+        );
     }
 
     #[test]
     fn factory_models_dev_resolves_anthropic() {
         let p = create_provider("anthropic", Some("sk-ant-api03-test"));
-        assert!(p.is_ok(), "Expected anthropic to resolve (from hardcoded or models.dev)");
+        assert!(
+            p.is_ok(),
+            "Expected anthropic to resolve (from hardcoded or models.dev)"
+        );
     }
 
     #[test]

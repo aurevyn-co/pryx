@@ -109,7 +109,10 @@ impl Provider for OpenAiCompatibleProvider {
             temperature,
         };
 
-        let url = if self.base_url.contains("/v4") || self.base_url.contains("/v3") || self.base_url.contains("/api/paas") {
+        let url = if self.base_url.contains("/v4")
+            || self.base_url.contains("/v3")
+            || self.base_url.contains("/api/paas")
+        {
             format!("{}/chat/completions", self.base_url)
         } else {
             format!("{}/v1/chat/completions", self.base_url)
