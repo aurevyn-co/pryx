@@ -1,8 +1,182 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import DashboardComponent from '../components/Dashboard.tsx';
+
+const isAuthenticated = Astro.cookies.has('auth_token');
+if (!isAuthenticated) {
+    return Astro.redirect('/auth?next=/dashboard');
+}
 ---
 
-<Layout>
-    <DashboardComponent client:load />
+<Layout title="Dashboard | Pryx Cloud">
+    <main class="dashboard-shell">
+        <header class="dashboard-header">
+            <div class="brand">
+                <span class="brand-mark">&gt;_</span>
+                <div>
+                    <p class="brand-name">PRYX</p>
+                    <p class="brand-sub">Cloud Dashboard</p>
+                </div>
+            </div>
+            <nav>
+                <a href="/dashboard" class="active">Dashboard</a>
+                <a href="/logout">Sign Out</a>
+            </nav>
+        </header>
+
+        <section class="coming-soon">
+            <div class="icon">⚡</div>
+            <h1>Dashboard Coming Soon</h1>
+            <p>We're building powerful cloud features for Pryx:</p>
+            <ul>
+                <li>Device management & sync</li>
+                <li>Session history & replay</li>
+                <li>Cost tracking & analytics</li>
+                <li>Team collaboration</li>
+            </ul>
+            <p class="subtitle">In the meantime, everything runs locally with <code>pryx</code> CLI.</p>
+            <div class="actions">
+                <a href="https://github.com/pryx-co/pryx" class="btn-secondary">View on GitHub</a>
+            </div>
+        </section>
+    </main>
 </Layout>
+
+<style>
+    .dashboard-shell {
+        min-height: 100vh;
+        padding: 1.5rem;
+        background: linear-gradient(168deg, #060a14, #0f1730);
+        font-family: 'Space Grotesk', system-ui, sans-serif;
+        color: #eef3ff;
+    }
+
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        max-width: 1100px;
+        margin: 0 auto 2rem;
+        padding: 0.7rem 1rem;
+        border: 1px solid rgba(104, 156, 255, 0.28);
+        border-radius: 1rem;
+        background: rgba(9, 16, 30, 0.7);
+    }
+
+    .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .brand-mark {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 0.5rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.8rem;
+        color: #081021;
+        background: linear-gradient(130deg, #3f7cff, #2cc8a7);
+    }
+
+    .brand-name {
+        margin: 0;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+    }
+
+    .brand-sub {
+        margin: 0;
+        font-size: 0.72rem;
+        color: #aab8d8;
+    }
+
+    nav {
+        display: flex;
+        gap: 1rem;
+        font-size: 0.9rem;
+    }
+
+    nav a {
+        color: #aab8d8;
+        text-decoration: none;
+        padding: 0.45rem 0.8rem;
+        border-radius: 999px;
+        transition: all 0.2s;
+    }
+
+    nav a:hover, nav a.active {
+        color: #fff;
+        background: rgba(63, 124, 255, 0.2);
+    }
+
+    .coming-soon {
+        max-width: 600px;
+        margin: 4rem auto;
+        text-align: center;
+        padding: 2rem;
+        border: 1px solid rgba(104, 156, 255, 0.28);
+        border-radius: 1rem;
+        background: rgba(9, 16, 30, 0.5);
+    }
+
+    .icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+
+    h1 {
+        margin: 0 0 1rem;
+        font-size: 2rem;
+    }
+
+    p {
+        color: #aab8d8;
+        line-height: 1.6;
+    }
+
+    ul {
+        text-align: left;
+        display: inline-block;
+        margin: 1.5rem 0;
+        color: #aab8d8;
+    }
+
+    li {
+        margin: 0.5rem 0;
+    }
+
+    code {
+        background: rgba(63, 124, 255, 0.2);
+        padding: 0.2rem 0.5rem;
+        border-radius: 0.25rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.9em;
+    }
+
+    .subtitle {
+        margin-top: 1.5rem;
+        font-size: 0.9rem;
+    }
+
+    .actions {
+        margin-top: 2rem;
+    }
+
+    .btn-secondary {
+        display: inline-block;
+        padding: 0.72rem 1.5rem;
+        border-radius: 0.8rem;
+        font-weight: 700;
+        text-decoration: none;
+        border: 1px solid rgba(238, 243, 255, 0.35);
+        color: #eef3ff;
+        transition: transform 0.2s;
+    }
+
+    .btn-secondary:hover {
+        transform: translateY(-2px);
+    }
+</style>
