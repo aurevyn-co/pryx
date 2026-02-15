@@ -83,12 +83,9 @@ fn status(config: &Config) -> Result<()> {
     }
 
     if cfg!(target_os = "linux") {
-        let out = run_capture(Command::new("systemctl").args([
-            "--user",
-            "is-active",
-            "pryx.service",
-        ]))
-        .unwrap_or_else(|_| "unknown".into());
+        let out =
+            run_capture(Command::new("systemctl").args(["--user", "is-active", "pryx.service"]))
+                .unwrap_or_else(|_| "unknown".into());
         println!("Service state: {}", out.trim());
         println!("Unit: {}", linux_service_file(config)?.display());
         return Ok(());
@@ -263,7 +260,7 @@ mod tests {
 
     #[test]
     fn run_capture_falls_back_to_stderr() {
-        let out = run_capture(Command::new("sh").args(["-lc", "echo warn 1>&2"]))
+        let out = run_capture(Command::new("sh").args(["-c", "echo warn 1>&2"]))
             .expect("stderr capture should succeed");
         assert_eq!(out.trim(), "warn");
     }

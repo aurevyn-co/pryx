@@ -461,7 +461,9 @@ pub fn handle_command(command: super::SkillCommands, workspace_dir: &Path) -> Re
                 println!("No skills installed.");
                 println!();
                 println!("  Create one: mkdir -p ~/.pryx/workspace/skills/my-skill");
-                println!("              echo '# My Skill' > ~/.pryx/workspace/skills/my-skill/SKILL.md");
+                println!(
+                    "              echo '# My Skill' > ~/.pryx/workspace/skills/my-skill/SKILL.md"
+                );
                 println!();
                 println!("  Or install: pryx skills install <github-url>");
             } else {
