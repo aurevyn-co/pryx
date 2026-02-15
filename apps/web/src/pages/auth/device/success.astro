@@ -1,0 +1,23 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+---
+
+<Layout title="Device Authorized | Pryx Cloud">
+    <main class="auth-shell">
+        <section class="auth-card" style="text-align: center;">
+            <div class="success-icon">✓</div>
+            <h1>Device Authorized</h1>
+            <p>Your device has been authorized. You can now close this window and return to your terminal.</p>
+            <p class="hint">The CLI will automatically continue.</p>
+        </section>
+    </main>
+</Layout>
+
+<style>
+    .auth-shell { min-height: 100vh; display: grid; place-items: center; padding: 1.5rem; background: linear-gradient(168deg, #060a14, #0f1730); }
+    .auth-card { width: min(28rem, 100%); border: 1px solid rgba(34, 197, 94, 0.28); border-radius: 1rem; padding: 2rem; background: rgba(9, 16, 30, 0.9); font-family: 'Space Grotesk', system-ui, sans-serif; color: #eef3ff; }
+    .success-icon { font-size: 4rem; color: #4ade80; margin-bottom: 1rem; }
+    h1 { margin: 0 0 0.5rem; font-size: 1.5rem; }
+    p { margin: 0 0 0.5rem; color: #aab8d8; }
+    .hint { font-size: 0.85rem; color: #6b7b8a; margin-top: 1rem; }
+</style>

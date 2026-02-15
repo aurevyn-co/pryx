@@ -1,126 +1,405 @@
-![Pryx](https://github.com/irfndi/pryx/raw/develop/v1-production-ready/.github/assets/pryx-logo.png)
+<p align="center">
+  <img src="pryx-image.png" alt="Pryx" width="200" />
+</p>
 
-# Pryx
+<h1 align="center">Pryx 🦀</h1>
 
-[![CI](https://github.com/irfndi/pryx/actions/workflows/ci.yml/badge.svg)](https://github.com/irfndi/pryx/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/irfndi/pryx/branch/main/graph/badge.svg)](https://codecov.io/gh/irfndi/pryx)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/irfndi/pryx/blob/main/LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-brightgreen)](https://github.com/irfndi/pryx/releases/tag/v1.0.0)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](https://github.com/irfndi/pryx/releases)
+<p align="center">
+  <strong>Sovereign AI agent with local-first control center. 100% Rust.</strong>
+</p>
 
-> **Sovereign AI agent with local-first control center**
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
+  <a href="https://github.com/irfndi/pryx"><img src="https://img.shields.io/badge/repo-irfndi/pryx-blue.svg" alt="Repository" /></a>
+</p>
 
-Pryx is a second-generation autonomous agent platform: local-first, sovereign, and secure. It is a unified control center available via TUI, CLI, local web, channels, and Pryx Cloud, with explicit approvals for sensitive actions and clear observability without sacrificing data sovereignty or privacy.
+Fast, small, and fully autonomous AI assistant infrastructure — local-first, sovereign, and secure.
 
----
+```
+~3.4MB binary · <10ms startup · 1,017 tests · 22+ providers · 8 traits · Pluggable everything
+```
 
-## 🚀 Quick Start
+### Why teams pick Pryx
 
-### Installation (One-Liners)
+- **Lean by default:** small Rust binary, fast startup, low memory footprint.
+- **Secure by design:** pairing, strict sandboxing, explicit allowlists, workspace scoping.
+- **Fully swappable:** core systems are traits (providers, channels, tools, memory, tunnels).
+- **No lock-in:** OpenAI-compatible provider support + pluggable custom endpoints.
 
-Canonical installer source in this repository: `install.sh`
+## Benchmark Snapshot (Pryx vs OpenClaw)
 
-**macOS (Intel + Apple Silicon)**
+Local machine quick benchmark (macOS arm64, Feb 2026), same host, 3 runs each.
+
+| Metric | Pryx (Rust release binary) | OpenClaw (Node + built `dist`) |
+|---|---:|---:|
+| Build output size | `target/release/pryx`: **3.4 MB** | `dist/`: **28 MB** |
+| `--help` startup (cold/warm) | **0.38s / ~0.00s** | **3.31s / ~1.11s** |
+| `status` command runtime (best of 3) | **~0.00s** | **5.98s** |
+| `--help` max RSS observed | **~7.3 MB** | **~394 MB** |
+| `status` max RSS observed | **~7.8 MB** | **~1.52 GB** |
+
+> Notes: measured with `/usr/bin/time -l`; first run includes cold-start effects. OpenClaw results were measured after `pnpm install` + `pnpm build`.
+
+Reproduce Pryx numbers locally:
+
 ```bash
-brew install irfndi/pryx/pryx
+cargo build --release
+ls -lh target/release/pryx
+
+/usr/bin/time -l target/release/pryx --help
+/usr/bin/time -l target/release/pryx status
 ```
 
-**Linux (Ubuntu/Debian)**
+## Quick Start
+
 ```bash
-curl -fsSL https://get.pryx.ai/install.sh | bash
+# One-liner install (macOS / Linux) - requires GitHub release
+curl -fsSL https://pryx.dev/install | bash
+
+# OR build from source (no release needed)
+git clone https://github.com/irfndi/pryx.git && cd pryx
+cargo build --release && cargo install --path . --force
+
+# Verify installation
+pryx --version
+
+# Quick setup (no prompts)
+pryx onboard --api-key sk-... --provider openrouter
+
+# Or interactive wizard
+pryx onboard --interactive
+
+# Or quickly repair channels/allowlists only
+pryx onboard --channels-only
+
+# Chat
+pryx agent -m "Hello, Pryx!"
+
+# Interactive mode
+pryx agent
+
+# Start the gateway (webhook server)
+pryx gateway                # default: 127.0.0.1:42424
+pryx gateway --port 0       # random port (security hardened)
+
+# Start full autonomous runtime
+pryx daemon
+
+# Check status
+pryx status
+
+# Run system diagnostics
+pryx doctor
+
+# Check channel health
+pryx channel doctor
+
+# Get integration setup details
+pryx integrations info Telegram
+
+# Manage background service
+pryx service install
+pryx service status
+
+# Migrate memory from OpenClaw (safe preview first)
+pryx migrate openclaw --dry-run
+pryx migrate openclaw
 ```
 
-**Linux (Fedora/RHEL)**
+> **Dev fallback (build from source):**
+> ```bash
+> git clone https://github.com/irfndi/pryx.git && cd pryx
+> cargo build --release
+> ./target/release/pryx --help
+> ```
+
+## Architecture
+
+Every subsystem is a **trait** — swap implementations with a config change, zero code changes.
+
+<p align="center">
+  <img src="docs/architecture.svg" alt="Pryx Architecture" width="900" />
+</p>
+
+| Subsystem | Trait | Ships with | Extend |
+|-----------|-------|------------|--------|
+| **AI Models** | `Provider` | 22+ providers (OpenRouter, Anthropic, OpenAI, Ollama, Venice, Groq, Mistral, xAI, DeepSeek, Together, Fireworks, Perplexity, Cohere, Bedrock, etc.) | `custom:https://your-api.com` — any OpenAI-compatible API. 84+ via [models.dev](https://models.dev) integration (MIG-002) |
+| **Channels** | `Channel` | CLI, Telegram, Discord, Slack, iMessage, Matrix, WhatsApp, Webhook | Any messaging API |
+| **Memory** | `Memory` | SQLite with hybrid search (FTS5 + vector cosine similarity), Markdown | Any persistence backend |
+| **Tools** | `Tool` | shell, file_read, file_write, memory_store, memory_recall, memory_forget, browser_open (Brave + allowlist), composio (optional) | Any capability |
+| **Observability** | `Observer` | Noop, Log, Multi | Prometheus, OTel |
+| **Runtime** | `RuntimeAdapter` | Native (Mac/Linux/Pi) | Docker, WASM (planned; unsupported kinds fail fast) |
+| **Security** | `SecurityPolicy` | Gateway pairing, sandbox, allowlists, rate limits, filesystem scoping, encrypted secrets | — |
+| **Identity** | `IdentityConfig` | OpenClaw (markdown), AIEOS v1.1 (JSON) | Any identity format |
+| **Tunnel** | `Tunnel` | None, Cloudflare, Tailscale, ngrok, Custom | Any tunnel binary |
+| **Heartbeat** | Engine | HEARTBEAT.md periodic tasks | — |
+| **Skills** | Loader | TOML manifests + SKILL.md instructions | Community skill packs |
+| **Integrations** | Registry | 50+ integrations across 9 categories | Plugin system |
+
+### Runtime support (current)
+
+- ✅ Supported today: `runtime.kind = "native"`
+- 🚧 Planned, not implemented yet: Docker / WASM / edge runtimes
+
+When an unsupported `runtime.kind` is configured, Pryx now exits with a clear error instead of silently falling back to native.
+
+### Memory System (Full-Stack Search Engine)
+
+All custom, zero external dependencies — no Pinecone, no Elasticsearch, no LangChain:
+
+| Layer | Implementation |
+|-------|---------------|
+| **Vector DB** | Embeddings stored as BLOB in SQLite, cosine similarity search |
+| **Keyword Search** | FTS5 virtual tables with BM25 scoring |
+| **Hybrid Merge** | Custom weighted merge function (`vector.rs`) |
+| **Embeddings** | `EmbeddingProvider` trait — OpenAI, custom URL, or noop |
+| **Chunking** | Line-based markdown chunker with heading preservation |
+| **Caching** | SQLite `embedding_cache` table with LRU eviction |
+| **Safe Reindex** | Rebuild FTS5 + re-embed missing vectors atomically |
+
+The agent automatically recalls, saves, and manages memory via tools.
+
+```toml
+[memory]
+backend = "sqlite"          # "sqlite", "markdown", "none"
+auto_save = true
+embedding_provider = "openai"
+vector_weight = 0.7
+keyword_weight = 0.3
+```
+
+## Security
+
+Pryx enforces security at **every layer** — not just the sandbox. It passes all items from the community security checklist.
+
+### Security Checklist
+
+| # | Item | Status | How |
+|---|------|--------|-----|
+| 1 | **Gateway not publicly exposed** | ✅ | Binds `127.0.0.1` by default. Refuses `0.0.0.0` without tunnel or explicit `allow_public_bind = true`. |
+| 2 | **Pairing required** | ✅ | 6-digit one-time code on startup. Exchange via `POST /pair` for bearer token. All `/webhook` requests require `Authorization: Bearer <token>`. |
+| 3 | **Filesystem scoped (no /)** | ✅ | `workspace_only = true` by default. 14 system dirs + 4 sensitive dotfiles blocked. Null byte injection blocked. Symlink escape detection via canonicalization + resolved-path workspace checks in file read/write tools. |
+| 4 | **Access via tunnel only** | ✅ | Gateway refuses public bind without active tunnel. Supports Tailscale, Cloudflare, ngrok, or any custom tunnel. |
+
+> **Run your own nmap:** `nmap -p 1-65535 <your-host>` — Pryx binds to localhost only, so nothing is exposed unless you explicitly configure a tunnel.
+
+### Channel allowlists (Telegram / Discord / Slack)
+
+Inbound sender policy is now consistent:
+
+- Empty allowlist = **deny all inbound messages**
+- `"*"` = **allow all** (explicit opt-in)
+- Otherwise = exact-match allowlist
+
+This keeps accidental exposure low by default.
+
+Recommended low-friction setup (secure + fast):
+
+- **Telegram:** allowlist your own `@username` (without `@`) and/or your numeric Telegram user ID.
+- **Discord:** allowlist your own Discord user ID.
+- **Slack:** allowlist your own Slack member ID (usually starts with `U`).
+- Use `"*"` only for temporary open testing.
+
+If you're not sure which identity to use:
+
+1. Start channels and send one message to your bot.
+2. Read the warning log to see the exact sender identity.
+3. Add that value to the allowlist and rerun channels-only setup.
+
+If you hit authorization warnings in logs (for example: `ignoring message from unauthorized user`),
+rerun channel setup only:
+
 ```bash
-dnf install https://github.com/irfndi/pryx/releases/download/v1.0.0/pryx-1.0.0-1.x86_64.rpm
+pryx onboard --channels-only
 ```
 
-**Windows**
-```powershell
-winget install pryx
-```
+### WhatsApp Business Cloud API Setup
 
-> **Or** download the binary from [Releases](https://github.com/irfndi/pryx/releases)
+WhatsApp uses Meta's Cloud API with webhooks (push-based, not polling):
 
-### First 5 Minutes
+1. **Create a Meta Business App:**
+   - Go to [developers.facebook.com](https://developers.facebook.com)
+   - Create a new app → Select "Business" type
+   - Add the "WhatsApp" product
 
-1. **Start Pryx**
-   ```bash
-   pryx
+2. **Get your credentials:**
+   - **Access Token:** From WhatsApp → API Setup → Generate token (or create a System User for permanent tokens)
+   - **Phone Number ID:** From WhatsApp → API Setup → Phone number ID
+   - **Verify Token:** You define this (any random string) — Meta will send it back during webhook verification
+
+3. **Configure Pryx:**
+   ```toml
+   [channels_config.whatsapp]
+   access_token = "EAABx..."
+   phone_number_id = "123456789012345"
+   verify_token = "my-secret-verify-token"
+   allowed_numbers = ["+1234567890"]  # E.164 format, or ["*"] for all
    ```
-   This launches the Terminal UI (TUI) and runtime server automatically.
 
-2. **Complete Onboarding**
-   The onboarding wizard will guide you through:
-   - Setting a master password (for vault encryption)
-   - Adding your first AI provider
-   - Creating your first agent
+4. **Start the gateway with a tunnel:**
+   ```bash
+   pryx gateway --port 42424
+   ```
+   WhatsApp requires HTTPS, so use a tunnel (ngrok, Cloudflare, Tailscale Funnel).
 
-3. **Start Chatting**
-   Press `/` to open command palette, select "Chat", and start interacting!
+5. **Configure Meta webhook:**
+   - In Meta Developer Console → WhatsApp → Configuration → Webhook
+   - **Callback URL:** `https://your-tunnel-url/whatsapp`
+   - **Verify Token:** Same as your `verify_token` in config
+   - Subscribe to `messages` field
 
----
+6. **Test:** Send a message to your WhatsApp Business number — Pryx will respond via the LLM.
 
-## ✨ Features
+## Configuration
 
-### 🎯 Multi-Channel Integration
-- **Telegram** - Run your agent as a Telegram bot
-- **Discord** - Deploy as a Discord bot with slash commands
-- **Slack** - Connect to Slack channels and DMs
-- **Webhooks** - Integrate with any HTTP endpoint
+Config: `~/.pryx/config.toml` (created by `onboard`)
 
-### Any MCP & Skills
-- integration with any MCP and Skills as you needs
+```toml
+api_key = "sk-..."
+default_provider = "openrouter"
+default_model = "anthropic/claude-sonnet-4-20250514"
+default_temperature = 0.7
 
-### 🔌 84+ AI Providers
-Dynamic integration via [models.dev](https://models.dev) supporting:
-- OpenAI, Anthropic, Google, xAI
-- OpenRouter, Groq, Mistral, Cohere
-- And 76+ more providers
+[memory]
+backend = "sqlite"              # "sqlite", "markdown", "none"
+auto_save = true
+embedding_provider = "openai"   # "openai", "noop"
+vector_weight = 0.7
+keyword_weight = 0.3
 
-Full list: `pryx provider list --available`
+[gateway]
+require_pairing = true          # require pairing code on first connect
+allow_public_bind = false       # refuse 0.0.0.0 without tunnel
 
-### 🔒 Sovereign Security
-- **Vault with Argon2id** - Military-grade password derivation
-- **OS Keychain Storage** - Secrets never stored in plaintext
-- **Scope-Based Access Control** - Fine-grained permission management
-- **Human-in-the-Loop Approvals** - Explicit approval for sensitive operations
-- **Comprehensive Audit Logging** - Every action traceable
+[autonomy]
+level = "supervised"            # "readonly", "supervised", "full" (default: supervised)
+workspace_only = true           # default: true — scoped to workspace
+allowed_commands = ["git", "npm", "cargo", "ls", "cat", "grep"]
+forbidden_paths = ["/etc", "/root", "/proc", "/sys", "~/.ssh", "~/.gnupg", "~/.aws"]
 
-### 🎛️ Rich Terminal UI via CLI - TUI - Desktop Apps - Any Channel You Want
-- **Provider Management** - Add, configure, and test providers of any compatible AI models
-- **Channel Configuration** - Set up Telegram, Discord, Slack, Webhooks, and more
-- **MCP Tool Management** - Discover and manage Model Context Protocol servers
-- **Skill Management** - Add, configure, and test skills of any compatible MCP tools
-- **Session Explorer** - Browse and resume conversations
-- **Settings & Configuration** - All settings in one place
+[runtime]
+kind = "native"                # only supported value right now; unsupported kinds fail fast
 
-### 🤖 Agent Capabilities
-- **Agent Spawning** - Create sub-agents for parallel task execution
-- **Policy Engine** - Define approval rules for sensitive operations
-- **Skills System** - Extensible capabilities via MCP tools
-- **Natural Language Parser** - Intent recognition and command parsing
-- **Context Management** - Maintain conversation context for multi-turn interactions
-- **Cron Job Scheduler** - Schedule tasks with cron expressions
+[heartbeat]
+enabled = false
+interval_minutes = 30
 
-### 📊 Observability
-- **Cost Tracking** - Monitor token usage and costs across all providers
-- **Session Timeline** - Complete trace of conversations, tool calls, and approvals
-- **Performance Profiling** - Memory and CPU usage monitoring
-- **OTLP Telemetry** - Export to OpenTelemetry backends (optional)
+[tunnel]
+provider = "none"               # "none", "cloudflare", "tailscale", "ngrok", "custom"
 
-### 🌐 Multi-Device Coordination
-- **Pryx Mesh** - Secure sync across devices
-- **Device Pairing** - QR code or 6-digit code pairing
-- **WebSocket Mesh** - Real-time coordination without cloud dependency
+[secrets]
+encrypt = true                  # API keys encrypted with local key file
 
-### Memory
-- **Long-Term Memory** - Store and retrieve information over sessions
-- **Short-Term Memory** - Contextual understanding for current conversations
+[browser]
+enabled = false                 # opt-in browser_open tool
+allowed_domains = ["docs.rs"]  # required when browser is enabled
 
----
+[composio]
+enabled = false                 # opt-in: 1000+ OAuth apps via composio.dev
 
-## 📖 Channel Integration Guides
+[identity]
+format = "openclaw"             # "openclaw" (default, markdown files) or "aieos" (JSON)
+# aieos_path = "identity.json"  # path to AIEOS JSON file (relative to workspace or absolute)
+# aieos_inline = '{"identity":{"names":{"first":"Nova"}}}'  # inline AIEOS JSON
+```
+
+## Identity System (AIEOS Support)
+
+Pryx supports **identity-agnostic** AI personas through two formats:
+
+### OpenClaw (Default)
+
+Traditional markdown files in your workspace:
+- `IDENTITY.md` — Who the agent is
+- `SOUL.md` — Core personality and values
+- `USER.md` — Who the agent is helping
+- `AGENTS.md` — Behavior guidelines
+
+### AIEOS (AI Entity Object Specification)
+
+[AIEOS](https://aieos.org) is a standardization framework for portable AI identity. Pryx supports AIEOS v1.1 JSON payloads, allowing you to:
+
+- **Import identities** from the AIEOS ecosystem
+- **Export identities** to other AIEOS-compatible systems
+- **Maintain behavioral integrity** across different AI models
+
+#### Enable AIEOS
+
+```toml
+[identity]
+format = "aieos"
+aieos_path = "identity.json"  # relative to workspace or absolute path
+```
+
+Or inline JSON:
+
+```toml
+[identity]
+format = "aieos"
+aieos_inline = '''
+{
+  "identity": {
+    "names": { "first": "Nova", "nickname": "N" }
+  },
+  "psychology": {
+    "neural_matrix": { "creativity": 0.9, "logic": 0.8 },
+    "traits": { "mbti": "ENTP" },
+    "moral_compass": { "alignment": "Chaotic Good" }
+  },
+  "linguistics": {
+    "text_style": { "formality_level": 0.2, "slang_usage": true }
+  },
+  "motivations": {
+    "core_drive": "Push boundaries and explore possibilities"
+  }
+}
+'''
+```
+
+#### AIEOS Schema Sections
+
+| Section | Description |
+|---------|-------------|
+| `identity` | Names, bio, origin, residence |
+| `psychology` | Neural matrix (cognitive weights), MBTI, OCEAN, moral compass |
+| `linguistics` | Text style, formality, catchphrases, forbidden words |
+| `motivations` | Core drive, short/long-term goals, fears |
+| `capabilities` | Skills and tools the agent can access |
+| `physicality` | Visual descriptors for image generation |
+| `history` | Origin story, education, occupation |
+| `interests` | Hobbies, favorites, lifestyle |
+
+See [aieos.org](https://aieos.org) for the full schema and live examples.
+
+## Gateway API
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/health` | GET | None | Health check (always public, no secrets leaked) |
+| `/pair` | POST | `X-Pairing-Code` header | Exchange one-time code for bearer token |
+| `/webhook` | POST | `Authorization: Bearer <token>` | Send message: `{"message": "your prompt"}` |
+| `/whatsapp` | GET | Query params | Meta webhook verification (hub.mode, hub.verify_token, hub.challenge) |
+| `/whatsapp` | POST | None (Meta signature) | WhatsApp incoming message webhook |
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `onboard` | Quick setup (default) |
+| `onboard --interactive` | Full interactive wizard |
+| `onboard --channels-only` | Reconfigure channels/allowlists only |
+| `agent -m "..."` | Single message mode |
+| `agent` | Interactive chat mode |
+| `gateway` | Start webhook server (default: `127.0.0.1:42424`) |
+| `gateway --port 0` | Random port mode |
+| `daemon` | Start long-running autonomous runtime |
+| `service install/start/stop/status/uninstall` | Manage user-level background service |
+| `doctor` | Diagnose daemon/scheduler/channel freshness |
+| `status` | Show full system status |
+| `channel doctor` | Run health checks for configured channels |
+| `integrations info <name>` | Show setup/status details for one integration |
+
+## Channel Integration Guides
 
 ### Telegram
 
@@ -131,492 +410,126 @@ Full list: `pryx provider list --available`
 
 2. **Configure in Pryx**
    ```bash
-   pryx channel add telegram
+   pryx onboard --interactive
+   # Select Telegram channel
    ```
-   Enter your bot token when prompted.
-
-3. **Enable the Channel**
-   ```bash
-   pryx channel enable telegram
-   ```
-
-4. **Start Chatting**
-   Open your bot in Telegram and start the conversation!
 
 ### Discord
 
 1. **Create a Discord Application**
    - Go to [Discord Developer Portal](https://discord.com/developers/applications)
-   - Click "New Application" and name it (e.g., "Pryx Bot")
-   - Create a bot in the "Bot" tab and copy the token
+   - Click "New Application" → name it
+   - Create a bot in "Bot" tab, copy token
+   - Enable "Message Content Intent"
 
-2. **Configure Bot Permissions**
-   - Enable "Server Members Intent" and "Message Content Intent"
-   - Save changes
-
-3. **Invite Bot to Server**
-   - Go to "OAuth2" → "URL Generator"
+2. **Invite Bot**
+   - Go to OAuth2 → URL Generator
    - Select scopes: `bot`, `applications.commands`
-   - Select bot permissions: Read Messages, Send Messages, Embed Links
-   - Copy the generated URL and open it in a browser
-   - Invite the bot to your server
+   - Copy URL and open in browser
 
-4. **Configure in Pryx**
+3. **Configure in Pryx**
    ```bash
-   pryx channel add discord
+   pryx onboard --interactive
+   # Select Discord channel
    ```
-   Enter your bot token when prompted.
-
-5. **Start Chatting**
-   In your Discord server, use `/chat <your message>` to interact!
 
 ### Slack
 
 1. **Create a Slack App**
    - Go to [Slack API](https://api.slack.com/apps)
-   - Click "Create New App" → "From scratch"
-   - Name your app and select your workspace
+   - Create new app from scratch
 
-2. **Configure Bot Permissions**
-   - Go to "Bot" → "Permissions"
-   - Add scopes: `chat:write`, `channels:read`, `im:read`, `im:write`, `groups:read`, `groups:write`
-   - Install the app to your workspace and copy the bot token
+2. **Configure Permissions**
+   - Add scopes: `chat:write`, `channels:read`, `im:read`, `im:write`
 
 3. **Enable Events**
-   - Go to "Event Subscriptions" → "Enable Events"
-   - Add workspace URL (use `pryx channel test slack` to get the URL)
-   - Subscribe to events: `message.channels`, `message.groups`, `message.im`
+   - Subscribe to: `message.channels`, `message.groups`, `message.im`
 
 4. **Configure in Pryx**
    ```bash
-   pryx channel add slack
+   pryx onboard --interactive
+   # Select Slack channel
    ```
-   Enter your bot token when prompted.
 
-5. **Start Chatting**
-   Invite the bot to channels or DM the bot directly!
+## Troubleshooting
 
----
+### TUI Not Connecting
 
-## 🔌 Provider Configuration
-
-### Quick Setup
-
-**OpenAI**
 ```bash
-pryx provider add openai
-pryx provider set-key openai
-# Enter your API key when prompted
-pryx provider use openai
+# Check if gateway is running
+curl http://127.0.0.1:42424/health
+
+# Check status
+pryx status
 ```
-
-**Anthropic**
-```bash
-pryx provider add anthropic
-pryx provider set-key anthropic
-# Enter your API key when prompted
-pryx provider use anthropic
-```
-
-**Google AI (Gemini)**
-```bash
-# Option 1: API Key
-pryx provider add google
-pryx provider set-key google
-# Enter your API key when prompted
-
-# Option 2: OAuth
-pryx provider oauth google
-# Follow the browser prompt
-pryx provider use google
-```
-
-**Ollama (Local)**
-```bash
-pryx provider add ollama
-pryx provider use ollama
-```
-
-### List Available Providers
-```bash
-pryx provider list --available
-```
-
-### Test Provider Connection
-```bash
-pryx provider test openai
-```
-
----
-
-## 🏗️ Architecture
-
-### Component Overview
-
-Pryx uses a **polyglot architecture** designed for performance, security, and extensibility:
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        Desktop Host (Rust + Tauri)                   │
-│  Port: 42424                                                         │
-│  • HTTP server (axum)                                                │
-│  • WebSocket for real-time TUI communication                         │
-│  • Local web UI admin panel (apps/local-web/)                        │
-│  • Go runtime sidecar management                                    │
-│  • Native dialogs & system tray                                      │
-└─────────────────────────────────────────────────────────────────────┘
-                              │
-                    Sidecar (Go Runtime)
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                     Runtime (Go)                                     │
-│  • Agent execution & orchestration                                   │
-│  • HTTP API + WebSocket server                                      │
-│  • 84+ AI providers (models.dev)                                    │
-│  • Channels (Telegram, Discord, Slack, Webhooks)                     │
-│  • MCP integration                                                   │
-│  • Memory & RAG                                                      │
-│  • Vault (Argon2id encryption)                                      │
-└─────────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                      Data Storage                                    │
-│  • SQLite database                                                   │
-│  • OS Keychain (credentials)                                         │
-│  • File system (sessions, logs)                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### Local Web Admin UI
-
-Access the local admin panel at **http://localhost:42424** when running in desktop mode:
-
-- **Dashboard** - Overview of agent status, recent sessions, and cost tracking
-- **Providers** - Configure AI providers (OpenAI, Anthropic, etc.)
-- **Channels** - Set up Telegram, Discord, Slack integrations
-- **MCP Tools** - Manage Model Context Protocol servers
-- **Sessions** - Browse and resume conversations
-- **Settings** - Configure preferences and permissions
-
-### Key Design Principles
-
-1. **Local-First by Default** - All data stays on your device unless explicitly enabled for sync
-2. **Sovereign Security** - Keys stored in OS keychain, not plaintext files
-3. **Sidecar Architecture** - UI and runtime are separate processes for crash isolation
-4. **Port 42424** - Unified port for all desktop host services (HTTP, WebSocket, static files)
-5. **Extensible via MCP** - Add tools without rebuilding the host
-6. **Observable** - Every action is traceable with comprehensive audit logs
-
-### Technology Stack
-
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| **Host** | Rust + Tauri v2 | Desktop wrapper, HTTP/WebSocket server (port 42424), native dialogs |
-| **Runtime** | Go 1.24+ | Agent execution, AI providers, channels, MCP integration |
-| **Local Web** | React + TypeScript + Vite | Admin UI served by host on port 42424 |
-| **TUI** | TypeScript + Solid + OpenTUI | Terminal interface, keyboard-driven workflow |
-| **Vault** | Argon2id + OS Keychain | Secure credential storage with scope-based access |
-| **Channels** | Go native clients | Telegram, Discord, Slack, webhook integrations |
-| **MCP** | Model Context Protocol | Extensible tool integration |
-
----
-
-## 🎓 Common Workflows
-
-### View Session History
-1. Press `/` to open command palette
-2. Type "sessions" or press `2`
-3. Browse and resume past conversations
-
-### Manage Multiple Providers
-1. Press `/` → "Providers" or use `pryx provider list`
-2. Add multiple providers: `pryx provider add <name>`
-3. Switch between them: `pryx provider use <name>`
-
-### Cost Monitoring
-```bash
-# View cost summary
-pryx cost summary
-
-# Daily breakdown
-pryx cost daily 7
-
-# Set budget
-pryx cost budget set 100
-
-# Get optimization suggestions
-pryx cost optimize
-```
-
-### Enable MCP Tools
-1. Press `/` → "MCP Servers" or use `pryx mcp list`
-2. Browse available tools
-3. Enable servers: `pryx mcp enable filesystem`
-
-### Run System Diagnostics
-```bash
-pryx doctor
-```
-
----
-
-## 🛠️ Troubleshooting
-
-### TUI Not Connecting to Runtime
-
-**Symptom:** TUI shows "Disconnected" or "Runtime Error"
-
-**Solutions:**
-1. Check if host is running:
-    ```bash
-    curl http://localhost:42424/health
-    ```
-
-2. Start desktop host (automatically starts runtime sidecar):
-    ```bash
-    pryx
-    ```
-
-3. Check port file:
-    ```bash
-    cat ~/.pryx/runtime.port
-    ```
-
-4. Use explicit WebSocket URL:
-    ```bash
-    export PRYX_WS_URL=ws://localhost:42424/ws
-    pryx
-    ```
-
-### Port Already in Use (42424)
-
-**Symptom:** "Address already in use" error on port 42424
-
-**Solutions:**
-1. Find the process:
-    ```bash
-    lsof -i :42424
-    ```
-
-2. Kill the process:
-    ```bash
-    kill <PID>
-    ```
-
-3. Or configure different port:
-    ```bash
-    export PRYX_HOST_PORT=42425
-    pryx
-    ```
 
 ### Provider Connection Failed
 
-**Symptom:** "Failed to connect to provider"
+```bash
+# Test provider
+pryx doctor
 
-**Solutions:**
-1. Test connection:
-   ```bash
-   pryx provider test openai
-   ```
-
-2. Verify API key:
-   ```bash
-   pryx provider set-key openai
-   ```
-
-3. Check provider status:
-   ```bash
-   pryx provider status
-   ```
+# Check API key is set
+cat ~/.pryx/config.toml | grep api_key
+```
 
 ### Channel Bot Not Responding
 
-**Symptom:** Bot added but no responses
-
-**Solutions:**
-
 **Telegram:**
-1. Verify bot token: `pryx channel test telegram`
-2. Check bot is enabled: `pryx channel status telegram`
-3. Ensure bot has been started (send /start to the bot)
+1. Verify bot token
+2. Ensure bot has been started (send `/start` to bot)
+3. Check allowlist in config
 
 **Discord:**
-1. Verify bot permissions (needs Message Content Intent)
-2. Check slash commands are synced: `pryx channel sync discord`
-3. Ensure bot is in the server and has permissions
+1. Verify bot permissions
+2. Ensure slash commands synced
 
 **Slack:**
-1. Verify event subscriptions are configured
+1. Verify event subscriptions
 2. Check bot has required scopes
-3. Test webhook: `pryx channel test slack`
 
-### Memory Issues
-
-**Symptom:** High memory usage or slowdowns
-
-**Solutions:**
-1. Enable memory profiling:
-   ```bash
-   pryx config set enable_memory_profiling true
-   pryx runtime
-   ```
-
-2. Check memory limits:
-   ```bash
-   pryx config get max_memory_mb
-   ```
-
-3. Adjust limits:
-   ```bash
-   pryx config set max_memory_mb 1024
-   ```
-
-### More Help
-
-- **Documentation:** [docs/](https://github.com/irfndi/pryx/tree/main/docs)
-- **GitHub Issues:** [Report a bug](https://github.com/irfndi/pryx/issues)
-- **Community:** [Discord](https://discord.gg/pryx) | [Slack](https://join.slack.com/pryx/shared_invite/zt-...)
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! Here's how to get started:
-
-### Development Setup
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/irfndi/pryx.git
-   cd pryx
-   ```
-
-2. **Install development tools**
-   ```bash
-   make install-tools
-   ```
-
-3. **Install dependencies**
-   ```bash
-   make install-deps
-   ```
-
-4. **Start development stack**
-   ```bash
-   make dev
-   ```
-
-### Running Tests
+## Development
 
 ```bash
-# All tests
-make test
+cargo build              # Dev build
+cargo build --release    # Release build (~3.4MB)
+cargo test               # 1,017 tests
+cargo clippy             # Lint (0 warnings)
+cargo fmt                # Format
 
-# Unit tests only
-make test-unit
-
-# E2E tests
-make test-e2e
-
-# With coverage
-make test-coverage
+# Run the SQLite vs Markdown benchmark
+cargo test --test memory_comparison -- --nocapture
 ```
 
-### Code Style
+### Pre-push hook
+
+A git hook runs `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` before every push. Enable it once:
 
 ```bash
-# Format all code
-make format
-
-# Lint all code
-make lint
-
-# Run comprehensive checks
-make check
+git config core.hooksPath .githooks
 ```
 
-### Submitting Changes
+To skip the hook when you need a quick push during development:
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'feat: add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
+```bash
+git push --no-verify
+```
 
-### Contribution Guidelines
+## License
 
-- Follow the [Conventional Commits](https://www.conventionalcommits.org/) specification
-- Add tests for new features
-- Update documentation as needed
-- Ensure all CI checks pass
+MIT — see [LICENSE](LICENSE)
 
----
+## Contributing
 
-## 📚 Documentation
-
-- **[PRD](docs/prd/prd.md)** - Product Requirements Document
-- **[Architecture](docs/architecture/)** - Technical architecture and design
-- **[API Reference](docs/api/)** - Runtime HTTP API documentation
-- **[Security](docs/security/)** - Security audit and best practices
-- **[Testing](docs/testing/TESTING.md)** - Test strategy and coverage
-- **[Build System](BUILD_SYSTEM.md)** - Build and tooling guide
+See [CONTRIBUTING.md](CONTRIBUTING.md). Implement a trait, submit a PR:
+- New `Provider` → `src/providers/`
+- New `Channel` → `src/channels/`
+- New `Observer` → `src/observability/`
+- New `Tool` → `src/tools/`
+- New `Memory` → `src/memory/`
+- New `Tunnel` → `src/tunnel/`
+- New `Skill` → `~/.pryx/workspace/skills/<name>/`
 
 ---
 
-## 🗺️ Roadmap
-
-### v1.0 (Current)
-- ✅ Multi-channel support (Telegram, Discord, Slack)
-- ✅ 84+ AI providers via models.dev
-- ✅ Secure vault with Argon2id
-- ✅ MCP tool integration
-- ✅ Agent spawning
-- ✅ Rich TUI interface
-- ✅ Cost tracking and observability
-
-### v1.5 (Planned)
-- WhatsApp channel integration
-- Auto-update mechanism
-- Web UI for headless servers
-- Local LLM inference support
-- Plugin architecture
-
-### v2.0 (Future)
-- Mobile native apps (iOS, Android)
-- Skills marketplace
-- Advanced multi-device sync
-- Voice interface
-- Collaborative sessions
-
----
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) for details.
-
----
-
-## 🌟 Acknowledgments
-
-- **[Tauri](https://tauri.app/)** - Desktop application framework
-- **[SolidJS](https://www.solidjs.com/)** - Reactive UI library
-- **[OpenTUI](https://github.com/opencodeproject/opentui)** - Terminal UI framework
-- **[models.dev](https://models.dev)** - AI provider catalog
-- **[Model Context Protocol](https://modelcontextprotocol.io/)** - Extensible tool integration
-
----
-
-## 📞 Support
-
-- **GitHub:** [irfndi/pryx](https://github.com/irfndi/pryx)
-- **Documentation:** [docs.pryx.ai](https://docs.pryx.ai) (coming soon)
-- **Discord:** [discord.gg/pryx](https://discord.gg/pryx)
-- **Email:** support@pryx.ai
-
----
-
-**Made with ❤️ by the [irfndi/pryx](https://github.com/irfndi/pryx) & Pryx Community**
-
-*Take control of your AI. Be sovereign.*
+**Pryx** — Zero overhead. Zero compromise. Deploy anywhere. Swap anything. 🦀

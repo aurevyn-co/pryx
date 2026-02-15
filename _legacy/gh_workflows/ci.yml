@@ -1,0 +1,301 @@
+# GitHub Actions CI Pipeline for Pryx
+# Builds and tests all components: Rust host, Go runtime, React UI, Cloudflare Workers
+
+name: CI
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+    branches: ['**']
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Lint job - runs first to fail fast
+  lint:
+    name: Lint All Components
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Set up Python (for pre-commit)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Run pre-commit hooks
+        env:
+          SKIP: fmt,cargo-check,clippy,golangci-lint,oxfmt,oxlint,trailing-whitespace,end-of-file-fixer
+        run: pre-commit run --all-files
+
+  # Test host (Rust)
+  test-host:
+    name: Test Host (Rust + Tauri)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache Cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache Cargo build
+        uses: actions/cache@v4
+        with:
+          path: apps/host/target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Check formatting (rustfmt)
+        run: |
+          cd apps/host && cargo fmt -- --check
+        if: always()
+
+      - name: Run clippy (Rust linter)
+        run: |
+          cd apps/host && cargo clippy --lib -- -D warnings
+        if: always()
+
+      - name: Run tests
+        run: |
+          cd apps/host && cargo test --release --lib --verbose
+
+      - name: Install cargo-tarpaulin
+        run: |
+          cargo install cargo-tarpaulin
+
+      - name: Generate coverage report
+        run: |
+          cd apps/host && cargo tarpaulin --lib --out xml --out html --output-dir coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./apps/host/coverage/cobertura.xml
+          flags: host
+          name: host-coverage
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: host-test-results
+          path: |
+            apps/host/target/release/*.html
+            apps/host/target/**/*.json
+            apps/host/coverage/*.html
+
+  # Test runtime (Go)
+  test-runtime:
+    name: Test Runtime (Go)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+
+      - name: Install dependencies
+        working-directory: apps/runtime
+        run: go mod download
+
+      - name: Run tests
+        working-directory: apps/runtime
+        run: go test -v -race -coverprofile=coverage.out ./internal/...
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./apps/runtime/coverage.out
+          flags: runtime
+
+  # Test TUI (TypeScript)
+  test-tui:
+    name: Test TUI (TypeScript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.8
+
+      - name: Install dependencies
+        working-directory: apps/tui
+        run: bun install --frozen-lockfile
+
+      - name: Run tests with coverage
+        working-directory: apps/tui
+        run: bun run test:coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./apps/tui/coverage/coverage-final.json
+          flags: tui
+          name: tui-coverage
+
+      - name: Build TUI (CI bundle)
+        working-directory: apps/tui
+        run: bun run build:ci
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tui-build
+          path: apps/tui/dist
+
+  # Security audit
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Audit Go dependencies
+        working-directory: apps/runtime
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+        continue-on-error: true
+        if: always()
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Audit Rust dependencies
+        working-directory: apps/host
+        run: cargo install cargo-audit && cargo audit
+        continue-on-error: true
+        if: always()
+
+  # Build all components
+  build:
+    name: Build All Components
+    runs-on: ${{ matrix.os }}
+    needs: [lint, test-host, test-runtime, test-tui]
+    env:
+      RUST_TARGET: ${{ matrix.os == 'ubuntu-latest' && 'x86_64-unknown-linux-gnu' || matrix.os == 'macos-latest' && 'x86_64-apple-darwin' || 'x86_64-pc-windows-msvc' }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+          targets: ${{ env.RUST_TARGET }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.8
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install system dependencies (Ubuntu only)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Build host (Rust + Tauri)
+        run: |
+          cd apps/host && cargo build --release --lib --target ${{ env.RUST_TARGET }}
+
+      - name: Build runtime (Go)
+        working-directory: apps/runtime
+        run: go build -o bin/pryx-core-${{ runner.os }} ./cmd/pryx-core
+
+      - name: Build TUI (CI bundle)
+        run: |
+          cd apps/tui && bun install --frozen-lockfile && bun run build:ci
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pryx-${{ runner.os }}
+          path: |
+            apps/host/target/${{ env.RUST_TARGET }}/release
+            apps/runtime/bin
+            apps/tui/dist

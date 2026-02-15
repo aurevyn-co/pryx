@@ -1,0 +1,90 @@
+name = "pryx"
+compatibility_date = "2025-08-15"
+compatibility_flags = ["nodejs_compat"]
+main = "./dist/_worker.js"
+account_id = "a37da71c38a2f7ab732057d87d5d0f6e"
+
+[vars]
+ENVIRONMENT = "development"
+
+[assets]
+binding = "ASSETS"
+directory = "./dist"
+
+# Secrets expected per environment (set via Wrangler secret management):
+# - ADMIN_API_KEY
+# - LOCALHOST_ADMIN_KEY (non-production only)
+
+# D1 Database binding for admin persistence
+[[d1_databases]]
+binding = "DB"
+database_name = "pryx-db"
+database_id = "690fa544-1e7a-4acc-a4d1-8b899a057029"
+preview_database_id = "690fa544-1e7a-4acc-a4d1-8b899a057029"
+
+[env.staging]
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "pryx-db-staging"
+database_id = "690fa544-1e7a-4acc-a4d1-8b899a057029"
+preview_database_id = "690fa544-1e7a-4acc-a4d1-8b899a057029"
+
+[[env.staging.routes]]
+pattern = "staging.pryx.dev"
+custom_domain = true
+
+[env.production]
+
+[env.production.vars]
+ENVIRONMENT = "production"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "pryx-db"
+database_id = "690fa544-1e7a-4acc-a4d1-8b899a057029"
+preview_database_id = "690fa544-1e7a-4acc-a4d1-8b899a057029"
+
+[[env.production.routes]]
+pattern = "pryx.dev"
+custom_domain = true
+
+# KV Namespaces for auth and session storage (SHARED)
+[[kv_namespaces]]
+binding = "DEVICE_CODES"
+id = "1e85f99a90fc487ea99e10753f7abd72"
+
+[[kv_namespaces]]
+binding = "TOKENS"
+id = "d7c2e95e549842ce83ab6d9a4848fa95"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "580c90f74ca941ea91a460afc63d9474"
+
+[[kv_namespaces]]
+binding = "SESSION"
+id = "580c90f74ca941ea91a460afc63d9474"
+
+[observability]
+enabled = false
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 0.1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
+persist = true
+head_sampling_rate = 1
+
+# KV Namespace for telemetry and error tracking
+[[kv_namespaces]]
+binding = "TELEMETRY"
+id = "abca511f3d144dfd8f3dd4ba4b21fecd"

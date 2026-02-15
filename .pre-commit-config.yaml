@@ -1,112 +1,25 @@
-# Pre-commit hooks for Pryx
-# Framework: pre-commit v4.5.1
-# Config: https://pre-commit.com
-
+# Pre-commit hooks for Pryx (Rust)
 repos:
-  # General hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
+    rev: v4.5.0
     hooks:
-      # Check for merge conflict markers
-      - id: check-merge-conflict
-      # Check for large files (>500KB)
-      - id: check-added-large-files
-        args: ['--maxkb=500']
-      # Check JSON syntax
-      - id: check-json
-      # Check TOML syntax
-      - id: check-toml
-      # Check YAML syntax
-      - id: check-yaml
-      # Detect trailing whitespace
       - id: trailing-whitespace
-      # Detect mixed line endings (CRLF vs LF)
-      - id: mixed-line-ending
-      # Fix end of file (ensure newline at EOF)
       - id: end-of-file-fixer
-      # Check for symlinks that don't point anywhere
-      - id: check-symlinks
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: detect-private-key
 
-  # Rust-specific hooks
   - repo: https://github.com/doublify/pre-commit-rust
     rev: v1.0
     hooks:
-      # Rust format check
       - id: fmt
-        args: ['--', '--check']
-      # Rust clippy linting
       - id: cargo-check
-        args: ['--lib']
-      # Rust clippy with warnings as errors
       - id: clippy
-        args: ['--lib', '--', '-D', 'warnings']
 
-  # Go-specific hooks
-  - repo: https://github.com/golangci/golangci-lint
-    rev: v2.8.0
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.0
     hooks:
-      # Go format check
-      - id: golangci-lint
-        args:
-          - --disable-all
-          - --enable=gofmt,unused,ineffassign,staticcheck,structcheck,errcheck
-
-  # JavaScript/TypeScript hooks (Oxlint + Oxfmt)
-  - repo: local
-    hooks:
-      - id: oxfmt
-        name: Format with Oxfmt
-        entry: bunx oxfmt
-        language: system
-        types_or: [javascript, jsx, ts, tsx, json, css, scss, markdown, yaml]
-        exclude: |
-          (?x)^(
-            apps/.*/node_modules/|
-            apps/.*/dist/|
-            apps/.*/\.next/|
-            apps/.*/\.turbo/|
-            apps/.*/\.astro/|
-            node_modules/|
-            dist/|
-            .next/|
-            .git/|
-            package-lock\.json|
-            Cargo\.lock|
-            go\.sum|
-            vendor/
-          )
-      - id: oxlint
-        name: Lint with Oxlint
-        entry: bunx oxlint
-        language: system
-        types_or: [javascript, jsx, ts, tsx]
-        exclude: |
-          (?x)^(
-            apps/.*/node_modules/|
-            apps/.*/dist/|
-            node_modules/|
-            dist/|
-            \.test\.(js|ts|tsx)$|
-            \.spec\.(js|ts|tsx)$
-          )
-
-# CI configuration
-ci:
-  autofix_commit_msg: |
-    [pre-commit.ci] auto fixes from {config_path}
-
-  autofix_prs: true
-  autoupdate_branch: develop
-  autoupdate_commit_msg: 'chore: update pre-commit hooks'
-  autoupdate_schedule: monthly
-  # Skip hooks that require specific tooling or directory contexts
-  # These are handled by dedicated CI jobs (test-host, test-runtime, test-tui, lint)
-  skip:
-    - poetry-update
-    - poetry-lock-update
-    - fmt
-    - cargo-check
-    - clippy
-    - golangci-lint
-    - oxfmt
-    - oxlint
+      - id: gitleaks

@@ -1,0 +1,67 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+const success = Astro.url.searchParams.get('success');
+const error = Astro.url.searchParams.get('error');
+---
+
+<Layout title="Reset Password | Pryx Cloud">
+    <main class="auth-shell">
+        <section class="auth-card">
+            <div class="auth-header">
+                <a href="/" class="brand-link">
+                    <span class="brand-mark">&gt;_</span>
+                    <span class="brand-name">PRYX</span>
+                </a>
+                <h1>Reset password</h1>
+                <p>Enter your email to receive a reset link</p>
+            </div>
+
+            {success && (
+                <div class="success-banner">
+                    Check your email for a password reset link.
+                </div>
+            )}
+
+            {error && (
+                <div class="error-banner">
+                    {error === 'invalid_email' && 'Please enter a valid email address'}
+                    {error === 'not_found' && 'No account found with this email'}
+                </div>
+            )}
+
+            <form id="reset-form" action="/api/auth/reset" method="POST">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required placeholder="you@example.com" autocomplete="email" />
+                </div>
+
+                <button type="submit" class="btn-primary">Send Reset Link</button>
+            </form>
+
+            <p class="auth-footer">
+                Remember your password? <a href="/auth/login">Sign in</a>
+            </p>
+        </section>
+    </main>
+</Layout>
+
+<style>
+    .auth-shell { min-height: 100vh; display: grid; place-items: center; padding: 1.5rem; background: linear-gradient(168deg, #060a14, #0f1730); }
+    .auth-card { width: min(28rem, 100%); border: 1px solid rgba(104, 156, 255, 0.28); border-radius: 1rem; padding: 2rem; background: rgba(9, 16, 30, 0.9); font-family: 'Space Grotesk', system-ui, sans-serif; color: #eef3ff; }
+    .auth-header { text-align: center; margin-bottom: 2rem; }
+    .brand-link { display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; margin-bottom: 1.5rem; }
+    .brand-mark { display: flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 0.5rem; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: #081021; background: linear-gradient(130deg, #3f7cff, #2cc8a7); }
+    .brand-name { font-weight: 700; letter-spacing: 0.1em; color: #eef3ff; }
+    h1 { margin: 0 0 0.5rem; font-size: 1.5rem; }
+    .auth-header p { margin: 0; color: #aab8d8; font-size: 0.95rem; }
+    .success-banner { background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4); color: #4ade80; padding: 0.75rem 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem; font-size: 0.9rem; }
+    .error-banner { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5; padding: 0.75rem 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem; font-size: 0.9rem; }
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; font-size: 0.85rem; color: #aab8d8; margin-bottom: 0.5rem; }
+    input { width: 100%; padding: 0.75rem 1rem; border: 1px solid rgba(169, 199, 197, 0.3); border-radius: 0.5rem; background: rgba(5, 14, 20, 0.8); color: #eff8f6; font-size: 1rem; font-family: inherit; }
+    input:focus { outline: none; border-color: #3f7cff; }
+    .btn-primary { width: 100%; padding: 0.875rem; border: 0; border-radius: 0.5rem; font-weight: 700; font-size: 1rem; font-family: inherit; color: #081021; background: linear-gradient(130deg, #3f7cff, #2cc8a7); cursor: pointer; }
+    .auth-footer { text-align: center; margin-top: 1.5rem; color: #aab8d8; font-size: 0.9rem; }
+    .auth-footer a { color: #95ccff; }
+</style>

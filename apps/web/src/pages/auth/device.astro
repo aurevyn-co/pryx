@@ -1,0 +1,63 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+const code = Astro.url.searchParams.get('code') || '';
+const error = Astro.url.searchParams.get('error');
+---
+
+<Layout title="Authorize Device | Pryx Cloud">
+    <main class="auth-shell">
+        <section class="auth-card">
+            <div class="auth-header">
+                <span class="device-icon">⚡</span>
+                <h1>Authorize Device</h1>
+                {code ? (
+                    <p>Enter code <strong class="code">{code}</strong> to authorize this device</p>
+                ) : (
+                    <p>Enter the code displayed in your terminal</p>
+                )}
+            </div>
+
+            {error && (
+                <div class="error-banner">
+                    {error === 'invalid_code' && 'Invalid or expired code'}
+                    {error === 'not_authenticated' && 'Please sign in first'}
+                </div>
+            )}
+
+            <form id="device-form" action="/api/auth/device/authorize" method="POST">
+                <input type="hidden" name="code" value={code} />
+
+                {!code && (
+                    <div class="form-group">
+                        <label for="userCode">Device Code</label>
+                        <input type="text" id="userCode" name="code" required placeholder="ABC123" maxlength={6} style="text-transform: uppercase; text-align: center; font-size: 1.5rem; letter-spacing: 0.5em;" />
+                    </div>
+                )}
+
+                <button type="submit" class="btn-primary">Authorize Device</button>
+            </form>
+
+            <p class="auth-footer">
+                This will allow the CLI on your device to access your Pryx account.
+            </p>
+        </section>
+    </main>
+</Layout>
+
+<style>
+    .auth-shell { min-height: 100vh; display: grid; place-items: center; padding: 1.5rem; background: linear-gradient(168deg, #060a14, #0f1730); }
+    .auth-card { width: min(28rem, 100%); border: 1px solid rgba(104, 156, 255, 0.28); border-radius: 1rem; padding: 2rem; background: rgba(9, 16, 30, 0.9); font-family: 'Space Grotesk', system-ui, sans-serif; color: #eef3ff; text-align: center; }
+    .auth-header { margin-bottom: 2rem; }
+    .device-icon { font-size: 3rem; }
+    h1 { margin: 1rem 0 0.5rem; font-size: 1.5rem; }
+    .auth-header p { margin: 0; color: #aab8d8; font-size: 0.95rem; }
+    .code { color: #3f7cff; font-family: 'JetBrains Mono', monospace; }
+    .error-banner { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5; padding: 0.75rem 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem; font-size: 0.9rem; text-align: left; }
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; font-size: 0.85rem; color: #aab8d8; margin-bottom: 0.5rem; }
+    input { width: 100%; padding: 0.75rem 1rem; border: 1px solid rgba(169, 199, 197, 0.3); border-radius: 0.5rem; background: rgba(5, 14, 20, 0.8); color: #eff8f6; font-size: 1rem; font-family: inherit; }
+    input:focus { outline: none; border-color: #3f7cff; }
+    .btn-primary { width: 100%; padding: 0.875rem; border: 0; border-radius: 0.5rem; font-weight: 700; font-size: 1rem; font-family: inherit; color: #081021; background: linear-gradient(130deg, #3f7cff, #2cc8a7); cursor: pointer; }
+    .auth-footer { margin-top: 1.5rem; color: #6b7b8a; font-size: 0.85rem; }
+</style>

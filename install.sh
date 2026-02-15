@@ -124,7 +124,7 @@ get_latest_version() {
         return
     fi
     
-    curl -fsSL "https://api.github.com/repos/pryx-dev/pryx/releases/latest" \
+    curl -fsSL "https://api.github.com/repos/irfndi/pryx/releases/latest" \
         | grep '"tag_name"' \
         | sed -E 's/.*"v?([^"]+)".*/\1/' \
         | head -1
@@ -140,7 +140,7 @@ install_pryx() {
     platform="$(detect_platform)"
     version="${PRYX_VERSION:-$(get_latest_version)}"
     install_dir="$(get_install_dir)"
-    download_url="https://github.com/pryx-dev/pryx/releases/download/v${version}/pryx-${platform}.tar.gz"
+    download_url="https://github.com/irfndi/pryx/releases/download/v${version}/pryx-${platform}.tar.gz"
 
     log "Installing Pryx v${version} for ${platform}..."
     log "Install directory: ${install_dir}"
