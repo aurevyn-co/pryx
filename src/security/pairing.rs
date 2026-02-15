@@ -384,6 +384,19 @@ mod tests {
         assert!(is_public_bind("10.0.0.1"));
     }
 
+    #[test]
+    fn hostname_is_public() {
+        assert!(is_public_bind("0.0.0.0"));
+        assert!(is_public_bind("hostname.local"));
+        assert!(is_public_bind("my.server.com"));
+    }
+
+    #[test]
+    fn docker_bridge_is_public() {
+        assert!(is_public_bind("172.17.0.1"));
+        assert!(is_public_bind("172.16.0.1"));
+    }
+
     // ── constant_time_eq ─────────────────────────────────────
 
     #[test]

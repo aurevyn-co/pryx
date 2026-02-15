@@ -1629,4 +1629,72 @@ default_temperature = 0.7
         assert!(!g.allow_public_bind);
         assert!(g.paired_tokens.is_empty());
     }
+
+    #[test]
+    fn gateway_config_allows_valid_ports() {
+        let ports = [1, 80, 443, 8080, 42424, 65535];
+        for port in ports {
+            let g = GatewayConfig {
+                port,
+                ..GatewayConfig::default()
+            };
+            assert_eq!(g.port, port);
+        }
+    }
+
+    #[test]
+    fn gateway_config_host_variants() {
+        let hosts = ["127.0.0.1", "localhost", "0.0.0.0", "192.168.1.1"];
+        for host in hosts {
+            let g = GatewayConfig {
+                host: host.into(),
+                ..GatewayConfig::default()
+            };
+            assert_eq!(g.host, host);
+        }
+    }
+
+    #[test]
+    fn gateway_config_serialize_deserialize() {
+        let original = GatewayConfig {
+            port: 42424,
+            host: "127.0.0.1".into(),
+            require_pairing: true,
+            allow_public_bind: false,
+            paired_tokens: vec!["token1".into()],
+        };
+        let toml_str = toml::to_string(&original).unwrap();
+        let deserialized: GatewayConfig = toml::from_str(&toml_str).unwrap();
+        assert_eq!(deserialized.port, original.port);
+        assert_eq!(deserialized.host, original.host);
+        assert_eq!(deserialized.require_pairing, original.require_pairing);
+        assert_eq!(deserialized.allow_public_bind, original.allow_public_bind);
+        assert_eq!(deserialized.paired_tokens, original.paired_tokens);
+    }
+
+    #[test]
+    fn autonomy_config_serialize_deserialize() {
+        let original = AutonomyConfig {
+            level: AutonomyLevel::Full,
+            workspace_only: false,
+            allowed_commands: vec!["docker".into(), "kubectl".into()],
+            forbidden_paths: vec!["/etc".into(), "/root".into()],
+            max_actions_per_hour: 100,
+            max_cost_per_day_cents: 10000,
+        };
+        let toml_str = toml::to_string(&original).unwrap();
+        let deserialized: AutonomyConfig = toml::from_str(&toml_str).unwrap();
+        assert_eq!(deserialized.level, original.level);
+        assert_eq!(deserialized.workspace_only, original.workspace_only);
+        assert_eq!(deserialized.allowed_commands, original.allowed_commands);
+        assert_eq!(deserialized.forbidden_paths, original.forbidden_paths);
+        assert_eq!(
+            deserialized.max_actions_per_hour,
+            original.max_actions_per_hour
+        );
+        assert_eq!(
+            deserialized.max_cost_per_day_cents,
+            original.max_cost_per_day_cents
+        );
+    }
 }

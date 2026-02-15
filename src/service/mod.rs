@@ -278,4 +278,36 @@ mod tests {
         let path = file.to_string_lossy();
         assert!(path.ends_with(".config/systemd/user/pryx.service"));
     }
+
+    #[test]
+    fn xml_escape_handles_empty_string() {
+        assert_eq!(xml_escape(""), "");
+    }
+
+    #[test]
+    fn xml_escape_handles_already_escaped() {
+        // The function escapes all XML special chars, even if already escaped
+        let escaped = xml_escape("&lt;&gt;");
+        assert_eq!(escaped, "&amp;lt;&amp;gt;");
+    }
+
+    #[test]
+    fn run_capture_handles_long_output() {
+        let out = run_capture(Command::new("sh").args(["-lc", "printf 'a%.0s' {1..1000}"]))
+            .expect("long output should succeed");
+        assert_eq!(out.len(), 1000);
+    }
+
+    #[test]
+    fn run_capture_handles_binary_output() {
+        let out = run_capture(Command::new("sh").args(["-lc", "printf '\\x00\\x01\\x02'"]))
+            .expect("binary output should succeed");
+        assert!(!out.is_empty());
+    }
+
+    #[test]
+    fn run_checked_succeeds_on_zero_exit() {
+        let result = run_checked(Command::new("sh").args(["-lc", "exit 0"]));
+        assert!(result.is_ok());
+    }
 }
