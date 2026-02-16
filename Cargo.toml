@@ -49,6 +49,9 @@ sha2 = "0.10"
 # Async traits
 async-trait = "0.1"
 
+# Futures utilities
+futures = "0.3"
+
 # Lazy static
 once_cell = "1.19"
 
