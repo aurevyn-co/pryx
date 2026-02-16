@@ -8,6 +8,10 @@ pub mod enhanced_in_memory;
 pub mod example_daemon;
 pub mod factory;
 pub mod in_memory;
+#[cfg(test)]
+pub mod integration_tests;
+#[cfg(test)]
+pub mod performance_tests;
 pub mod traits;
 
 pub use broadcaster::EventBroadcaster;
