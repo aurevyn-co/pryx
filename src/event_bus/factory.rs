@@ -61,7 +61,7 @@ mod tests {
         async fn handle(
             &self,
             _event: &Event,
-        ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        ) -> Result<(), crate::event_bus::traits::EventBusError> {
             self.count.fetch_add(1, Ordering::SeqCst);
             Ok(())
         }

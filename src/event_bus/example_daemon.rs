@@ -3,7 +3,8 @@
 //! This shows how different components can communicate through the event bus
 
 use crate::config::Config;
-use crate::event_bus::{EventBroadcaster, EventBus, InMemoryEventBus};
+use crate::event_bus::traits::EventBusError;
+use crate::event_bus::{Event, EventBroadcaster, EventBus, InMemoryEventBus};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::json;
@@ -14,10 +15,7 @@ pub struct SystemLoggerHandler;
 
 #[async_trait]
 impl crate::event_bus::EventHandler for SystemLoggerHandler {
-    async fn handle(
-        &self,
-        event: &crate::event_bus::Event,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn handle(&self, event: &Event) -> Result<(), EventBusError> {
         match event.topic.as_str() {
             "agent.start" => {
                 tracing::info!("Agent started: {}", event.payload);
@@ -51,10 +49,7 @@ pub struct ErrorHandler;
 
 #[async_trait]
 impl crate::event_bus::EventHandler for ErrorHandler {
-    async fn handle(
-        &self,
-        event: &crate::event_bus::Event,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn handle(&self, event: &Event) -> Result<(), EventBusError> {
         if event.topic == "system.error" {
             tracing::error!("System error occurred: {}", event.payload);
             // Could trigger alerting, recovery mechanisms, etc.
@@ -74,17 +69,20 @@ pub async fn setup_event_bus_example(config: &Config) -> anyhow::Result<()> {
     let error_handler = Arc::new(ErrorHandler);
 
     // Convert the error types to anyhow::Error
-    broadcaster
-        .subscribe(logger_handler)
-        .await
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
-    broadcaster
-        .subscribe(error_handler)
-        .await
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    match broadcaster.subscribe(logger_handler).await {
+        Ok(()) => (),
+        Err(EventBusError::SubscribeError(e)) => return Err(anyhow::anyhow!(e)),
+        Err(e) => return Err(anyhow::anyhow!("{e}")),
+    }
+
+    match broadcaster.subscribe(error_handler).await {
+        Ok(()) => (),
+        Err(EventBusError::SubscribeError(e)) => return Err(anyhow::anyhow!(e)),
+        Err(e) => return Err(anyhow::anyhow!("{e}")),
+    }
 
     // Example: Publish some events
-    broadcaster
+    match broadcaster
         .publish(
             "system.startup",
             json!({
@@ -94,9 +92,13 @@ pub async fn setup_event_bus_example(config: &Config) -> anyhow::Result<()> {
             }),
         )
         .await
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    {
+        Ok(()) => (),
+        Err(EventBusError::PublishError(e)) => return Err(anyhow::anyhow!(e)),
+        Err(e) => return Err(anyhow::anyhow!("{e}")),
+    }
 
-    broadcaster
+    match broadcaster
         .publish(
             "agent.ready",
             json!({
@@ -106,7 +108,11 @@ pub async fn setup_event_bus_example(config: &Config) -> anyhow::Result<()> {
             }),
         )
         .await
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    {
+        Ok(()) => (),
+        Err(EventBusError::PublishError(e)) => return Err(anyhow::anyhow!(e)),
+        Err(e) => return Err(anyhow::anyhow!("{e}")),
+    }
 
     tracing::info!("Event bus initialized and example events published");
 
@@ -137,10 +143,7 @@ mod tests {
 
         #[async_trait]
         impl crate::event_bus::EventHandler for SpecificHandler {
-            async fn handle(
-                &self,
-                event: &crate::event_bus::Event,
-            ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+            async fn handle(&self, event: &Event) -> Result<(), EventBusError> {
                 let mut events = self.received_events.lock().await;
                 events.push(event.topic.clone());
                 Ok(())

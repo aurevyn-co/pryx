@@ -1,4 +1,4 @@
-use super::traits::{Event, EventBus, EventHandler};
+use super::traits::{Event, EventBus, EventBusError, EventHandler};
 use std::sync::Arc;
 
 /// A convenience wrapper around `EventBus` for easy publishing of events
@@ -16,16 +16,13 @@ impl EventBroadcaster {
         &self,
         topic: impl Into<String>,
         payload: serde_json::Value,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<(), EventBusError> {
         let event = Event::new(topic, payload);
         self.event_bus.publish(event).await
     }
 
     /// Subscribe to all events with a handler
-    pub async fn subscribe(
-        &self,
-        handler: Arc<dyn EventHandler>,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn subscribe(&self, handler: Arc<dyn EventHandler>) -> Result<(), EventBusError> {
         self.event_bus.subscribe(handler).await
     }
 
@@ -34,7 +31,7 @@ impl EventBroadcaster {
         &self,
         topics: Vec<String>,
         handler: Arc<dyn EventHandler>,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<(), EventBusError> {
         self.event_bus.subscribe_to_topics(topics, handler).await
     }
 }
@@ -54,10 +51,7 @@ mod tests {
 
     #[async_trait]
     impl EventHandler for TestEventHandler {
-        async fn handle(
-            &self,
-            _event: &Event,
-        ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        async fn handle(&self, _event: &Event) -> Result<(), EventBusError> {
             self.received.store(true, Ordering::SeqCst);
             Ok(())
         }

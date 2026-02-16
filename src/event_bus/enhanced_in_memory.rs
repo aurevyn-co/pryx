@@ -1,4 +1,4 @@
-use super::traits::{Event, EventBus, EventBusStats, EventHandler};
+use super::traits::{Event, EventBus, EventBusError, EventBusStats, EventHandler};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -44,7 +44,7 @@ impl InMemoryEventBus {
 
 #[async_trait]
 impl EventBus for InMemoryEventBus {
-    async fn publish(&self, event: Event) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn publish(&self, event: Event) -> Result<(), EventBusError> {
         // Update stats
         {
             let mut stats = self.stats.write().await;
@@ -135,10 +135,7 @@ impl EventBus for InMemoryEventBus {
         Ok(())
     }
 
-    async fn subscribe(
-        &self,
-        handler: Arc<dyn EventHandler>,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn subscribe(&self, handler: Arc<dyn EventHandler>) -> Result<(), EventBusError> {
         // Subscribe to all topics using wildcard
         self.subscribe_to_topics(vec!["*".to_string()], handler)
             .await
@@ -148,7 +145,16 @@ impl EventBus for InMemoryEventBus {
         &self,
         topics: Vec<String>,
         handler: Arc<dyn EventHandler>,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<(), EventBusError> {
+        // Validate topics
+        for topic in &topics {
+            if topic.is_empty() {
+                return Err(EventBusError::InvalidTopic(
+                    "Topic cannot be empty".to_string(),
+                ));
+            }
+        }
+
         let mut subscribers = self.subscribers.write().await;
 
         for topic in topics {
