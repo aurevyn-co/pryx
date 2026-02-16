@@ -12,6 +12,7 @@
 )]
 
 pub mod config;
+pub mod event_bus;
 pub mod heartbeat;
 pub mod memory;
 pub mod observability;
