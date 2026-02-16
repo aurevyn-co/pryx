@@ -4,3 +4,6 @@
 [submodule ".temp_refs/openclaw"]
 	path = .temp_refs/openclaw
 	url = https://github.com/openclaw/openclaw
+[submodule ".temp_refs/zeroclaw"]
+	path = .temp_refs/zeroclaw
+	url = https://github.com/theonlyhennygod/zeroclaw.git
