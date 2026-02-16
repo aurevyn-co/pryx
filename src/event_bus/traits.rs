@@ -23,7 +23,7 @@ impl Event {
 #[async_trait]
 pub trait EventHandler: Send + Sync {
     async fn handle(&self, event: &Event) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
-    
+
     /// Optional method to specify which topics this handler is interested in
     /// Return None to receive all events, or Some(Vec<String>) to receive only specific topics
     fn topics(&self) -> Option<Vec<String>> {

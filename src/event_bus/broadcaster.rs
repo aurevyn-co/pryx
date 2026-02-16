@@ -1,7 +1,7 @@
 use super::traits::{Event, EventBus, EventHandler};
 use std::sync::Arc;
 
-/// A convenience wrapper around EventBus for easy publishing of events
+/// A convenience wrapper around `EventBus` for easy publishing of events
 pub struct EventBroadcaster {
     event_bus: Arc<dyn EventBus>,
 }
@@ -54,7 +54,10 @@ mod tests {
 
     #[async_trait]
     impl EventHandler for TestEventHandler {
-        async fn handle(&self, _event: &Event) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        async fn handle(
+            &self,
+            _event: &Event,
+        ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             self.received.store(true, Ordering::SeqCst);
             Ok(())
         }

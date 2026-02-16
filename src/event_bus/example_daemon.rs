@@ -2,12 +2,12 @@
 //!
 //! This shows how different components can communicate through the event bus
 
-use crate::event_bus::{EventBus, EventBroadcaster, InMemoryEventBus};
 use crate::config::Config;
+use crate::event_bus::{EventBroadcaster, EventBus, InMemoryEventBus};
+use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::json;
 use std::sync::Arc;
-use anyhow::Result;
 
 /// Example event handler that logs system events
 pub struct SystemLoggerHandler;
@@ -35,7 +35,11 @@ impl crate::event_bus::EventHandler for SystemLoggerHandler {
                 tracing::info!("Memory recalled: {}", event.payload);
             }
             _ => {
-                tracing::debug!("Received event on topic '{}': {}", event.topic, event.payload);
+                tracing::debug!(
+                    "Received event on topic '{}': {}",
+                    event.topic,
+                    event.payload
+                );
             }
         }
         Ok(())
@@ -70,8 +74,14 @@ pub async fn setup_event_bus_example(config: &Config) -> anyhow::Result<()> {
     let error_handler = Arc::new(ErrorHandler);
 
     // Convert the error types to anyhow::Error
-    broadcaster.subscribe(logger_handler).await.map_err(|e| anyhow::anyhow!("{}", e))?;
-    broadcaster.subscribe(error_handler).await.map_err(|e| anyhow::anyhow!("{}", e))?;
+    broadcaster
+        .subscribe(logger_handler)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    broadcaster
+        .subscribe(error_handler)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     // Example: Publish some events
     broadcaster
@@ -84,7 +94,7 @@ pub async fn setup_event_bus_example(config: &Config) -> anyhow::Result<()> {
             }),
         )
         .await
-        .map_err(|e| anyhow::anyhow!("{}", e))?;
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     broadcaster
         .publish(
@@ -96,7 +106,7 @@ pub async fn setup_event_bus_example(config: &Config) -> anyhow::Result<()> {
             }),
         )
         .await
-        .map_err(|e| anyhow::anyhow!("{}", e))?;
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     tracing::info!("Event bus initialized and example events published");
 

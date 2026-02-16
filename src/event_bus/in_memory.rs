@@ -1,12 +1,15 @@
-use super::traits::{Event, EventBus, EventHandler, EventBusStats};
+use super::traits::{Event, EventBus, EventBusStats, EventHandler};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+/// Type alias for the complex subscriber mapping
+type SubscriberMap = HashMap<String, Vec<Arc<dyn EventHandler>>>;
+
 /// In-memory event bus implementation using tokio channels
 pub struct InMemoryEventBus {
-    subscribers: Arc<RwLock<HashMap<String, Vec<Arc<dyn EventHandler>>>>>,
+    subscribers: Arc<RwLock<SubscriberMap>>,
     stats: Arc<RwLock<EventBusStats>>,
 }
 
@@ -40,11 +43,11 @@ impl EventBus for InMemoryEventBus {
 
         // Collect all handlers that should receive this event
         let mut handlers_to_notify = Vec::new();
-        
+
         if let Some(handlers) = topic_specific {
             handlers_to_notify.extend(handlers.iter().cloned());
         }
-        
+
         if let Some(handlers) = wildcard_subscribers {
             handlers_to_notify.extend(handlers.iter().cloned());
         }
@@ -59,7 +62,7 @@ impl EventBus for InMemoryEventBus {
         for handler in &handlers_to_notify {
             // Clone the event for this handler
             let event_clone = event.clone();
-            
+
             // Spawn a task to handle the event asynchronously
             let handler_clone = Arc::clone(handler);
             tokio::spawn(async move {
@@ -83,7 +86,8 @@ impl EventBus for InMemoryEventBus {
         handler: Arc<dyn EventHandler>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // Subscribe to all topics using wildcard
-        self.subscribe_to_topics(vec!["*".to_string()], handler).await
+        self.subscribe_to_topics(vec!["*".to_string()], handler)
+            .await
     }
 
     async fn subscribe_to_topics(
@@ -92,9 +96,12 @@ impl EventBus for InMemoryEventBus {
         handler: Arc<dyn EventHandler>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut subscribers = self.subscribers.write().await;
-        
+
         for topic in topics {
-            subscribers.entry(topic).or_insert_with(Vec::new).push(handler.clone());
+            subscribers
+                .entry(topic)
+                .or_insert_with(Vec::new)
+                .push(handler.clone());
         }
 
         // Update stats

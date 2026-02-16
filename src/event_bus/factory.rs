@@ -1,4 +1,4 @@
-use super::{EventBus, InMemoryEventBus, EnhancedEventBus};
+use super::{EnhancedEventBus, EventBus, InMemoryEventBus};
 use crate::event_bus::enhanced_in_memory::DeliveryGuarantee;
 use std::sync::Arc;
 
@@ -29,12 +29,9 @@ impl Default for EventBusConfig {
 pub fn create_event_bus(config: &EventBusConfig) -> Arc<dyn EventBus> {
     match config.bus_type {
         EventBusType::InMemory => Arc::new(InMemoryEventBus::new()),
-        EventBusType::Enhanced => {
-            Arc::new(
-                EnhancedEventBus::new()
-                    .with_delivery_guarantee(config.delivery_guarantee.clone())
-            )
-        }
+        EventBusType::Enhanced => Arc::new(
+            EnhancedEventBus::new().with_delivery_guarantee(config.delivery_guarantee.clone()),
+        ),
     }
 }
 
@@ -53,7 +50,10 @@ mod tests {
 
     #[async_trait]
     impl crate::event_bus::EventHandler for TestCounterHandler {
-        async fn handle(&self, _event: &Event) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        async fn handle(
+            &self,
+            _event: &Event,
+        ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             self.count.fetch_add(1, Ordering::SeqCst);
             Ok(())
         }
@@ -65,20 +65,23 @@ mod tests {
             bus_type: EventBusType::InMemory,
             ..Default::default()
         };
-        
+
         let bus = create_event_bus(&config);
         let broadcaster = EventBroadcaster::new(bus);
-        
+
         let counter = Arc::new(AtomicUsize::new(0));
         let handler = Arc::new(TestCounterHandler {
             count: counter.clone(),
         });
-        
+
         broadcaster.subscribe(handler).await.unwrap();
-        broadcaster.publish("test", json!({"data": "value"})).await.unwrap();
-        
+        broadcaster
+            .publish("test", json!({"data": "value"}))
+            .await
+            .unwrap();
+
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-        
+
         assert_eq!(counter.load(Ordering::SeqCst), 1);
     }
 
@@ -89,20 +92,23 @@ mod tests {
             delivery_guarantee: DeliveryGuarantee::AtMostOnce,
             ..Default::default()
         };
-        
+
         let bus = create_event_bus(&config);
         let broadcaster = EventBroadcaster::new(bus);
-        
+
         let counter = Arc::new(AtomicUsize::new(0));
         let handler = Arc::new(TestCounterHandler {
             count: counter.clone(),
         });
-        
+
         broadcaster.subscribe(handler).await.unwrap();
-        broadcaster.publish("test", json!({"data": "value"})).await.unwrap();
-        
+        broadcaster
+            .publish("test", json!({"data": "value"}))
+            .await
+            .unwrap();
+
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-        
+
         assert_eq!(counter.load(Ordering::SeqCst), 1);
     }
 }
