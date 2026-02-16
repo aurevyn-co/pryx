@@ -15,11 +15,11 @@ pub struct InMemoryEventBus {
     delivery_guarantee: DeliveryGuarantee,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DeliveryGuarantee {
     AtMostOnce,
-    AtLeastOnce, // Would require persistent storage
-    ExactlyOnce, // Would require persistent storage + deduplication
+    AtLeastOnce, // Would require persistent storage for full implementation
+    ExactlyOnce, // Would require persistent storage + deduplication for full implementation
 }
 
 impl InMemoryEventBus {
@@ -64,7 +64,10 @@ impl EventBus for InMemoryEventBus {
         }
 
         if let Some(handlers) = wildcard_subscribers {
-            handlers_to_notify.extend(handlers.iter().cloned());
+            // Add wildcard handlers (duplicates may occur but that's acceptable)
+            for handler in handlers {
+                handlers_to_notify.push(Arc::clone(handler));
+            }
         }
 
         // Drop the read lock before processing events
@@ -89,7 +92,7 @@ impl EventBus for InMemoryEventBus {
             }
             DeliveryGuarantee::AtLeastOnce => {
                 // In a real implementation, this would involve persistent storage
-                // For now, we'll simulate by awaiting each handler
+                // For now, we'll simulate by logging the intent
                 for handler in &handlers_to_notify {
                     let event_clone = event.clone();
                     let handler_clone = Arc::clone(handler);
@@ -97,8 +100,8 @@ impl EventBus for InMemoryEventBus {
                     // and retry until acknowledged
                     tokio::spawn(async move {
                         if let Err(e) = handler_clone.handle(&event_clone).await {
-                            tracing::error!(
-                                "Event handler error (delivery guarantee failed): {}",
+                            tracing::warn!(
+                                "Event handler failed, in a real at-least-once system this would be retried: {}",
                                 e
                             );
                         }
@@ -107,14 +110,14 @@ impl EventBus for InMemoryEventBus {
             }
             DeliveryGuarantee::ExactlyOnce => {
                 // This would require deduplication mechanisms and persistent storage
-                // For now, we'll treat it similarly to AtLeastOnce
+                // For now, we'll treat it similarly to AtLeastOnce but with a note
                 for handler in &handlers_to_notify {
                     let event_clone = event.clone();
                     let handler_clone = Arc::clone(handler);
                     tokio::spawn(async move {
                         if let Err(e) = handler_clone.handle(&event_clone).await {
-                            tracing::error!(
-                                "Event handler error (delivery guarantee failed): {}",
+                            tracing::warn!(
+                                "Event handler failed, in a real exactly-once system this would be retried with deduplication: {}",
                                 e
                             );
                         }
@@ -155,7 +158,7 @@ impl EventBus for InMemoryEventBus {
                 .push(handler.clone());
         }
 
-        // Update stats
+        // Update stats - increment only once per handler, not per topic
         let mut stats = self.stats.write().await;
         stats.active_handlers += 1;
 

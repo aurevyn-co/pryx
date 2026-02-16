@@ -2,17 +2,24 @@ use super::{EnhancedEventBus, EventBus, InMemoryEventBus};
 use crate::event_bus::enhanced_in_memory::DeliveryGuarantee;
 use std::sync::Arc;
 
-#[derive(Debug, Clone)]
+/// Types of event buses that can be created
+#[derive(Debug, Clone, PartialEq)]
 pub enum EventBusType {
+    /// Basic in-memory event bus with simple pub/sub
     InMemory,
+    /// Enhanced in-memory event bus with delivery guarantees
     Enhanced,
     // Future: Redis, RabbitMQ, etc.
 }
 
+/// Configuration for creating an event bus instance
 #[derive(Debug, Clone)]
 pub struct EventBusConfig {
+    /// Type of event bus to create
     pub bus_type: EventBusType,
+    /// Size of internal buffers (currently unused but reserved for future use)
     pub buffer_size: usize,
+    /// Delivery guarantee level for the event bus
     pub delivery_guarantee: DeliveryGuarantee,
 }
 
@@ -26,6 +33,7 @@ impl Default for EventBusConfig {
     }
 }
 
+/// Creates an event bus instance based on the provided configuration
 pub fn create_event_bus(config: &EventBusConfig) -> Arc<dyn EventBus> {
     match config.bus_type {
         EventBusType::InMemory => Arc::new(InMemoryEventBus::new()),
@@ -110,5 +118,13 @@ mod tests {
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
 
         assert_eq!(counter.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn test_config_default_values() {
+        let config = EventBusConfig::default();
+        assert_eq!(config.bus_type, EventBusType::InMemory);
+        assert_eq!(config.buffer_size, 100);
+        assert_eq!(config.delivery_guarantee, DeliveryGuarantee::AtMostOnce);
     }
 }
